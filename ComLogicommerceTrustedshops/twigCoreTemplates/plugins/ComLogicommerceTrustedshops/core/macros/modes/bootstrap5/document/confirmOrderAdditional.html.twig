@@ -1,0 +1,55 @@
+{% set orderId = args.order.documentNumber %}
+{% set orderEmail = args.order.user.email %}
+{% set orderAmount = args.order.total|round(2) %}
+{% set orderCurrency = "" %}
+{% for currency in args.order.currencies %}
+    {% set orderCurrency = currency.code %}
+{% endfor %}
+{% set orderPaymentType = args.order.paymentSystem.name %}
+{% set orderDeliveryDate = "" %}
+{% set bindingType = "sku" %}
+{% for plugin in args.confirmOrderPlugins %}
+    {% if plugin.pluginModule == 'com.logicommerce.trustedshops' %}
+        {% for property in plugin.properties %}
+            {% if property.name == constant('Plugins\\ComLogicommerceTrustedshops\\Enums\\PluginPropertiesPropertyNames::BINDINGTYPE') %}
+                {% set bindingType = property.value %}
+            {% endif %}
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+<div id="trustedShopsCheckout" style="display: none;">
+    <span id="tsCheckoutOrderNr">{{orderId}}</span>
+    <span id="tsCheckoutBuyerEmail">{{orderEmail}}</span>
+    <span id="tsCheckoutOrderAmount">{{orderAmount}}</span>
+    <span id="tsCheckoutOrderCurrency">{{orderCurrency}}</span>
+    <span id="tsCheckoutOrderPaymentType">{{orderPaymentType}}</span>
+    <span id="tsCheckoutOrderEstDeliveryDate">{{orderDeliveryDate}}</span>
+    <!-- product reviews start -->
+    <!-- for each product in the basket full set of data is required -->
+    {% for item in args.order.items %}
+        {% set productUrl = item.link %}
+        {% set productImage = item.image %}
+        {% set productName = item.name %}
+        {% set productSku = item.codes.sku %}
+        {% if bindingType == 'sku' and item.codes.sku|length > 0 %}
+            {% set productSku = item.codes.sku %}
+        {% elseif bindingType == 'manufacturerSku' and item.codes.manufacturerSku|length > 0 %}
+            {% set productSku = item.codes.manufacturerSku %}
+        {% elseif bindingType == 'ean' and item.codes.ean|length > 0 %}
+            {% set productSku = item.codes.ean %}
+        {% endif %}
+        {% set productGtin = item.codes.ean %}
+        {% set productMpn = item.codes.ean %}
+        {% set productBrand = "" %}
+        <span class="tsCheckoutProductItem">
+            <span class="tsCheckoutProductUrl">{{productUrl}}</span>
+            <span class="tsCheckoutProductImageUrl">{{productImage}}</span>
+            <span class="tsCheckoutProductName">{{productName}}</span>
+            <span class="tsCheckoutProductSKU">{{productSku}}</span>
+            <span class="tsCheckoutProductGTIN">{{productGtin}}</span>
+            <span class="tsCheckoutProductMPN">{{productMpn}}</span>
+            <span class="tsCheckoutProductBrand">{{productBrand}}</span>
+        </span>
+    {% endfor %}
+    <!-- product reviews end -->
+</div>

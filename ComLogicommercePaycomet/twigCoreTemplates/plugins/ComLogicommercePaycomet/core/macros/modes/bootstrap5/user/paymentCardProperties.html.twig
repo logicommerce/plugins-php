@@ -1,0 +1,18 @@
+<div class="userPaymentCards userPaymentCardData">
+    <div class="field identifier">
+        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_IDENTIFIED')] }}:
+        {{ pluginPaymentToken.data.identifier }}
+    </div>
+    <div class="field identifier">
+        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_REFERENCE')] }}:
+        {{ pluginPaymentToken.token }}
+    </div>
+    <div class="field cardNumber">
+        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_CARD_NUMBER')] }}:
+        {{ pluginPaymentToken.data.cardNumber }}
+    </div>
+    <div class="field expiryDate">
+        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_EXPIRY_DATE')] }}:
+        {{ pluginPaymentToken.data.expiryDate }}
+    </div>
+</div>

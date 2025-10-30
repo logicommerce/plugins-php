@@ -1,0 +1,40 @@
+{% set lcData = {
+    id: plugin.id
+} %}
+{% set merchantId = "" %}
+{% set publicKey = "" %}
+{% set accountOrigin = "EU" %}
+
+{% if args.order is not empty %}
+    {% set lcData = {
+        id: plugin.id,
+        orderId: args.order.id
+    } %}
+{% endif %}
+
+{% for property in plugin.properties.properties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::MERCHANTID') %}
+        {% set merchantId = property.value %}
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::PUBLICKEY') %}
+		{% set publicKey = property.value %}
+	{% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::ACCOUNTORIGIN') %}
+		{% set accountOrigin = property.value %}
+	{% endif %}
+{% endfor %}
+
+<div id="AmazonPayButton{{plugin.id}}-{{args.id}}"
+    class="amz-express-checkout-plugin express-checkout-plugin">
+</div>
+<script type="text/javascript" charset="utf-8">
+    document.addEventListener("DOMContentLoaded", function(event) {
+        var lcAmazonPay = new LcAmazonPay();
+        lcAmazonPay.setMerchantId('{{merchantId}}');
+        lcAmazonPay.setPublicKey('{{publicKey}}');
+        lcAmazonPay.setPluginId('{{plugin.id}}');
+        lcAmazonPay.setProductId('{{args.id}}');
+        lcAmazonPay.setAccountOrigin('{{accountOrigin}}');
+        lcAmazonPay.renderPayButton("AmazonPayButton{{plugin.id}}-{{args.id}}");
+    });
+</script>

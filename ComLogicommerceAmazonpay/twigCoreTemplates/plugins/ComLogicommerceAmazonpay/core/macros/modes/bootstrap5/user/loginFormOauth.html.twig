@@ -1,0 +1,41 @@
+{% set lcData = {
+    plugin: 'com.logicommerce.amazonpay'
+} %}
+{% set merchantId = "" %}
+{% set publicKey = "" %}
+{% set amzLogin = false %}
+{% set accountOrigin = "EU" %}
+{% for property in args.oauthPlugin.properties.properties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::MERCHANTID') %}
+        {% set merchantId = property.value %}
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::PUBLICKEY') %}
+		{% set publicKey = property.value %}
+	{% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::AMZLOGIN') %}
+    	{% if property.value == 'true' %}
+			{% set amzLogin = true %}
+		{% endif %}
+	{% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::ACCOUNTORIGIN') %}
+		{% set accountOrigin = property.value %}
+	{% endif %}
+{% endfor %}
+{% set uid = random(10000000, 99999999) %}
+
+{% if amzLogin %}
+<div class="amazonpay-plugin social-connect-plugin">
+    <div id="AmazonPayLoginButton_{{uid}}"></div>
+</div>
+
+<script type="text/javascript" charset="utf-8">
+    document.addEventListener("DOMContentLoaded", function(event) {
+        var lcAmazonPay = new LcAmazonPay();
+        lcAmazonPay.setMerchantId('{{merchantId}}');
+        lcAmazonPay.setPublicKey('{{publicKey}}');
+        lcAmazonPay.setPluginId('{{args.oauthPlugin.id}}');
+        lcAmazonPay.setAccountOrigin('{{accountOrigin}}');
+        lcAmazonPay.renderLoginButton("AmazonPayLoginButton_{{uid}}")
+    });
+</script>
+{% endif %}

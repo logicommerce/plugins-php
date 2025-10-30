@@ -1,0 +1,39 @@
+{% set presenttoshopper = false %}
+{% for property in args.order.additionalInformation %}
+    {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::STRIPE_ACTION')
+        and property.value == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER') %}
+        {% set presenttoshopper = true %}
+    {% endif %}
+{% endfor %}
+{% if presenttoshopper %}
+    <div class="confirmOrderContent">
+        {% for property in args.order.additionalInformation %}
+            {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_INSTRUCTIONS') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId stripe-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceStripe\\Enums\\LanguageLabels::COM_LOGICOMMERCE_STRIPE_INSTRUCTIONS')] }}
+                <a class="stripeInstrucions" href="{{property.value}}">pagar</a>
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_ENTITY') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId stripe-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceStripe\\Enums\\LanguageLabels::COM_LOGICOMMERCE_STRIPE_ENTITY')] }}: {{property.value}}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_EXPIRY_DATE') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId stripe-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceStripe\\Enums\\LanguageLabels::COM_LOGICOMMERCE_STRIPE_EXPIRY_DATE')] }}: {{ formatDateTime(property.values.expiryDate) }}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_REFERENCE') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId stripe-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceStripe\\Enums\\LanguageLabels::COM_LOGICOMMERCE_STRIPE_REFERENCE')] }}: {{property.value}}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_QR_CODEDATA') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId stripe-{{property.name}}">
+                <img class="stripeQR" src="{{property.value}}" />
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}

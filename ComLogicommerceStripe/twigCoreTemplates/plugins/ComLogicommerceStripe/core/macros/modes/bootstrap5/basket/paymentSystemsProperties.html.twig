@@ -1,0 +1,36 @@
+{% set publicKey = "test_key" %}
+{% set secretKey = "test" %}
+{% set wallets = false %}
+{% for property in paymentSystem.pluginProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\PluginPropertiesPropertyNames::PUBLICKEY') %}
+        {% set publicKey = property.value %}
+    {% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\PluginPropertiesPropertyNames::SECRETKEY') %}
+        {% set secretKey = "live" %}
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\PluginPropertiesPropertyNames::WALLETS') %}    
+		{% if property.value == 'true' %}
+			{% set wallets = true %}
+		{% endif %}
+    {% endif %}
+{% endfor %}
+{% set paymentMethod = "card" %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+	{% if property.name == constant('Plugins\\ComLogicommerceStripe\\Enums\\PluginPropertiesConnectorItemPropertyNames::PAYMENTMETHOD') %}
+		{% set paymentMethod = property.value %}
+	{% endif %}
+{% endfor %}
+{% set currency = args.basket.basketUser.user.currencyCode %}
+{% set total = (args.basket.totals.total * 100 )| round %}
+{% set intentId = "" %}
+<div id="stripe_{{paymentSystem.id}}"></div>
+<div id="stripeCheckoutAPI{{paymentSystem.id}}"
+  data-method="{{paymentMethod}}"
+  data-config='{
+  	"locale":"{{session.generalSettings.language}}",
+	"publicKey":"{{publicKey}}",
+	"wallets":"{{wallets}}",
+	"total":{{total}},
+	"currency":"{{session.generalSettings.currency}}",
+	"country":"{{session.generalSettings.country}}"}'>
+</div>

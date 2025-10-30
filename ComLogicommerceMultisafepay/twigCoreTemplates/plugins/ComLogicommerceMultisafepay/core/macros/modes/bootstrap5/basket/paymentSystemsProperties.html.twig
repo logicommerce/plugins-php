@@ -1,0 +1,78 @@
+{% set environment = "test" %}
+{% set subPaymentSystemId = "card" %}
+{% set redirectGateway = "card" %}
+{% set tokenizable = false %}
+{% set accountId = 0 %}
+{% set googleMerchantId = "" %}
+{% set merchantName = "" %}
+{% set pluginId = paymentSystem.pluginId %}
+
+{% for property in paymentSystem.pluginProperties %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesPropertyNames::ACCOUNTID') %}
+		{% set accountId = property.value %}
+	{% endif %}
+{% endfor %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::ENVIRONMENT') %}
+		{% if property.value == 'true' %}
+        	{% set environment = "live" %}
+		{% endif %}	
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') %}
+		{% set subPaymentSystemId = property.value %}
+	{% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::REDIRECTGATEWAY') %}
+		{% set redirectGateway = property.value %}
+	{% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::TOKENIZABLE') %}
+		{% if property.value == 'true' %}
+			{% set tokenizable = true %}
+		{% endif %}
+	{% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::GAACCOUNTID') %}
+		{% set googleMerchantId = property.value %}
+	{% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::GAACCOUNTNAME') %}
+		{% set merchantName = property.value %}
+	{% endif %}	
+{% endfor %}
+
+{% set reference = "" %}
+{% if tokenizable %}
+	{% set reference = args.basket.basketUser.user.email %}
+{% endif %}
+
+{% set currency = args.basket.basketUser.user.currencyCode %}
+{% set total = (args.basket.totals.total * 100 )| round %}
+
+{% set apiTokenMSP = "" %}
+{% for action in paymentSystem.pluginActions %}
+	{% if action.getApiToken %}
+		{% set apiTokenMSP = action.getApiToken.data.apiToken %}
+	{% endif %}
+{% endfor %}
+
+<div id="multisafepay_{{paymentSystem.id}}"
+  data-config='
+  	{
+		"pluginId":"{{pluginId}}",
+		"environment":"{{environment}}",
+		"accountId":"{{accountId}}",
+  		"subPaymentSystemId":"{{subPaymentSystemId}}",
+		"redirectGateway":"{{redirectGateway}}",
+		"locale":"{{session.generalSettings.locale}}",
+		"apiTokenMSP":"{{apiTokenMSP}}",
+		"total":"{{total}}",
+		"currency":"{{session.generalSettings.currency}}",
+		"country":"{{session.generalSettings.country}}",
+		"tokenizable":"{{tokenizable}}",
+		{% if subPaymentSystemId == "GOOGLEPAY" %}
+		"gMerchantId":"{{googleMerchantId}}",
+		{% endif %}
+		{% if subPaymentSystemId == "GOOGLEPAY" or subPaymentSystemId == "APPLEPAY" %}
+		"gMerchantName":"{{merchantName}}",
+		{% endif %}
+		"reference":"{{reference}}"
+	}'>
+</div>
+<div id="MultiSafepayPayment_{{paymentSystem.id}}"></div>

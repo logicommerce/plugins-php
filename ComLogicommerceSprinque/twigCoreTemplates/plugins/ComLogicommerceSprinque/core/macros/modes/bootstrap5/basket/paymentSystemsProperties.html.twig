@@ -1,0 +1,21 @@
+
+{% set newBuyer = true %}
+{% for action in paymentSystem.pluginActions %}	
+	{% if action.getBuyerDetails %}
+        {% if action.getBuyerDetails.data.buyerId | length > 0 %}
+            {% set newBuyer = false %}
+            {% set buyerId = action.getBuyerDetails.data.buyerId %}
+            {% set availableCreditLimit = 0 %}
+            {% set availableCreditLimit = action.getBuyerDetails.data.credit %}
+            {% set creditStatus = action.getBuyerDetails.data.creditStatus %}
+            <div id="sprinqueBuyerData"
+                data-config = '{"firstTime":false,"buyerId":"{{buyerId}}","creditLimit":"{{creditLimit}}","creditStatus":"{{creditStatus}}","availableCreditLimit":"{{availableCreditLimit}}"}'>
+            </div>
+        {% endif %}
+	{% endif %}
+{% endfor %}
+{% if newBuyer == true %}
+    <div id="sprinqueBuyerData"
+        data-config = '{"firstTime":true}'>
+    </div>
+{% endif %}

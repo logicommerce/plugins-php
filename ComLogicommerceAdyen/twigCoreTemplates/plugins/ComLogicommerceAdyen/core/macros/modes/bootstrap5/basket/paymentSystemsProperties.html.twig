@@ -1,0 +1,62 @@
+{% set clientKey = "test_key" %}
+{% set environment = "test" %}
+{% set subPaymentSystemId = "card" %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAdyen\\Enums\\PluginPropertiesConnectorItemPropertyNames::CLIENTKEY') %}
+        {% set clientKey = property.value %}
+    {% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAdyen\\Enums\\PluginPropertiesConnectorItemPropertyNames::ENVIRONMENT') %}
+		{% if property.value == 'true' %}
+        	{% set environment = "live" %}
+		{% endif %}	
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceAdyen\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') %}
+		{% set subPaymentSystemId = property.value %}
+		{% if property.value == 'scheme' %}
+			{% set subPaymentSystemId = "card" %}
+    	{% endif %}
+	{% endif %}
+{% endfor %}
+
+{% set currency = args.basket.basketUser.user.currencyCode %}
+
+{% set currenciesNoDecimal = ['JPY', 'CVE', 'DJF', 'GNF', 'IDR', 'KMF', 'KRW', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF'] %}
+{% set currenciesThreeDecimal = ['BHD', 'IQD', 'JOD', 'KWD', 'LYD', 'OMR', 'TND'] %}
+
+{% if currency in currenciesNoDecimal %}
+    {% set total = (args.basket.totals.total) | round %}
+{% elseif currency in currenciesThreeDecimal %}
+    {% set total = (args.basket.totals.total * 1000) | round %}
+{% else %}
+    {% set total = (args.basket.totals.total * 100) | round %}
+{% endif %}
+
+{% set paymentMethods = "" %}
+{% set storedPaymentMethods = "" %}
+{% set recurringDetailReference = "" %}
+
+{% for action in paymentSystem.pluginActions %}	
+	{% if action.getPaymentMethods %}
+		{% set paymentMethods = action.getPaymentMethods.data.paymentMethods %}
+		{% set storedPaymentMethods = action.getPaymentMethods.data.storedPaymentMethods %}
+		{% set recurringDetailReference = action.getPaymentMethods.data.recurringDetailReference %}	
+	{% endif %}
+{% endfor %}
+
+<div id="adyen_{{paymentSystem.id}}"></div>
+{% if subPaymentSystemId == "card" %}
+	{% for card in recurringDetailReference %}
+	<div class="stored-card">
+		<div id="stored-icon-{{card}}"></div>
+		<div id="stored-displayName-{{card}}"></div>
+		<div id="stored-card-{{card}}"></div>
+	</div>
+	{% endfor %}
+{% endif %}
+
+<div id="adyenCheckoutAPI{{paymentSystem.id}}"
+  data-method="{{subPaymentSystemId}}"
+  data-payments='{{paymentMethods}}'
+  data-stored-payments='{{storedPaymentMethods}}'
+  data-config='{"environment":"{{environment}}","locale":"{{session.generalSettings.language}}","clientKey":"{{clientKey}}","total":"{{total}}","currency":"{{session.generalSettings.currency}}","country":"{{session.generalSettings.country}}"}'>
+</div>

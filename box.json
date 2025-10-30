@@ -1,0 +1,184 @@
+{
+    "chmod": "0755",
+	"files": [
+		"autoload.php",
+		"_config.php"
+	],
+	"main": false,
+	"finder": [
+		{
+			"name": "*.php",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "vendor"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommercePhpcommerce"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceRedsys"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceBizum"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceAdyen"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceFacebookconnect"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceGoogleconnect"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommercePaypalcommerceplatform"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceSequra"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceTrustedshops"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceMultisafepay"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceScalapay"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceGooglemaps"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceGooglecaptcha"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommercePaycomet"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommercePaypal"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceSprinque"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceAmazonpay"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceStripe"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceOct8ne"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceMicrosoftlogin"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceRedsysinsite"
+		}
+	],
+	"map":[
+		{
+			"ComLogicommerceRedsys/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceBizum/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceAdyen/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceFacebookconnect/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceGoogleconnect/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommercePaypalcommerceplatform/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceSequra/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceTrustedshops/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceMultisafepay/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceScalapay/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceGooglemaps/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceGooglecaptcha/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommercePaycomet/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommercePaypal/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceSprinque/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceAmazonpay/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceStripe/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceOct8ne/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceMicrosoftlogin/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceRedsysinsite/twigCoreTemplates":"twigCoreTemplates"
+		}
+	],
+	"output": "build/plugins.phar",
+    "stub": "phar-bootstrap.php"
+}

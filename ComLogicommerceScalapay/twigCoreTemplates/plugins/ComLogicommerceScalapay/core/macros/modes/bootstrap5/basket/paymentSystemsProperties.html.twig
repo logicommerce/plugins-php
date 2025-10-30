@@ -1,0 +1,35 @@
+{% set subPaymentType = "3" %}
+{% set showWidget = "true" %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceScalapay\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') %}
+        {% set subPaymentType = property.value %}
+    {% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceScalapay\\Enums\\PluginPropertiesConnectorItemPropertyNames::SHOWWIDGET') %}
+        {% set showWidget = property.value %}
+    {% endif %}    
+{% endfor %}
+{% if subPaymentType == "pay-in-4" %}
+    {% set subPaymentType = "4" %}
+{% elseif subPaymentType == "later" %}
+    {% set subPaymentType = "1" %}
+{% else %}
+    {% set subPaymentType = "3" %}
+{% endif %}
+{% set total = (args.basket.totals.total) %}
+{% if showWidget == "true" %}
+<script>$('scalapay-widget').parent().css("display","block");</script>
+<scalapay-widget
+    frequency-number='30'
+    number-of-installments='{{subPaymentType}}'
+    hide='false'
+    hide-price='true'
+    min='{{paymentSystem.minOrder}}'
+    max='{{paymentSystem.maxOrder}}'
+    amount='{{total|round(2)}}'
+    currency-position='before'
+    currency-display='symbol'
+    logo-size='100'
+    theme='primary'
+    locale='{{session.generalSettings.language|lower}}'>
+</scalapay-widget>
+{% endif %}

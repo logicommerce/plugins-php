@@ -1,0 +1,43 @@
+
+{% set merchantId = "" %}
+{% set publicKey = "" %}
+{% set accountOrigin = "EU" %}
+
+{% for property in expressCheckoutPlugin.properties.properties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::MERCHANTID') %}
+        {% set merchantId = property.value %}
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::PUBLICKEY') %}
+		{% set publicKey = property.value %}
+	{% endif %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesPropertyNames::ACCOUNTORIGIN') %}
+		{% set accountOrigin = property.value %}
+	{% endif %}
+{% endfor %}
+
+{% set lcData = {
+    id: expressCheckoutPlugin.id,
+    action: 'login'
+} %}
+
+<div class="amz-express-checkout-plugin express-checkout-plugin container {{ args.class }}">
+    {%- if args.showTitle -%}
+        <div class="title">{{ languageSheet[constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_AMAZONPAY_TITLE')] }}</div>
+    {%- endif -%}
+
+    <div id="AmazonPayButton{{ expressCheckoutPlugin.id }}"
+        class="amz-express-checkout-plugin express-checkout-plugin buyFormSubmit buy initializeDisabled">
+    </div>    
+    </a>
+</div>
+
+<script type="text/javascript" charset="utf-8">
+    document.addEventListener('DOMContentLoaded', function() {
+        var lcAmazonPay = new LcAmazonPay();
+        lcAmazonPay.setMerchantId('{{merchantId}}');
+        lcAmazonPay.setPublicKey('{{publicKey}}');
+        lcAmazonPay.setPluginId('{{expressCheckoutPlugin.id}}');
+        lcAmazonPay.setAccountOrigin('{{accountOrigin}}');
+        lcAmazonPay.renderPayButton("AmazonPayButton{{expressCheckoutPlugin.id}}")
+    });
+</script>

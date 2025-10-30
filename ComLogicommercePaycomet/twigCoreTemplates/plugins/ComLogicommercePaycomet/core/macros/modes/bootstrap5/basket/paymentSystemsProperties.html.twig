@@ -1,0 +1,52 @@
+{% set subPaymentSystemId = "1" %}
+{% set tokenizable = false %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommercePaycomet\\Enums\\PluginPropertiesConnectorItemPropertyNames::TOKENIZATION') %}
+        {% set tokenizable = property.value == 'true'?true:false  %}
+    {% endif %}
+	{% if property.name == constant('Plugins\\ComLogicommercePaycomet\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENT') %}
+		{% set subPaymentSystemId = property.value %}
+	{% endif %}
+{% endfor %}
+
+{% if tokenizable and subPaymentSystemId == "1" %}
+    <input type="hidden" name="module" class="basketSelectorPaymentAdditionalData_{{ paymentSystem.id }}" id="basketSelectorPayment_{{ paymentSystem.id }}_additionalData" value='{{paymentSystem.module}}'>
+    <input type="checkbox" name="saveToken" class="basketSelectorPaymentAdditionalData_{{ paymentSystem.id }}" id="basketSelectorPayment_{{ paymentSystem.id }}_additionalData_saveToken" value='1' checked="true" onclick="this.checked?this.value=1:this.value=0">
+
+    <label class="basketSelectorName paymentSystemSelectorName" for="basketSelectorPayment_{{ paymentSystem.id }}_additionalData_saveToken">
+        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_SAVE_TOKEN')] }}:
+    </label>
+
+    {% if paymentSystem.properties|length > 0 %}
+        <div class="basketSelector paymentSystemSelectorProperties ">
+            {% for property in paymentSystem.properties|sort((a,b)=>a.values.cardNumber<=>b.values.cardNumber) %}
+                {% set paymentPropertyValue = {
+                    'id': paymentSystem.id,
+                    'property': property.name
+                } %}
+                <div class="basketSelector paymentSystemSelector {% if property.selected == true %} basketSelectorSelected paymentSystemSelectorSelected {% endif %}">
+                    <input 
+                        class="basketSelectorInput basketSelectorPaymentInput" 
+                        type="radio" 
+                        name="basketSelectorPaymentProperty" 
+                        value='{{ outputJsonHtmlString(paymentPropertyValue) }}' 
+                        id="basketSelectorPaymentProperty_{{ paymentSystem.id }}_{{property.name}}" 
+                        autocomplete="off" 
+                        {% if property.selected == true %} checked="checked" {% endif %}
+                    >
+                    <label class="basketSelectorName paymentSystemSelectorName" for="basketSelectorPaymentProperty_{{ paymentSystem.id }}_{{property.name}}">
+                        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_IDENTIFIED')] }}:
+                        {{ property.values.tokenName }}</br>
+                        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_CARD_NUMBER')] }}:
+                        {{ property.values.cardNumber }}</br>
+                        {{ languageSheet[constant('Plugins\\ComLogicommercePaycomet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYCOMET_EXPIRY_DATE')] }}:
+                        {% if property.values.expiryDate is not null %}
+                            {{ property.values.expiryDate }}
+                        {% endif %}
+                        </br>
+                    </label>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endif %}

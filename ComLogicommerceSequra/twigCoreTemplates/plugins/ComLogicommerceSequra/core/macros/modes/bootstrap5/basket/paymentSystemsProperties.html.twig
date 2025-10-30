@@ -1,0 +1,11 @@
+{% set subPaymentType = "i1" %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceSequra\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') %}
+        {% set subPaymentType = property.value %}
+    {% endif %}
+{% endfor %}
+{% set total = (args.basket.totals.total * 100 )| round %}
+
+{% include 'plugins/ComLogicommerceSequra/core/macros/modes/' ~ coreMode ~ '/basket/basketWidgetConfig.html.twig' ignore missing with {'total': total, 'subPaymentType':subPaymentType} %}
+
+<div class="basketPaymentIframe basketPaymentIframe-id{{paymentSystem.id}} basketPaymentIframe{{subPaymentType}}"></div>

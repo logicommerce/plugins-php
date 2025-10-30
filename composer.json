@@ -1,0 +1,50 @@
+{
+	"name" : "logicommerce/plugins",
+	"homepage" : "https://www.logicommerce.com",
+	"minimum-stability" : "stable",
+	"type" : "project",
+	"description" : "Plugins for Logicommerce Commerces",
+	"keywords" : [
+		"ecommerce",
+		"plugins"
+	],
+	"autoload" : {
+		"files" : [
+			"ComLogicommerceRedsys/vendor/autoload.php",
+			"ComLogicommerceBizum/vendor/autoload.php",
+			"ComLogicommercePhpcommerce/vendor/autoload.php",
+			"ComLogicommerceAdyen/vendor/autoload.php",
+			"ComLogicommerceSequra/vendor/autoload.php",
+			"ComLogicommerceFacebookconnect/vendor/autoload.php",
+			"ComLogicommerceGoogleconnect/vendor/autoload.php",
+			"ComLogicommercePaypalcommerceplatform/vendor/autoload.php",
+			"ComLogicommerceTrustedshops/vendor/autoload.php",
+			"ComLogicommerceMultisafepay/vendor/autoload.php",
+			"ComLogicommerceScalapay/vendor/autoload.php",
+			"ComLogicommerceGooglemaps/vendor/autoload.php",
+			"ComLogicommerceGooglecaptcha/vendor/autoload.php",
+			"ComLogicommercePaycomet/vendor/autoload.php",
+			"ComLogicommerceSprinque/vendor/autoload.php",
+			"ComLogicommercePaypal/vendor/autoload.php",
+			"ComLogicommerceAmazonpay/vendor/autoload.php",
+			"ComLogicommerceStripe/vendor/autoload.php",
+			"ComLogicommerceMicrosoftlogin/vendor/autoload.php",
+			"ComLogicommerceOct8ne/vendor/autoload.php",
+			"ComLogicommerceRedsysinsite/vendor/autoload.php",
+			"_config.php"
+		]
+	},
+	"autoload-dev": {
+        "psr-4": {
+        	"Test\\" : "test/"
+        }
+    },
+    "require" : {
+		"php": "^8.2"
+	},
+	"require-dev" : {
+		"phpunit/phpunit" : "^9.5",
+		"phpunit/php-invoker" : "^3.1"
+	}
+}
+

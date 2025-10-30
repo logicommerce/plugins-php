@@ -1,0 +1,18 @@
+<div class="userPaymentCards userPaymentCardData">
+
+    <div class="field identifier">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\LanguageLabels::COM_LOGICOMMERCE_REDSYS_INSITE_IDENTIFIED')] }}:
+        {{ pluginPaymentToken.data.identifier }}
+    </div>
+    <div class="field cardNumber">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\LanguageLabels::COM_LOGICOMMERCE_REDSYS_INSITE_CARD_NUMBER')] }}:
+        {{ pluginPaymentToken.data.cardNumber }}
+    </div>
+    <div class="field expiryDate">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\LanguageLabels::COM_LOGICOMMERCE_REDSYS_INSITE_EXPIRY_DATE')] }}:
+        {% if pluginPaymentToken.data.expiryDate is not null %}
+            {{ formatDateTime( pluginPaymentToken.data.expiryDate) }}
+        {% endif %}
+    </div>
+
+</div>   

@@ -1,0 +1,45 @@
+{% set presenttoshopper = false %}
+{% for property in args.order.additionalInformation %}
+    {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::MSP_ACTION')
+        and property.value == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER') %}
+        {% set presenttoshopper = true %}
+    {% endif %}
+{% endfor %}
+{% if presenttoshopper %}
+    <div class="confirmOrderContent">
+        {% for property in args.order.additionalInformation %}
+            {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_ENTITY') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId msp-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_SHOPPER_ENTITY')] }}: {{property.value}}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_REFERENCE') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId msp-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_SHOPPER_REFERENCE')] }}: {{property.value}}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_IBAN') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId msp-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_IBAN')] }}: {{ property.value }}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_BIC') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId msp-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_BIC')] }}: {{property.value}}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_NAME') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId msp-{{property.name}}">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_NAME')] }}: {{property.value}}
+            </div>
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\AdditionalInformationNames::PRESENT_TO_SHOPPER_QR_CODE_DATA') %}
+            <div class="confirmOrderText confirmOrderData confirmOrderOrderId msp-{{property.name}}">
+                <a href="{{property.value}}">
+                    {{ languageSheet[constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_LINK')] }}
+                </a>
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}

@@ -1,0 +1,9 @@
+{% set lcData = {
+    plugin: 'com.logicommerce.facebookconnect'
+} %}
+<div>
+    <a class="facebook-connect" href="#" data-lc-function="oauth" data-lc-event="click" data-lc-data='{{ outputJsonHtmlString(lcData) }}'>
+        <img src="https://dfou7ztp2gaz6.cloudfront.net/646/themes/default/assets/img/facebook/facebookConnectSmall.png" alt="facebook">
+        <div class="text">{{ languageSheet[constant('Plugins\\ComLogicommerceFacebookconnect\\Enums\\LanguageLabels::COM_LOGICOMMERCE_FACEBOOK_CONNECT_LOGIN')] }}</div>
+    </a>
+</div>

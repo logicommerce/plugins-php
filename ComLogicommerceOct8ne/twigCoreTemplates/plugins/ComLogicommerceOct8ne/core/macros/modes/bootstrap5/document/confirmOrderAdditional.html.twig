@@ -1,0 +1,30 @@
+{% set orderId = args.order.id %}
+{% set orderUserId = args.order.user.id %}
+{% set orderAmount = args.order.total|round(2) %}
+{% set orderCurrency = "" %}
+{% for currency in args.order.currencies %}
+    {% set orderCurrency = currency.code %}
+{% endfor %}
+{% set license = "" %}
+{% set staticUrl = "static-eu.oct8ne.com/" %}
+{% for plugin in args.confirmOrderPlugins %}
+    {% if plugin.pluginModule == 'com.logicommerce.oct8ne' %}
+        {% for property in plugin.properties %}
+            {% if property.name == constant('Plugins\\ComLogicommerceOct8ne\\Enums\\PluginPropertiesPropertyNames::LICENSE') %}
+                {% set license = property.value %}
+            {% endif %}
+            {% if property.name == constant('Plugins\\ComLogicommerceOct8ne\\Enums\\PluginPropertiesPropertyNames::STATICURL') %}
+                {% set staticUrl = property.value %}
+            {% endif %}            
+        {% endfor %}
+    {% endif %}
+{% endfor %}
+<script id="oct8ne-sale-notification" type="text/javascript"
+src='https://{{staticUrl}}api/source/js/ext/sale-notification.js
+?license={{license}}
+&CurrencyCode={{orderCurrency}}
+&locale={{session.generalSettings.language}}
+&value={{orderAmount}}
+&reference={{orderId}}
+&customerId={{orderUserId}}'>
+</script>

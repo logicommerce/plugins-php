@@ -1,0 +1,9 @@
+{% set lcData = {
+    plugin: 'com.logicommerce.googleconnect'
+} %}
+<div class="google-connect-plugin social-connect-plugin">
+    <a class="google-connect" href="#" data-lc-function="oauth" data-lc-event="click" data-lc-data='{{ outputJsonHtmlString(lcData) }}'>
+        <img src="{{getAssetsPath(constant('FWK\\Core\\Resources\\Assets::ENVIRONMENT_PLUGINS'))}}/com.logicommerce.googleconnect/img/logo.png" alt="google">
+        <div class="text">{{ languageSheet[constant('Plugins\\ComLogicommerceGoogleconnect\\Enums\\LanguageLabels::COM_LOGICOMMERCE_GOOGLE_CONNECT_LOGIN')] }}</div>
+    </a>
+</div>

@@ -1,0 +1,20 @@
+{% set lcData = {
+    plugin: 'com.logicommerce.microsoftlogin'
+} %}
+<div class="microsoft-login-plugin social-connect-plugin">
+    <a class="microsoft-login" href="#" data-lc-function="oauth" data-lc-event="click" data-lc-data='{{ outputJsonHtmlString(lcData) }}'>
+        <div class="microsoft-login-button">
+            <div class="microsoft-login-logo">
+                <svg xmlns="http://www.w3.org/2000/svg" width="21" height="21" viewBox="0 0 21 21">
+                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                </svg>
+            </div>
+            <div class="microsoft-login-label">
+                {{ languageSheet[constant('Plugins\\ComLogicommerceMicrosoftlogin\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MICROSOFT_LOGIN_LOGIN')] }}
+            </div>
+        </div>
+    </a>
+</div>

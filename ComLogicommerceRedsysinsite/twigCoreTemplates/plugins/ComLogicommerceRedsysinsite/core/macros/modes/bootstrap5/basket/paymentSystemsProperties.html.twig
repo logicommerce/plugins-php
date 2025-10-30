@@ -1,0 +1,65 @@
+
+{% set tokenizable = true %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\PluginPropertiesConnectorItemPropertyNames::TOKENIZABLE') %}
+        {% set tokenizable = property.value == 'true'?true:false  %}
+    {% endif %}
+{% endfor %}
+
+<div id="redsysInSite_{{paymentSystem.id}}" style="display: none;">
+    <div id="card-form"></div>
+    <div id="redsysInsiteLoading" style="display: none;"></div>
+    <form name="datos">
+        <input type="hidden" id="token"></input>
+        <input type="hidden" id="errorCode"></input>
+    </form>
+</div>
+{% if tokenizable %}
+    <input type="hidden" name="module" class="basketSelectorPaymentAdditionalData_{{ paymentSystem.id }}" id="basketSelectorPayment_{{ paymentSystem.id }}_additionalData" value='{{paymentSystem.module}}'>
+    <input type="checkbox" name="saveToken" class="basketSelectorPaymentAdditionalData_{{ paymentSystem.id }}" id="basketSelectorPayment_{{ paymentSystem.id }}_additionalData_saveToken" value='1' checked="true" onclick="this.checked?this.value=1:this.value=0">
+
+    <label class="basketSelectorName paymentSystemSelectorName" for="basketSelectorPayment_{{ paymentSystem.id }}_additionalData_saveToken">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\LanguageLabels::COM_LOGICOMMERCE_REDSYS_INSITE_SAVE_TOKEN')] }}
+    </label>
+
+    {% if paymentSystem.properties|length > 0 %}
+        <div class="basketSelector paymentSystemSelectorProperties ">
+            {% for property in paymentSystem.properties|sort((a,b)=>a.values.cardNumber<=>b.values.cardNumber)  %}
+                {% set paymentPropertyValue = {
+                    'id': paymentSystem.id,
+                    'property': property.name
+                } %}
+                <div class="basketSelector paymentSystemSelector {% if property.selected == true %} basketSelectorSelected paymentSystemSelectorSelected {% endif %}">
+                    <input 
+                        class="basketSelectorInput basketSelectorPaymentInput" 
+                        type="radio" 
+                        name="basketSelectorPaymentProperty" 
+                        value='{{ outputJsonHtmlString(paymentPropertyValue) }}' 
+                        id="basketSelectorPaymentProperty_{{ paymentSystem.id }}_{{property.name}}" 
+                        autocomplete="off" 
+                        {% if property.selected == true %} checked="checked" {% endif %}
+                    >
+                    <label class="basketSelectorName paymentSystemSelectorName" for="basketSelectorPaymentProperty_{{ paymentSystem.id }}_{{property.name}}">
+                        {{ languageSheet[constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\LanguageLabels::COM_LOGICOMMERCE_REDSYS_INSITE_CARD_NUMBER')] }}:
+                        {{ property.values.cardNumber }}</br>
+                        {{ languageSheet[constant('Plugins\\ComLogicommerceRedsysinsite\\Enums\\LanguageLabels::COM_LOGICOMMERCE_REDSYS_INSITE_EXPIRY_DATE')] }}:
+                        {% if property.values.expiryDate is not null %}
+                            {{ formatDateTime(property.values.expiryDate) }}
+                        {% endif %}
+                        </br> 
+                    </label>
+                </div>        
+            {% endfor %}
+        </div>
+    {% endif %}
+{% endif %}
+{#
+<div id="redsysInSite_{{paymentSystem.id}}"
+ data-config='{
+  	"locale":"{{session.generalSettings.language}}",
+	"publicKey":"{{publicKey}}",
+	"commerceId":"{{wallets}}",
+	"total":{{total}},
+	"currency":"{{session.generalSettings.currency}}",
+	"country":"{{session.generalSettings.country}}"}'>
+</div>#}

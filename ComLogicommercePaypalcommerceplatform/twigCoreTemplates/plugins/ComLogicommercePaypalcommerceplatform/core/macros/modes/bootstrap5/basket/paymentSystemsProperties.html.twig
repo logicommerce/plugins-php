@@ -1,0 +1,54 @@
+{% set subpayment = "pcpPaypal" %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommercePaypalcommerceplatform\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTS') %}
+        {% set subpayment = property.value %}
+    {% endif %}
+{% endfor %}
+
+{% set clientToken = "" %}
+{% set clientSrc = "" %}
+{% set bncode = "" %}
+{% for action in paymentSystem.pluginActions %}
+	{% if action.getAccessToken %}
+		{% set clientToken = action.getAccessToken.data.response.clientToken %}
+        {% set clientSrc = action.getAccessToken.data.response.src %}
+        {% set bncode = action.getAccessToken.data.response.bnCode %}
+	{% endif %}
+{% endfor %}
+
+<div id="paypal-checkout-platform-{{paymentSystem.id}}" data-method="{{subpayment}}" style="display:none" client-token="{{clientToken}}" client-src="{{clientSrc}}" bncode="{{bncode}}">
+{% if subpayment == "pcpPaypal" %}
+    <div id="paypal-button-container" style="z-index: 9999; background: rgba(0,0,0,0.5); display: none; width: 100%; height: 100%; position: fixed; top: 0px; left: 0px;"></div>
+{% else %}
+<div id="paypal-layout-{{paymentSystem.id}}">
+<div id="paypal-card_container-{{paymentSystem.id}}" style="display:none;">
+    <style type="text/css">#card-number, #expiration-date, #cvv { height:40px } </style>
+    <form id="paypalCommerce-card-form">
+        <div class="form-group">
+            <label for="card-number"> 
+            {{ languageSheet[constant('Plugins\\ComLogicommercePaypalcommerceplatform\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYPAL_PLATFORM_CARD')] }}:
+            </label>
+            <div class="payment-form-field form-control" id="card-number"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="expiration-date">
+            {{ languageSheet[constant('Plugins\\ComLogicommercePaypalcommerceplatform\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYPAL_PLATFORM_EXPIRY_DATE')] }}:
+            </label>
+            <div class="payment-form-field form-control" id="expiration-date"></div>
+        </div>
+
+        <div class="form-group">
+            <label for="cvv">CVV:</label>
+            <div class="payment-form-field form-control" id="cvv"></div>
+        </div>
+        <button value="submit" id="ppcpAdvancedCardsBtn" class="btn btn-primary">
+        {{ languageSheet[constant('Plugins\\ComLogicommercePaypalcommerceplatform\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYPAL_PLATFORM_PAY_CARD')] }}
+        </button>
+    </form>
+    <div id="modal-paypal-container" style="z-index: 20;background: rgba(255, 255, 255, 0.4);width: 100%;height: 100%;position: absolute;top: 0px;left: 0px;display: none;"></div>
+    <div id="paypalLoading" style="display: none;"></div>
+</div>
+</div>
+{% endif %}
+</div>
