@@ -1,0 +1,33 @@
+{% macro widgets(args) %}
+  {% if args.pages is defined %}
+    {% for page in args.pages %}
+      {% set type = page.customType|default('') %}
+      {# Use draftId for plugin Page class, pId for SDK Page class (subpages) #}
+      {% set widgetDraftId = page.draftId|default(page.pId)|default('') %}
+      {% set widgetInstanceId = (page.id == 0 ? widgetDraftId : page.id) %}
+      {% set payload = {
+        type: type,
+        id: widgetDraftId|default(page.id)|default(''),
+        draftId: widgetDraftId,
+        parentId: (page.parentId is defined ? page.parentId : null),
+        label: (page.label is defined ? page.label : null)
+      } %}
+
+      {% set twigCode = args.widgetTemplateList[type] %}
+      {% if twigCode is not empty %}
+        <div class="dcs-widget" data-widget-id="{{ widgetInstanceId }}">
+          <!-- DCS_WIDGET_START {{ payload|json_encode|raw }} -->
+          {% include template_from_string(twigCode) with {
+              page: page,
+              moduleType: type,
+              moduleSettings: page.moduleSettings|default([]),
+              widgetId: widgetInstanceId,
+              version: args.version,
+              widgetTemplateList: args.widgetTemplateList|default({}),
+          } %}
+          <!-- DCS_WIDGET_END -->
+        </div>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+{% endmacro %}

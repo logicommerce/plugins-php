@@ -115,6 +115,11 @@
 			"name": "/.*\\.php$|.*\\.twig$/",
 			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
 			"in": "ComLogicommerceRedsysinsite"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceMagicfront"
 		}
 	],
 	"map":[
@@ -177,6 +182,9 @@
 		},
 		{
 			"ComLogicommerceRedsysinsite/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceMagicfront/twigCoreTemplates":"twigCoreTemplates"
 		}
 	],
 	"output": "build/plugins.phar",

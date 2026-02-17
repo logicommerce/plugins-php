@@ -1,0 +1,6 @@
+{% macro widgets(args) %}
+    {{ addTimerDebugFlag('widgetMacros_widgets',true) }}
+    {% import 'macros/modes/' ~ coreMode ~ '/widget/widgets.html.twig' as modewidget %}
+    {{ modewidget.widgets(args) }}
+    {{ addTimerDebugFlag('widgetMacros_widgets',false) }}
+{% endmacro widgets %}

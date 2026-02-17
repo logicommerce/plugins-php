@@ -31,6 +31,7 @@
 			"ComLogicommerceMicrosoftlogin/vendor/autoload.php",
 			"ComLogicommerceOct8ne/vendor/autoload.php",
 			"ComLogicommerceRedsysinsite/vendor/autoload.php",
+			"ComLogicommerceMagicfront/vendor/autoload.php",
 			"_config.php"
 		]
 	},
