@@ -12,19 +12,67 @@ use FWK\Enums\Parameters;
 class CustomizeCssHandler extends AbstractPluginRouteHandler {
 
     private const CSS_PROPERTIES = [
-        'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-        'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
-        'border-width', 'border-style', 'border-color', 'border-radius',
-        'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
-        'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
-        'color', 'font-family', 'font-size', 'font-weight', 'font-style',
-        'line-height', 'letter-spacing', 'text-align', 'text-decoration', 'text-transform',
-        'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
-        'display', 'position', 'top', 'right', 'bottom', 'left', 'z-index',
-        'background-color', 'background-image', 'background-size', 'background-position', 'background-repeat',
-        'flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'align-content',
-        'gap', 'row-gap', 'column-gap',
-        'opacity', 'overflow', 'cursor', 'box-shadow', 'text-shadow',
+        'padding-top',
+        'padding-right',
+        'padding-bottom',
+        'padding-left',
+        'margin-top',
+        'margin-right',
+        'margin-bottom',
+        'margin-left',
+        'border-width',
+        'border-style',
+        'border-color',
+        'border-radius',
+        'border-top-width',
+        'border-right-width',
+        'border-bottom-width',
+        'border-left-width',
+        'border-top-color',
+        'border-right-color',
+        'border-bottom-color',
+        'border-left-color',
+        'color',
+        'font-family',
+        'font-size',
+        'font-weight',
+        'font-style',
+        'line-height',
+        'letter-spacing',
+        'text-align',
+        'text-decoration',
+        'text-transform',
+        'width',
+        'height',
+        'min-width',
+        'min-height',
+        'max-width',
+        'max-height',
+        'display',
+        'position',
+        'top',
+        'right',
+        'bottom',
+        'left',
+        'z-index',
+        'background-color',
+        'background-image',
+        'background-size',
+        'background-position',
+        'background-repeat',
+        'flex-direction',
+        'flex-wrap',
+        'justify-content',
+        'align-items',
+        'align-content',
+        'gap',
+        'row-gap',
+        'column-gap',
+        'opacity',
+        'overflow',
+        'cursor',
+        'box-shadow',
+        'text-shadow',
     ];
 
     public function supports(string $type): bool {
@@ -130,12 +178,6 @@ class CustomizeCssHandler extends AbstractPluginRouteHandler {
             // Return CSS or fallback if empty
             return !empty(trim($finalCss)) ? $finalCss : $this->getFallbackCss();
         } catch (\Throwable $e) {
-            // Log error
-            $logFile = '/home/qinglun/logicommerce/local/phpProject/logs/dcs-error.log';
-            $msg = date('Y-m-d H:i:s') . " CSS Handler ERROR: " . $e->getMessage() . "\n";
-            $msg .= "File: " . $e->getFile() . ":" . $e->getLine() . "\n\n";
-            @file_put_contents($logFile, $msg, FILE_APPEND);
-
             // Return fallback CSS on error
             return $this->getFallbackCss();
         }
@@ -479,14 +521,13 @@ class CustomizeCssHandler extends AbstractPluginRouteHandler {
         // Base selector using widget wrapper
         $baseSelector = ".dcs-widget[data-widget-id=\"{$escapedId}\"]";
 
-        // If root element, return base selector
-        if ($elementId === 'root' || $elementId === '') {
+        if ($elementId === '') {
             return $baseSelector;
         }
 
-        // Nested element: use id from template schema
+        // Target element via data-dcs-el attribute (unique per widget instance, no duplicate IDs)
         $escapedElementId = preg_replace('/[^a-zA-Z0-9_-]/', '', $elementId);
-        return "{$baseSelector} #{$escapedElementId}";
+        return "{$baseSelector} [data-dcs-el=\"{$escapedElementId}\"]";
     }
 
     /**

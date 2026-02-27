@@ -27,7 +27,6 @@ class GetWidgetHandler extends AbstractPluginRouteHandler {
 
         try {
             $widget = WidgetsService::getInstance()->getPageWidgetById($dcsPageId, $widgetId, $dcsToken, Language::getInstance()->getLanguage());
-
             // Get widgetTemplateList via API, same as HomeController
             $widgetTemplateList = WidgetsService::getInstance()->getWidgetTemplatesAsHtml($dcsToken);
 
@@ -40,7 +39,6 @@ class GetWidgetHandler extends AbstractPluginRouteHandler {
 
     private function renderWidget(ComLogicommerceMagicfrontController $controller, PluginPage $widget, array $widgetTemplateList = []): string {
         $widgetId = $widget->getDraftId() ?: $widget->getId();
-
         $twigData = [
             'page' => $widget,
             'moduleType' => $widget->getCustomType(),

@@ -12,12 +12,28 @@ class StyleMapper {
 
     /** CSS properties that require "px" unit */
     private const DIMENSION_PROPS = [
-        'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
-        'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
-        'border-width', 'border-radius', 'width', 'height',
-        'top', 'right', 'bottom', 'left',
-        'gap', 'row-gap', 'column-gap',
-        'font-size', 'line-height', 'letter-spacing'
+        'padding-top',
+        'padding-right',
+        'padding-bottom',
+        'padding-left',
+        'margin-top',
+        'margin-right',
+        'margin-bottom',
+        'margin-left',
+        'border-width',
+        'border-radius',
+        'width',
+        'height',
+        'top',
+        'right',
+        'bottom',
+        'left',
+        'gap',
+        'row-gap',
+        'column-gap',
+        'font-size',
+        'letter-spacing'
+        // line-height excluded — bare numbers are CSS multipliers (e.g. 1.6), not px values
     ];
 
     /**
@@ -36,6 +52,40 @@ class StyleMapper {
     }
 
     /**
+     * Normalize raw values from the API to scalar strings
+     */
+    private static function normalizeValue($value) {
+        if (is_object($value)) {
+            $value = get_object_vars($value);
+        }
+
+        if (is_array($value)) {
+            $keys = array_keys($value);
+            sort($keys);
+            if ($keys === ['unit', 'value'] && isset($value['value']) && isset($value['unit'])) {
+                $rawValue = $value['value'];
+                $unit = $value['unit'];
+                if ((is_int($rawValue) || is_float($rawValue) || is_numeric($rawValue)) && is_string($unit)) {
+                    if ($unit === '' || $unit === 'px') {
+                        return (string)$rawValue;
+                    }
+                    return (string)$rawValue . $unit;
+                }
+                if (is_string($rawValue) && is_string($unit)) {
+                    if ($unit === '' || $unit === 'px') {
+                        return $rawValue;
+                    }
+                    return $rawValue . $unit;
+                }
+            }
+
+            return '';
+        }
+
+        return $value;
+    }
+
+    /**
      * Format value for CSS (add "px" to bare numbers if needed)
      *
      * @param string $cssProperty CSS property name
@@ -43,6 +93,7 @@ class StyleMapper {
      * @return string Formatted CSS value
      */
     public static function toCssValue(string $cssProperty, $value): string {
+        $value = self::normalizeValue($value);
         $str = strval($value);
 
         if ($str === '') {
@@ -66,9 +117,12 @@ class StyleMapper {
      * @return string Complete box-shadow CSS value
      */
     public static function buildBoxShadow(array $shadowValues): string {
-        $get = function($part, $default) use ($shadowValues) {
+        $get = function ($part, $default) use ($shadowValues) {
             $key = "SHADOW.{$part}";
-            $value = $shadowValues[$key] ?? $default;
+            $value = self::normalizeValue($shadowValues[$key] ?? $default);
+            if ($value === '' && $default !== '') {
+                $value = $default;
+            }
 
             if ($part === 'color') {
                 return $value;
@@ -82,7 +136,8 @@ class StyleMapper {
             return $value;
         };
 
-        return sprintf('%s %s %s %s %s',
+        return sprintf(
+            '%s %s %s %s %s',
             $get('offsetX', '0'),
             $get('offsetY', '0'),
             $get('blur', '0'),
@@ -107,18 +162,21 @@ class StyleMapper {
 
         foreach ($styleValues as $style) {
             $pid = $style['styleTagPId'] ?? '';
+            $rawValue = $style['value'] ?? '';
+            $value = self::normalizeValue($rawValue);
 
             if ($pid === '') {
                 continue;
             }
 
             if (strpos($pid, 'SPACING.') === 0) {
-                $grouped['spacing'][$pid] = $style['value'] ?? '';
+                $grouped['spacing'][$pid] = $value;
             } elseif (strpos($pid, 'BORDER.') === 0) {
-                $grouped['border'][$pid] = $style['value'] ?? '';
+                $grouped['border'][$pid] = $value;
             } elseif (strpos($pid, 'SHADOW.') === 0) {
-                $grouped['shadow'][$pid] = $style['value'] ?? '';
+                $grouped['shadow'][$pid] = $value;
             } else {
+                $style['value'] = $value;
                 $grouped['simple'][] = $style;
             }
         }

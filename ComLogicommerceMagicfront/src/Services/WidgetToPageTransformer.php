@@ -70,24 +70,31 @@ class WidgetToPageTransformer {
      * Converts a single WidgetInstance to Page format.
      */
     private static function widgetToPage(WidgetInstance $widget): Page {
-        // First transform children to arrays (SDK expects arrays, not Page objects)
+        $allPropertyValues = self::mergePropertyValues(
+            $widget->getPropertyValues(),
+            $widget->getStyleValues()
+        );
+
+        // Transform children to arrays with moduleSettings
         $childrenArrays = self::transformChildrenToArrays($widget->getChildren());
 
         // Extract language and moduleSettings from propertyValues
         $extracted = self::extractPropertiesForTemplate(
             $widget->getType(),
-            $widget->getPropertyValues(),
+            $allPropertyValues,
             count($widget->getChildren())  // Pass children count for smart defaults
         );
 
+        // Don't pass subpages to constructor — SDK PageFactory would create
+        // SDK Page objects that lack moduleSettings (DcsPageTrait property).
         $pageData = [
             'id' => 0,  // SDK uses int, we store string ID in draftId
             'customType' => $widget->getType(),
             'position' => $widget->getOrderIndex(),
             'pageType' => 'CUSTOM',  // Widgets are always CUSTOM type
             'active' => true,
-            'customTagValues' => self::propertyValuesToCustomTags($widget->getPropertyValues()),
-            'subpages' => $childrenArrays,
+            'customTagValues' => self::propertyValuesToCustomTags($allPropertyValues),
+            'subpages' => [],  // Empty — children set below as plugin Pages
             'language' => $extracted['language'],
             'moduleSettings' => $extracted['moduleSettings'],
         ];
@@ -95,7 +102,46 @@ class WidgetToPageTransformer {
         $page = new Page($pageData);
         $page->setDraftId($widget->getId());  // Store DCS ID as draftId
 
+        // Build children as plugin Page objects (with moduleSettings via DcsPageTrait)
+        // instead of SDK Page objects created by PageFactory.
+        if (!empty($childrenArrays)) {
+            $page->setFWKSubpages(self::buildChildPages($childrenArrays));
+        }
+
         return $page;
+    }
+
+    /**
+     * Recursively builds plugin Page objects from child arrays.
+     *
+     * SDK's PageFactory creates SDK\Dtos\Catalog\Page\Page objects which don't
+     * have the moduleSettings property (from DcsPageTrait). This method creates
+     * plugin Page objects so that Twig templates can access subpage.moduleSettings.
+     *
+     * @param array $childrenArrays Arrays from transformChildrenToArrays()
+     * @return Page[]
+     */
+    private static function buildChildPages(array $childrenArrays): array {
+        $pages = [];
+        foreach ($childrenArrays as $childArray) {
+            // Extract nested subpages before constructing (avoid SDK PageFactory)
+            $nestedSubpages = $childArray['subpages'] ?? [];
+            $childArray['subpages'] = [];
+
+            // Plugin Page constructor processes moduleSettings via DcsPageTrait
+            $childPage = new Page($childArray);
+            if (!empty($childArray['pId'])) {
+                $childPage->setDraftId($childArray['pId']);
+            }
+
+            // Recursively process grandchildren
+            if (!empty($nestedSubpages)) {
+                $childPage->setFWKSubpages(self::buildChildPages($nestedSubpages));
+            }
+
+            $pages[] = $childPage;
+        }
+        return $pages;
     }
 
     /**
@@ -110,20 +156,29 @@ class WidgetToPageTransformer {
         $moduleSettings = [];
 
         foreach ($propertyValues as $pv) {
-            $propId = is_array($pv)
-                ? ($pv['propertyId'] ?? '')
-                : ($pv->propertyId ?? '');
+            $normalized = self::normalizePropertyEntry($pv);
+            if ($normalized['enabled'] === false) {
+                continue;
+            }
 
-            $value = is_array($pv) ? ($pv['value'] ?? '') : ($pv->value ?? '');
-
+            $propId = $normalized['propertyId'];
             if ($propId === '') {
                 continue;
             }
 
+            $value = $normalized['value'];
+            $elementId = $normalized['elementId'];
+
             // v2: propId simplificado (title). Guardar también versión prefijada (heading.title) para no romper Twig viejo.
             $moduleSettings[$propId] = $value;
+            if ($elementId !== '') {
+                $moduleSettings[$elementId . '.' . $propId] = $value;
+            }
             if ($type !== '' && strpos($propId, '.') === false && !preg_match('/^[A-Z_]+\./', $propId)) {
                 $moduleSettings[$type . '.' . $propId] = $value;
+                if ($elementId !== '') {
+                    $moduleSettings[$type . '.' . $elementId . '.' . $propId] = $value;
+                }
             }
         }
 
@@ -148,21 +203,76 @@ class WidgetToPageTransformer {
     private static function propertyValuesToCustomTags(array $propertyValues): array {
         $customTags = [];
         foreach ($propertyValues as $pv) {
-            if (is_array($pv)) {
-                $id = $pv['propertyId'] ?? '';
-                $customTags[] = [
-                    'customTagPId' => $id,
-                    'value' => $pv['value'] ?? '',
-                ];
-            } elseif (is_object($pv)) {
-                $id = $pv->propertyId ?? '';
-                $customTags[] = [
-                    'customTagPId' => $id,
-                    'value' => $pv->value ?? '',
-                ];
+            $normalized = self::normalizePropertyEntry($pv);
+            if ($normalized['enabled'] === false || $normalized['propertyId'] === '') {
+                continue;
             }
+
+            $customTags[] = [
+                'customTagPId' => $normalized['propertyId'],
+                'value' => $normalized['value'],
+            ];
         }
         return $customTags;
+    }
+
+    /**
+     * Normalize property value entry across API versions.
+     */
+    private static function normalizePropertyEntry($propertyValue): array {
+        $propId = '';
+        $value = '';
+        $elementId = '';
+        $enabled = true;
+
+        if (is_array($propertyValue)) {
+            $propId = $propertyValue['propertyId'] ?? ($propertyValue['pId'] ?? '');
+            $value = $propertyValue['value'] ?? '';
+            $elementId = $propertyValue['elementId'] ?? '';
+            if (array_key_exists('enabled', $propertyValue)) {
+                $enabled = (bool)$propertyValue['enabled'];
+            }
+        } elseif (is_object($propertyValue)) {
+            $propId = $propertyValue->propertyId ?? ($propertyValue->pId ?? '');
+            $value = $propertyValue->value ?? '';
+            $elementId = $propertyValue->elementId ?? '';
+            if (property_exists($propertyValue, 'enabled')) {
+                $enabled = (bool)$propertyValue->enabled;
+            }
+        }
+
+        return [
+            'propertyId' => $propId,
+            'value' => self::normalizeValue($value),
+            'elementId' => is_string($elementId) ? $elementId : '',
+            'enabled' => $enabled,
+        ];
+    }
+
+    /**
+     * Normalize dimension-like values from the new API.
+     */
+    private static function normalizeValue($value) {
+        if (is_object($value)) {
+            $value = get_object_vars($value);
+        }
+
+        if (is_array($value)) {
+            $keys = array_keys($value);
+            sort($keys);
+            if ($keys === ['unit', 'value'] && isset($value['value']) && isset($value['unit'])) {
+                $rawValue = $value['value'];
+                $unit = $value['unit'];
+                if ((is_int($rawValue) || is_float($rawValue) || is_numeric($rawValue)) && is_string($unit)) {
+                    if ($unit === '' || $unit === 'px') {
+                        return (string)$rawValue;
+                    }
+                    return (string)$rawValue . $unit;
+                }
+            }
+        }
+
+        return $value;
     }
 
     /**
@@ -179,16 +289,19 @@ class WidgetToPageTransformer {
                     'type' => $child->getType(),
                     'orderIndex' => $child->getOrderIndex(),
                     'propertyValues' => $child->getPropertyValues(),
+                    'styleValues' => $child->getStyleValues(),
                     'children' => $child->getChildren(),
                 ];
             }
 
             $childType = $childData['type'] ?? '';
             $childProps = $childData['propertyValues'] ?? [];
+            $childStyles = $childData['styleValues'] ?? [];
+            $allChildValues = self::mergePropertyValues($childProps, $childStyles);
             $nestedChildren = $childData['children'] ?? [];
 
             // Extract language and moduleSettings for templates
-            $extracted = self::extractPropertiesForTemplate($childType, $childProps);
+            $extracted = self::extractPropertiesForTemplate($childType, $allChildValues);
 
             // Build page-compatible array
             // NOTE: SDK Page class uses 'pId' field, not 'draftId'
@@ -200,12 +313,23 @@ class WidgetToPageTransformer {
                 'position' => $childData['orderIndex'] ?? 0,
                 'pageType' => 'CUSTOM',
                 'active' => true,
-                'customTagValues' => self::propertyValuesToCustomTags($childProps),
+                'customTagValues' => self::propertyValuesToCustomTags($allChildValues),
                 'subpages' => self::transformChildrenToArrays($nestedChildren),
                 'language' => $extracted['language'],
                 'moduleSettings' => $extracted['moduleSettings'],
             ];
         }
         return $subpages;
+    }
+
+    /**
+     * Merge standard properties with style values.
+     */
+    private static function mergePropertyValues(array $propertyValues, array $styleValues): array {
+        if (empty($styleValues)) {
+            return $propertyValues;
+        }
+
+        return array_merge($propertyValues, $styleValues);
     }
 }

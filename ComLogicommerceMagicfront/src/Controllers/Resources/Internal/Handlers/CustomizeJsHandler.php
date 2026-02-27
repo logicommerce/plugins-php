@@ -96,12 +96,6 @@ class CustomizeJsHandler extends AbstractPluginRouteHandler {
             // Return JavaScript or fallback if empty
             return !empty($mergedJs) ? $mergedJs : $this->getFallbackJs();
         } catch (\Throwable $e) {
-            // Log error
-            $logFile = '/home/qinglun/logicommerce/local/phpProject/logs/dcs-error.log';
-            $msg = date('Y-m-d H:i:s') . " JS Handler ERROR: " . $e->getMessage() . "\n";
-            $msg .= "File: " . $e->getFile() . ":" . $e->getLine() . "\n\n";
-            @file_put_contents($logFile, $msg, FILE_APPEND);
-
             // Return fallback JavaScript on error
             return $this->getFallbackJs();
         }

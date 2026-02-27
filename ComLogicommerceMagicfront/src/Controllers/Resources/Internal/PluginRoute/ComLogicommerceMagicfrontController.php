@@ -139,13 +139,6 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             }
             parent::run($additionalData, $header);
         } catch (\Throwable $e) {
-            // Log error
-            $logFile = '/home/qinglun/logicommerce/local/phpProject/logs/dcs-error.log';
-            $msg = date('Y-m-d H:i:s') . " ERROR: " . $e->getMessage() . "\n";
-            $msg .= "File: " . $e->getFile() . ":" . $e->getLine() . "\n";
-            $msg .= "Trace: " . $e->getTraceAsString() . "\n\n";
-            @file_put_contents($logFile, $msg, FILE_APPEND);
-
             // Return appropriate error response
             $contentType = $this->handler?->getRawResponseContentType() ?? 'text/plain';
             Response::addHeader('Content-Type: ' . $contentType);
