@@ -7,32 +7,23 @@ use FWK\Core\FilterInput\FilterInput;
 use FWK\Core\FilterInput\FilterInputHandler;
 use FWK\Enums\Parameters;
 use FWK\Twig\TwigLoader;
-use SDK\Core\Dtos\Element;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
 use FWK\Core\Dtos\ElementCollection as DtosElementCollection;
-use FWK\Core\Resources\Loader;
 use FWK\Core\Resources\Response;
-use FWK\Core\Resources\Session;
-use FWK\Core\Theme\Theme;
-use FWK\Enums\ControllerData;
-use FWK\Enums\TwigContentTypes;
 use FWK\Services\PageService;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
-use Plugins\ComLogicommerceMagicfront\Dtos\WidgetRender;
-use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\Handlers\CustomizeCssHandler;
-use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\Handlers\CustomizeJsHandler;
-use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\Handlers\GetPageInfoHandler;
-use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\Handlers\GetWidgetHandler;
-use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\Handlers\PluginRouteHandlerInterface;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeJsHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
-use Plugins\ComLogicommerceMagicfront\Services\WidgetToPageTransformer;
+use SDK\Core\Dtos\Element;
 
 /**
  * Controller to render a single widget's HTML after configuration changes.
- * Used by the DCS Editor for live updates without full page reload.
+ * Used by the Magicfront Editor for live updates without full page reload.
  */
 class ComLogicommerceMagicfrontController extends BaseJsonController {
 
@@ -59,7 +50,6 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             new CustomizeCssHandler(),
             new CustomizeJsHandler(),
             new GetWidgetHandler(),
-            new GetPageInfoHandler(),
         ];
     }
 
@@ -72,7 +62,7 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
      * @see FilterInputHandler
      */
     protected function getOriginParams() {
-        return FilterInputHandler::PARAMS_FROM_POST_DATA_OBJECT;
+        return FilterInputHandler::PARAMS_FROM_GET;
     }
 
     /**
@@ -81,11 +71,13 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
     protected function getFilterParams(): array {
         return [Parameters::WIDGET_ID => new FilterInput([
             FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])] + [Parameters::DCS_PAGE_ID => new FilterInput([
+        ])] + [Parameters::PAGE => new FilterInput([
             FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])] + [Parameters::DCS_TOKEN => new FilterInput([
+        ])] + [Parameters::TOKEN => new FilterInput([
             FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
         ])] + [Parameters::TYPE => new FilterInput([
+            FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
+        ])] + [Parameters::LANGUAGE => new FilterInput([
             FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
         ])];
     }
@@ -96,16 +88,6 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
         // Try to get type parameter (may return null)
         $type = $this->getRequestParam(Parameters::TYPE, false);
         $this->getFunctionType = $type ?? '';
-
-        // If not found, check POST directly
-        if (empty($this->getFunctionType) && isset($_POST['type'])) {
-            $this->getFunctionType = $_POST['type'];
-        }
-
-        // If still empty, check REQUEST
-        if (empty($this->getFunctionType) && isset($_REQUEST['type'])) {
-            $this->getFunctionType = $_REQUEST['type'];
-        }
 
         $this->handler = $this->resolveHandler($this->getFunctionType);
     }

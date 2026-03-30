@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Controllers;
 
 use FWK\Controllers\HomeController as FWKHomeController;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\dcsTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
 use SDK\Services\Parameters\Groups\PageParametersGroup;
@@ -18,7 +18,7 @@ use SDK\Services\Parameters\Groups\PageParametersGroup;
  * @package SITE\Controllers
  */
 class HomeController extends FWKHomeController {
-    use dcsTrait;
+    use MagicfrontTrait;
 
     public const PAGE_MODULES_POSITION = 999;
 
@@ -36,7 +36,7 @@ class HomeController extends FWKHomeController {
         $this->pageParametersGroup = new PageParametersGroup();
         $this->pageParametersGroup->setPosition(self::PAGE_MODULES_POSITION);
         $this->pageParametersGroup->setLevels(self::MAX_PAGE_LEVELS);
-        $this->dcsInit($route, $this->pageParametersGroup);
+        $this->magicfrontInit($route, $this->pageParametersGroup);
     }
 
     /**
@@ -46,7 +46,7 @@ class HomeController extends FWKHomeController {
      */
     protected function setBatchData(BatchRequests $requests): void {
         parent::setBatchData($requests);
-        $this->setDcsBatchData($requests);
+        $this->setMagicfrontBatchData($requests);
     }
 
     /**
@@ -60,6 +60,6 @@ class HomeController extends FWKHomeController {
      */
     protected function setData(array $additionalData = []): void {
         parent::setData($additionalData);
-        $this->setDcsData();
+        $this->setMagicfrontData();
     }
 }

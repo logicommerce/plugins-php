@@ -1,0 +1,21 @@
+
+{%- extends layout -%}
+
+{%- block content -%}
+    <div data-mff-anchor="__page_start__"></div>
+    {% import macrosCore.widget as widgetMacros %}
+    {{ widgetMacros.widgets({
+        pages: pages,
+        version: version,
+        widgetTemplateList: widgetTemplateList
+    }) }}
+
+    {# Include Magic front loaders directly in content block #}
+    {% include 'includes/magic-front-css-loader.twig' %}
+    {% include 'includes/magic-front-js-loader.twig' %}
+
+    {% if isMagicfrontEnabled %}
+        <script type="module" src="{{ mgfAssetsUrl }}"></script>
+    {% endif %}
+{%- endblock content -%}
+

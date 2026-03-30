@@ -8,7 +8,9 @@ use SDK\Core\Builders\RequestBuilder;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\Environment;
 use SDK\Core\Services\Service;
-use Plugins\ComLogicommerceMagicfront\Dtos\WidgetInstance;
+use Plugins\ComLogicommerceMagicfront\Core\Dtos\WidgetInstance;
+use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetTemplateTransformer;
+use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 
 class WidgetsService extends Service {
 
@@ -22,24 +24,24 @@ class WidgetsService extends Service {
     }
 
     /**
-     * Get widgets for a page from DCS API and transform to Page format.
+     * Get widgets for a page from Magic front API and transform to Page format.
      *
-     * @param string $dcsPageId The DCS page ID (e.g., "p-home-123")
+     * @param string $pageId The Magic front page ID (e.g., "p-home-123")
      * @param string $language The language code
-     * @param string $dcsToken The DCS JWT token for authentication
+     * @param string $token The Magic front JWT token for authentication
      * @return ElementCollection|null Collection of Page objects, or null on error
      */
-    public function getPageWidgets(string $dcsPageId, string $language, string $dcsToken): ?ElementCollection {
+    public function getPageWidgets(string $pageId, string $language, string $token): ?ElementCollection {
         $apiUrl = Environment::get('MGF_API_URL');
-        $path = $this->replaceWildcards(Resource::GET_PAGE_WIDGETS, ['pageId' => $dcsPageId]);
+        $path = $this->replaceWildcards(Resource::GET_PAGE_WIDGETS, ['pageId' => $pageId]);
 
         try {
-            // Fetch widgets from DCS API with Authorization header
+            // Fetch widgets from Magic front API with Authorization header
             $response = $this->call(
                 (new RequestBuilder())
                     ->path($path)
                     ->urlParams(['language' => $language])
-                    ->headers(['Authorization' => 'Bearer ' . $dcsToken])
+                    ->headers(['Authorization' => 'Bearer ' . $token])
                     ->build(),
                 $apiUrl
             );
@@ -77,23 +79,23 @@ class WidgetsService extends Service {
     }
 
     /**
-     * Get widget instances for a page from DCS API (raw instances).
+     * Get widget instances for a page from Magic front API (raw instances).
      *
-     * @param string $dcsPageId The DCS page ID (e.g., "p-home-123")
+     * @param string $pageId The Magic front page ID (e.g., "p-home-123")
      * @param string $language The language code
-     * @param string $dcsToken The DCS JWT token for authentication
+     * @param string $token The Magic front JWT token for authentication
      * @return array Array of WidgetInstance objects
      */
-    public function getPageWidgetInstances(string $dcsPageId, string $language, string $dcsToken): array {
+    public function getPageWidgetInstances(string $pageId, string $language, string $token): array {
         $apiUrl = Environment::get('MGF_API_URL');
-        $path = $this->replaceWildcards(Resource::GET_PAGE_WIDGETS, ['pageId' => $dcsPageId]);
+        $path = $this->replaceWildcards(Resource::GET_PAGE_WIDGETS, ['pageId' => $pageId]);
 
         try {
             $response = $this->call(
                 (new RequestBuilder())
                     ->path($path)
                     ->urlParams(['language' => $language])
-                    ->headers(['Authorization' => 'Bearer ' . $dcsToken])
+                    ->headers(['Authorization' => 'Bearer ' . $token])
                     ->build(),
                 $apiUrl
             );
@@ -122,16 +124,16 @@ class WidgetsService extends Service {
         }
     }
 
-    public function getPageWidgetById(string $dcsPageId, string $dcswidgetId, string $dcsToken, string $language = 'es'): ?Page {
+    public function getPageWidgetById(string $pageId, string $widgetId, string $token, string $language = 'es'): ?Page {
         $apiUrl = Environment::get('MGF_API_URL');
-        $path = $this->replaceWildcards(Resource::GET_PAGE_WIDGET_BY_ID, ['pageId' => $dcsPageId, 'widgetId' => $dcswidgetId]);
+        $path = $this->replaceWildcards(Resource::GET_PAGE_WIDGET_BY_ID, ['pageId' => $pageId, 'widgetId' => $widgetId]);
 
         try {
-            // Fetch widgets from DCS API with Authorization header
+            // Fetch widgets from Magic front API with Authorization header
             $response = $this->call(
                 (new RequestBuilder())
                     ->path($path)
-                    ->headers(['Authorization' => 'Bearer ' . $dcsToken])
+                    ->headers(['Authorization' => 'Bearer ' . $token])
                     ->urlParams(['language' => $language])
                     ->build(),
                 $apiUrl
@@ -146,7 +148,7 @@ class WidgetsService extends Service {
         }
     }
 
-    public function getPageId(string $routeId, string $dcsToken): string {
+    public function getPageId(string $routeId, string $token): string {
         $apiUrl = Environment::get('MGF_API_URL');
         $path = Resource::GET_PAGES;
 
@@ -154,7 +156,7 @@ class WidgetsService extends Service {
             $response = $this->call(
                 (new RequestBuilder())
                     ->path($path)
-                    ->headers(['Authorization' => 'Bearer ' . $dcsToken])
+                    ->headers(['Authorization' => 'Bearer ' . $token])
                     ->urlParams(['pageType' => $routeId == 0 ? 'HOME' : 'LANDING'])
                     ->build(),
                 $apiUrl
@@ -172,7 +174,7 @@ class WidgetsService extends Service {
         }
     }
 
-    public function getDcsToken(string $bobToken): string {
+    public function getToken(string $bobToken): string {
         $apiUrl = Environment::get('MGF_API_URL');
         $path = Resource::AUTH;
         try {
@@ -198,24 +200,24 @@ class WidgetsService extends Service {
     }
 
     /**
-     * Get widget templates from DCS API
+     * Get widget templates from Magic front API
      *
-     * @param string $dcsToken DCS JWT token
+     * @param string $token Magic front JWT token
      * @param string|null $fields Comma-separated API field names to include, or 'all' (default)
      *                            Example: 'templateCss,templateJs' returns only CSS and JS
      *                            Example: 'templateHtml,properties,applicableStyles'
      * @return array Array of templates indexed by type
      */
-    public function getWidgetTemplates(string $dcsToken, ?string $fields = null): array {
+    public function getWidgetTemplates(string $token, ?string $fields = null): array {
         $apiUrl = Environment::get('MGF_API_URL');
         $path = Resource::GET_WIDGET_TEMPLATES;
 
         try {
-            // Fetch templates from DCS API
+            // Fetch templates from Magic front API
             $response = $this->call(
                 (new RequestBuilder())
                     ->path($path)
-                    ->headers(['Authorization' => 'Bearer ' . $dcsToken])
+                    ->headers(['Authorization' => 'Bearer ' . $token])
                     ->build(),
                 $apiUrl
             );
@@ -287,11 +289,11 @@ class WidgetsService extends Service {
     /**
      * Get widget templates as HTML strings only (for Twig rendering)
      *
-     * @param string $dcsToken DCS JWT token
+     * @param string $token Magic front JWT token
      * @return array Array of HTML strings indexed by type
      */
-    public function getWidgetTemplatesAsHtml(string $dcsToken): array {
-        $templates = $this->getWidgetTemplates($dcsToken, 'templateHtml');
+    public function getWidgetTemplatesAsHtml(string $token): array {
+        $templates = $this->getWidgetTemplates($token, 'templateHtml');
         $htmlList = [];
 
         foreach ($templates as $type => $template) {
@@ -310,11 +312,11 @@ class WidgetsService extends Service {
     /**
      * Get merged CSS from all widget templates
      *
-     * @param string $dcsToken DCS JWT token
+     * @param string $token Magic front JWT token
      * @return string Merged CSS string
      */
-    public function getMergedWidgetCss(string $dcsToken, ?array $types = null): string {
-        $templates = $this->getWidgetTemplates($dcsToken, 'templateCss');
+    public function getMergedWidgetCss(string $token, ?array $types = null): string {
+        $templates = $this->getWidgetTemplates($token, 'templateCss');
         if (!empty($types)) {
             $templates = $this->filterTemplatesByTypes($templates, $types);
         }
@@ -338,11 +340,11 @@ class WidgetsService extends Service {
     /**
      * Get merged JS from all widget templates
      *
-     * @param string $dcsToken DCS JWT token
+     * @param string $token Magic front JWT token
      * @return string Merged JS string
      */
-    public function getMergedWidgetJs(string $dcsToken, ?array $types = null): string {
-        $templates = $this->getWidgetTemplates($dcsToken, 'templateJs');
+    public function getMergedWidgetJs(string $token, ?array $types = null): string {
+        $templates = $this->getWidgetTemplates($token, 'templateJs');
         if (!empty($types)) {
             $templates = $this->filterTemplatesByTypes($templates, $types);
         }
@@ -387,10 +389,10 @@ class WidgetsService extends Service {
      * Get a single widget template by type
      *
      * @param string $type Widget type (e.g., "heading", "text")
-     * @param string $dcsToken The DCS JWT token for authentication
+     * @param string $token The Magic front JWT token for authentication
      * @return array|null Widget template data with templateCss field, or null on error
      */
-    public function getWidgetTemplateByType(string $type, string $dcsToken): ?array {
+    public function getWidgetTemplateByType(string $type, string $token): ?array {
         $apiUrl = Environment::get('MGF_API_URL');
         $path = $this->replaceWildcards(Resource::GET_WIDGET_TEMPLATE_BY_TYPE, ['type' => $type]);
 
@@ -398,7 +400,7 @@ class WidgetsService extends Service {
             $response = $this->call(
                 (new RequestBuilder())
                     ->path($path)
-                    ->headers(['Authorization' => 'Bearer ' . $dcsToken])
+                    ->headers(['Authorization' => 'Bearer ' . $token])
                     ->build(),
                 $apiUrl
             );

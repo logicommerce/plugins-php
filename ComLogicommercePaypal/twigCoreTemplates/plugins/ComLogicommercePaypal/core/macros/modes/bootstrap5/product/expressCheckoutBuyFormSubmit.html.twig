@@ -1,12 +1,18 @@
 {% set lcData = {
     id: plugin.id
 } %}
-
+{%- set express = "false" -%}
+{%- for property in paymentSystem.pluginPropertiesConnectorItemProperties -%}
+	{%- if property.name == constant('Plugins\\ComLogicommercePaypal\\Enums\\PluginPropertiesConnectorItemPropertyNames::EXPRESSCHECKOUT') -%}
+		{%- set express = property.value -%}
+	{%- endif -%}
+{%- endfor -%}
+{%- if session.user.id == 0 and express == "true" -%}
 <button 
-    type="submit" 
+    type="submit"
     disabled="true"
-    id="paypalExpressCheckoutPluginBuyFormSubmit{{ args.id }}" 
-    data-show-label="{{ args.showLabel == true ? 'true' : 'false' }}" 
+    id="paypalExpressCheckoutPluginBuyFormSubmit{{ args.id }}"
+    data-show-label="{{ args.showLabel == true ? 'true' : 'false' }}"
     class="paypal-express-checkout-plugin express-checkout-plugin buyFormSubmit buy {{ args.class|length ? args.class : 'btn btn-primary' }} initializeDisabled"
     data-lc-express-checkout-plugin='{{ outputJsonHtmlString(lcData) }}'
 >
@@ -15,3 +21,4 @@
         {{ languageSheet[constant('Plugins\\ComLogicommercePaypal\\Enums\\LanguageLabels::COM_LOGICOMMERCE_PAYPAL_BUY_FORM_SUBMIT')] }}
     </div>
 </button>
+{%- endif -%}

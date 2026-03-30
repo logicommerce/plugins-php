@@ -17,8 +17,6 @@ use SDK\Core\Enums\Enum;
  */
 abstract class FunctionType extends Enum {
 
-    public const GET_PAGE_INFO = 'getPageInfo';
-
     public const GET_WIDGET = 'getWidget';
 
     public const CUSTOMIZE_CSS = 'customizeCss';

@@ -36,6 +36,10 @@ class PluginProperties extends CorePluginProperties implements PluginPropertyTri
         return $this->connectors;
     }
 
+    public function setConnectors(array $connectors) {
+        $this->connectors = $this->setArrayField($connectors, PluginPropertiesConnector::class);
+    }
+
     /**
      * Returns the plugin property properties properties.
      *

@@ -3,11 +3,10 @@
 namespace Plugins\ComLogicommerceMagicfront\Controllers\Page;
 
 use FWK\Controllers\Page\ModuleController as FWKModuleController;
-use FWK\Enums\Parameters;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
 use SDK\Services\Parameters\Groups\PageParametersGroup;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\dcsTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 
 /**
  * This is the module page controller.
@@ -18,7 +17,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\dcsTrait;
  * @package FWK\Controllers\Page
  */
 class ModuleController extends FWKModuleController {
-    use dcsTrait;
+    use MagicfrontTrait;
 
     public const MAX_PAGE_LEVELS = 4;
 
@@ -34,7 +33,7 @@ class ModuleController extends FWKModuleController {
         $this->pageParametersGroup = new PageParametersGroup();
         $this->pageParametersGroup->setParentId($this->getRoute()->getId());
         $this->pageParametersGroup->setLevels(self::MAX_PAGE_LEVELS);
-        $this->dcsInit($route, $this->pageParametersGroup, $this->getRequestParam(Parameters::DCS_TOKEN, false, ''));
+        $this->magicfrontInit($route, $this->pageParametersGroup);
     }
 
     /**
@@ -47,7 +46,7 @@ class ModuleController extends FWKModuleController {
      */
     protected function setBatchData(BatchRequests $requests): void {
         parent::setBatchData($requests);
-        $this->setDcsBatchData($requests);
+        $this->setMagicfrontBatchData($requests);
     }
 
     /**
@@ -61,6 +60,6 @@ class ModuleController extends FWKModuleController {
      */
     protected function setData(array $additionalData = []): void {
         parent::setData($additionalData);
-        $this->setDcsData();
+        $this->setMagicfrontData();
     }
 }

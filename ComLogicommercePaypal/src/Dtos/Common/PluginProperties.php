@@ -24,6 +24,8 @@ class PluginProperties extends CorePluginProperties {
 
     protected array $connectors = [];
 
+    protected array $eventsResults = [];
+
     /**
      * Returns the plugin connectors.
      *
@@ -31,6 +33,10 @@ class PluginProperties extends CorePluginProperties {
      */
     public function getConnectors(): array {
         return $this->connectors;
+    }
+
+    public function setConnectors(array $connectors) {
+        $this->connectors = $this->setArrayField($connectors, PluginPropertiesConnector::class);
     }
 
     /**
@@ -44,5 +50,18 @@ class PluginProperties extends CorePluginProperties {
 
     protected function setProperties(array $properties): void {
         $this->properties = $this->setArrayField($properties, PluginPropertiesProperty::class);
+    }
+
+    /**
+     * Returns the plugin triggers.
+     *
+     * @return array
+     */
+    public function getEventsResults(): array {
+        return $this->eventsResults;
+    }
+
+    public function setEventResults(string $trigger, array $results) {
+        $this->eventsResults[$trigger] = $results;
     }
 }

@@ -1,0 +1,142 @@
+{# Magic front Custom CSS Loader Script - Testing Version (No Cache) #}
+<script>
+(function() {
+    'use strict';
+
+    // Configuration
+    var config = {
+        apiUrl: '/{{ constant('INTERNAL_PREFIX') }}/resources/plugin_route/com.logicommerce.magicfront',
+        token: '{{ token|default('') }}',
+        page: '{{ page|default('') }}',
+        functionType: '{{ constant('Plugins\\ComLogicommerceMagicfront\\Enums\\FunctionType::CUSTOMIZE_CSS') }}',
+        styleElementId: 'mff-custom-css',
+        maxRetries: 2,
+        retryDelay: 1000 // 1 second
+    };
+
+    var state = {
+        isLoading: false,
+        retryCount: 0
+    };
+
+    // Create style element in DOM
+    function createStyleElement() {
+        var existing = document.getElementById(config.styleElementId);
+        if (!existing) {
+            var style = document.createElement('style');
+            style.id = config.styleElementId;
+            style.type = 'text/css';
+            style.setAttribute('data-mff-loader', 'true');
+            style.textContent = '/* Magic front Custom CSS: Loading... */';
+
+            var head = document.head || document.getElementsByTagName('head')[0];
+            // Insert at the beginning for lower priority (easier to override)
+            if (head.firstChild) {
+                head.insertBefore(style, head.firstChild);
+            } else {
+                head.appendChild(style);
+            }
+        }
+        return document.getElementById(config.styleElementId);
+    }
+
+    // Inject CSS into page
+    function injectCss(css) {
+        var styleElement = document.getElementById(config.styleElementId);
+        if (styleElement) {
+            styleElement.textContent = css || '/* Magic front Custom CSS: Empty */';
+            styleElement.setAttribute('data-loaded', 'true');
+            state.isLoading = false;
+            console.log('[MFF CSS] Injected successfully');
+        }
+    }
+
+    // Load CSS via GET request with retry logic
+    function loadCss() {
+        // Prevent duplicate requests
+        if (state.isLoading) {
+            console.warn('[MFF CSS] Already loading, skipping duplicate request');
+            return;
+        }
+
+        // Check required parameters
+        if (!config.token) {
+            console.warn('[MFF CSS] Token missing, skipping load');
+            return;
+        }
+
+        state.isLoading = true;
+        console.log('[MFF CSS] Loading from server...');
+
+        var params = new URLSearchParams();
+        params.append('type', config.functionType);
+        params.append('token', config.token);
+        if (config.page) {
+            params.append('page', config.page);
+        }
+
+        fetch(config.apiUrl + '?' + params.toString(), {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.text();
+        })
+        .then(function(css) {
+            // Validate CSS content
+            if (css && typeof css === 'string') {
+                injectCss(css);
+                console.log('[MFF CSS] Loaded successfully (' + css.length + ' bytes)');
+                state.retryCount = 0; // Reset retry count on success
+            } else {
+                throw new Error('Invalid CSS response');
+            }
+        })
+        .catch(function(error) {
+            state.isLoading = false;
+            console.error('[MFF CSS] Load failed:', error);
+
+            // Retry logic
+            if (state.retryCount < config.maxRetries) {
+                state.retryCount++;
+                console.log('[MFF CSS] Retrying... (' + state.retryCount + '/' + config.maxRetries + ')');
+                setTimeout(function() {
+                    loadCss();
+                }, config.retryDelay * state.retryCount);
+            } else {
+                console.error('[MFF CSS] Max retries reached, giving up');
+                injectCss('/* DCS Custom CSS: Failed to load after ' + config.maxRetries + ' retries */');
+                state.retryCount = 0; // Reset for next manual reload
+            }
+        });
+    }
+
+    // Initialize loader
+    function init() {
+        createStyleElement();
+        loadCss();
+    }
+
+    // Execute on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // Expose reload function for debugging/testing
+    window.mffReloadCss = function() {
+        console.log('[MFF CSS] Manual reload triggered');
+        state.isLoading = false;
+        state.retryCount = 0;
+        loadCss();
+    };
+
+})();
+</script>

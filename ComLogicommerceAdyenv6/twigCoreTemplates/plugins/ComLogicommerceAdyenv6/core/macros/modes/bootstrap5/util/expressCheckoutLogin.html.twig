@@ -1,0 +1,53 @@
+{%- set clientKey = "" -%}
+{%- set publicKey = "" -%}
+{%- set environment = "test" -%}
+{%- set express = "false" -%}
+{%- set subPaymentSystem = "" -%}
+
+{%- for property in expressCheckoutPlugin.properties.properties -%}
+	{%- if property.name == constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\PluginPropertiesPropertyNames::CLIENTKEY') -%}
+		{%- set clientKey = property.value -%}
+	{%- endif -%}
+	{%- if property.name == constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\PluginPropertiesPropertyNames::ENVIRONMENT') -%}
+		{%- if property.value == "true" -%}
+			{%- set environment = "live" -%}
+		{%- endif -%}
+	{%- endif -%}
+{%- endfor -%}
+
+{%- for property in paymentSystem.pluginPropertiesConnectorItemProperties -%}
+	{%- if property.name == constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') -%}
+		{%- set subPaymentSystem = property.value -%}
+	{%- endif -%}
+	{%- if property.name == constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\PluginPropertiesConnectorItemPropertyNames::EXPRESSCHECKOUT') -%}
+		{%- set express = property.value -%}
+	{%- endif -%}
+{%- endfor -%}
+
+{%- if session.user.id == 0 and express == "true" and subPaymentSystem == "applepay" -%}
+	{%- set selectorId = "adyen-applepay-container" ~ expressCheckoutPlugin.id -%}
+	<div id="{{ selectorId }}" class="adyen-applepay-express-checkout-plugin express-checkout-plugin" style="text-align: center;"></div>
+	<script>
+		(function () {
+			function init() {
+				let settings = {};
+				let total = globalThis?.lcCommerceSession?.basket?.totals?.total ? globalThis.lcCommerceSession.basket.totals.total : 0;
+				settings.total = Number(total);
+				settings.pluginId = "{{expressCheckoutPlugin.id}}";
+				settings.currency = globalThis?.lcCommerceSession?.currency ? globalThis.lcCommerceSession.currency : "EUR";
+				settings.country = globalThis?.lcCommerceSession?.country ? globalThis.lcCommerceSession.country : "ES";
+				settings.paymentSystemId = "{{paymentSystem.id}}";
+				settings.clientKey = "{{clientKey}}";
+				settings.environment = "{{environment}}";
+				settings.selector = "#{{selectorId}}";
+				const adyenAppleCheckout = new LcAdyenApplePayExpress(settings);
+				adyenAppleCheckout.render();
+			}
+			if (typeof LcAdyenApplePayExpress !== 'undefined') {
+				init();
+			} else {
+				document.addEventListener('LcAdyenApplePayExpressReady', init, { once: true });
+			}
+		})(window);
+	</script>
+{%- endif -%}

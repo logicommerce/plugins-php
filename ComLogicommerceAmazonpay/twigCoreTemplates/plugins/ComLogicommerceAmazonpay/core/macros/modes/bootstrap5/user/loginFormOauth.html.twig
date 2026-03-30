@@ -22,12 +22,16 @@
 	{% endif %}
 {% endfor %}
 {% set uid = random(10000000, 99999999) %}
-
-{% if amzLogin %}
+{%- set express = "false" -%}
+{%- for property in paymentSystem.pluginPropertiesConnectorItemProperties -%}
+    {%- if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesConnectorItemPropertyNames::EXPRESSCHECKOUT') -%}
+        {%- set express = property.value -%}
+    {%- endif -%}
+{%- endfor -%}
+{%- if session.user.id == 0 and express == "true" and amzLogin -%}
 <div class="amazonpay-plugin social-connect-plugin">
     <div id="AmazonPayLoginButton_{{uid}}"></div>
 </div>
-
 <script type="text/javascript" charset="utf-8">
     document.addEventListener("DOMContentLoaded", function(event) {
         var lcAmazonPay = new LcAmazonPay();

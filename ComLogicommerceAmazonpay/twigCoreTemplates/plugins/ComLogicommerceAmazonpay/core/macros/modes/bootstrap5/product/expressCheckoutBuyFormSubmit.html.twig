@@ -24,6 +24,14 @@
 	{% endif %}
 {% endfor %}
 
+{%- set express = "false" -%}
+{%- for property in paymentSystem.pluginPropertiesConnectorItemProperties -%}
+    {%- if property.name == constant('Plugins\\ComLogicommerceAmazonpay\\Enums\\PluginPropertiesConnectorItemPropertyNames::EXPRESSCHECKOUT') -%}
+        {%- set express = property.value -%}
+    {%- endif -%}
+{%- endfor -%}
+
+{%- if session.user.id == 0 and express == "true" -%}
 <div id="AmazonPayButton{{plugin.id}}-{{args.id}}"
     class="amz-express-checkout-plugin express-checkout-plugin">
 </div>
@@ -38,3 +46,4 @@
         lcAmazonPay.renderPayButton("AmazonPayButton{{plugin.id}}-{{args.id}}");
     });
 </script>
+{%- endif -%}

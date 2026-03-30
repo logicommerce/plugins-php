@@ -5,7 +5,6 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits;
 use FWK\Core\FilterInput\FilterInput;
 use SDK\Core\Dtos\ElementCollection;
 use FWK\Core\Resources\Loader;
-use FWK\Core\Resources\Session;
 use FWK\Enums\Parameters;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
@@ -13,8 +12,9 @@ use SDK\Services\Parameters\Groups\PageParametersGroup;
 use FWK\Enums\Services;
 use FWK\Services\PageService;
 use FWK\Services\PluginService;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\PageRelationResolver;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
+use SDK\Core\Resources\Environment;
 
 /**
  * This is the Magicfront trait.
@@ -25,8 +25,6 @@ use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 trait MagicfrontTrait {
 
     public const BATCH_DATA_NAME_SOURCE = 'batchDataNameSource';
-
-    public const DYNAMIC_MODULES_CSS = 'dynamicModulesCss';
 
     public const PAGE_NOT_FOUND = 'PAGE_NOT_FOUND';
 
@@ -44,9 +42,9 @@ trait MagicfrontTrait {
 
     public bool $useEndpointDragAndDrop = false;
 
-    public ?String $magicfrontToken = null;
+    public ?String $token = null;
 
-    public ?String $magicfrontPageId = null;
+    public ?String $page = null;
 
     public bool $pluginMagicfrontEnabled = false;
 
@@ -54,10 +52,10 @@ trait MagicfrontTrait {
 
     protected function getFilterParams(): array {
         return [
-            Parameters::MAGICFRONT_TOKEN => new FilterInput([
+            Parameters::TOKEN => new FilterInput([
                 FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
             ]),
-            Parameters::MAGICFRONT_PAGE_ID => new FilterInput([
+            Parameters::PAGE => new FilterInput([
                 FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
             ])
         ];
@@ -73,19 +71,17 @@ trait MagicfrontTrait {
 
         $this->route = $route;
 
-        $this->magicfrontToken = $this->getRequestParam(Parameters::MAGICFRONT_TOKEN, false, null);
-        $this->magicfrontPageId = $this->getRequestParam(Parameters::MAGICFRONT_PAGE_ID, false, null);
+        $this->token = $this->getRequestParam(Parameters::TOKEN, false, null);
+        $this->page = $this->getRequestParam(Parameters::PAGE, false, null);
 
-        $this->isMagicfrontEnabled = $this->magicfrontToken ? true : false;
-        $this->magicfrontToken = $this->magicfrontToken ?? $this->widgetsService->getMagicfrontToken("home");
-        $this->magicfrontPageId = $this->magicfrontPageId ?? $this->widgetsService->getPageId($this->magicfrontToken);
+        $this->isMagicfrontEnabled = $this->token ? true : false;
+        $this->token = $this->token ?? $this->widgetsService->getToken("home");
+        $this->page = $this->page ?? $this->widgetsService->getPageId($route->getId(), $this->token);
     }
 
     protected function setMagicfrontBatchData(BatchRequests $requests): void {
-
-
-        if ($this->pluginMagicfrontEnabled && $this->magicfrontToken && $this->magicfrontPageId) {
-            $this->pages = $this->widgetsService->getPageWidgets($this->magicfrontPageId, $this->route->getLanguage(), $this->magicfrontToken);
+        if ($this->pluginMagicfrontEnabled && $this->token && $this->page) {
+            $this->pages = $this->widgetsService->getPageWidgets($this->page, $this->route->getLanguage(), $this->token);
         }
 
         $this->useEndpointDragAndDrop = $this->pages != null && is_null($this->pages?->getError());
@@ -107,27 +103,15 @@ trait MagicfrontTrait {
         $this->setDataValue(PageRelationResolver::PAGES, $this->pages);
 
         $widgetTemplateList = [];
-        $widgetCss = '';
-        $widgetJs = '';
 
-        if ($this->pluginMagicfrontEnabled && $this->magicfrontToken) {
-            $widgetTypes = $this->collectPageWidgetTypes($this->pages?->getItems() ?? []);
-            $widgetTemplateList = $this->widgetsService?->getWidgetTemplatesAsHtml($this->magicfrontToken) ?? [];
-            if (!empty($widgetTypes)) {
-                $widgetCss = $this->widgetsService?->getMergedWidgetCss($this->magicfrontToken, $widgetTypes) ?? '';
-                $widgetJs = $this->widgetsService?->getMergedWidgetJs($this->magicfrontToken, $widgetTypes) ?? '';
-            }
+        if ($this->pluginMagicfrontEnabled && $this->token) {
+            $widgetTemplateList = $this->widgetsService?->getWidgetTemplatesAsHtml($this->token) ?? [];
         }
         $this->setDataValue('widgetTemplateList', $widgetTemplateList);
-        $this->setDataValue('widgetCss', $widgetCss);
-        $this->setDataValue('widgetJs', $widgetJs);
-
-        // Build dynamic CSS for custom widgets
-        $css = PageRelationResolver::buildCustomPagesCss($this->pages?->getItems() ?? []);
-        $this->setDataValue(self::DYNAMIC_MODULES_CSS, $css);
-        $this->setDataValue('magicfrontToken', $this->magicfrontToken);
-        $this->setDataValue('magicfrontPageId', $this->magicfrontPageId);
+        $this->setDataValue('token', $this->token);
+        $this->setDataValue('page', $this->page);
         $this->setDataValue('isMagicfrontEnabled', $this->isMagicfrontEnabled);
+        $this->setDataValue('mgfAssetsUrl', Environment::get('MGF_ASSETS_URL'));
     }
 
     protected function collectPageWidgetTypes(array $pages): array {

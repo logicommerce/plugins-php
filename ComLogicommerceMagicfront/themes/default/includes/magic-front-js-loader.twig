@@ -1,0 +1,155 @@
+{# Magic front Custom JavaScript Loader Script - Testing Version (No Cache) #}
+<script>
+(function() {
+    'use strict';
+
+    // Configuration
+    var config = {
+        apiUrl: '/{{ constant('INTERNAL_PREFIX') }}/resources/plugin_route/com.logicommerce.magicfront',
+        token: '{{ token|default('') }}',
+        page: '{{ page|default('') }}',
+        functionType: '{{ constant('Plugins\\ComLogicommerceMagicfront\\Enums\\FunctionType::CUSTOMIZE_JS') }}',
+        scriptElementId: 'mff-custom-js',
+        maxRetries: 2,
+        retryDelay: 1000, // 1 second
+        executeInSandbox: false // Set to true for safer execution
+    };
+
+    var state = {
+        isLoading: false,
+        retryCount: 0
+    };
+
+    // Execute JavaScript code safely
+    function executeJs(js) {
+        if (!js || js.trim().length === 0) {
+            console.warn('[MFF JS] Empty script, skipping execution');
+            return;
+        }
+
+        try {
+            // Check if script already exists and remove it
+            var existing = document.getElementById(config.scriptElementId);
+            if (existing) {
+                console.log('[MFF JS] Removing previous script element');
+                existing.remove();
+            }
+
+            // Create script element
+            var script = document.createElement('script');
+            script.id = config.scriptElementId;
+            script.type = 'text/javascript';
+            script.setAttribute('data-mff-loader', 'true');
+
+            // Execute in sandbox (if enabled) or directly
+            if (config.executeInSandbox) {
+                // Wrap in IIFE for isolation
+                script.textContent = '(function(){\n"use strict";\n' + js + '\n})();';
+            } else {
+                script.textContent = js;
+            }
+
+            // Handle script errors
+            script.onerror = function(e) {
+                console.error('[MFF JS] Script execution error:', e);
+            };
+
+            // Append to document
+            (document.head || document.getElementsByTagName('head')[0]).appendChild(script);
+
+            state.isLoading = false;
+            console.log('[MFF JS] Executed successfully (' + js.length + ' bytes)');
+
+        } catch (error) {
+            console.error('[MFF JS] Execution failed:', error);
+            state.isLoading = false;
+        }
+    }
+
+    // Load JavaScript via GET request with retry logic
+    function loadJs() {
+        // Prevent duplicate requests
+        if (state.isLoading) {
+            console.warn('[MFF JS] Already loading, skipping duplicate request');
+            return;
+        }
+
+        // Check required parameters
+        if (!config.token) {
+            console.warn('[MFF JS] Token missing, skipping load');
+            return;
+        }
+
+        state.isLoading = true;
+        console.log('[MFF JS] Loading from server...');
+
+        var params = new URLSearchParams();
+        params.append('type', config.functionType);
+        params.append('token', config.token);
+        if (config.page) {
+            params.append('page', config.page);
+        }
+
+        fetch(config.apiUrl + '?' + params.toString(), {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.text();
+        })
+        .then(function(js) {
+            // Validate JS content
+            if (js && typeof js === 'string') {
+                executeJs(js);
+                console.log('[MFF JS] Loaded successfully');
+                state.retryCount = 0; // Reset retry count on success
+            } else {
+                throw new Error('Invalid JavaScript response');
+            }
+        })
+        .catch(function(error) {
+            state.isLoading = false;
+            console.error('[MFF JS] Load failed:', error);
+
+            // Retry logic
+            if (state.retryCount < config.maxRetries) {
+                state.retryCount++;
+                console.log('[MFF JS] Retrying... (' + state.retryCount + '/' + config.maxRetries + ')');
+                setTimeout(function() {
+                    loadJs();
+                }, config.retryDelay * state.retryCount);
+            } else {
+                console.error('[MFF JS] Max retries reached, giving up');
+                state.retryCount = 0; // Reset for next manual reload
+            }
+        });
+    }
+
+    // Initialize loader
+    function init() {
+        loadJs();
+    }
+
+    // Execute on DOM ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // Expose reload function for debugging/testing
+    window.mffReloadJs = function() {
+        console.log('[MFF JS] Manual reload triggered');
+        state.isLoading = false;
+        state.retryCount = 0;
+        loadJs();
+    };
+
+})();
+</script>

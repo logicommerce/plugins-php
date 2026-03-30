@@ -1,0 +1,18 @@
+<div class="userPaymentCards userPaymentCardData">
+    <div class="field identifier">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\LanguageLabels::COM_LOGICOMMERCE_ADYENV6_IDENTIFIED')] }}:
+        {{ pluginPaymentToken.token }}
+    </div>
+    <div class="field identifier">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\LanguageLabels::COM_LOGICOMMERCE_ADYENV6_REFERENCE')] }}:
+        {{ pluginPaymentToken.data.identifier }}
+    </div>
+    <div class="field cardNumber">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\LanguageLabels::COM_LOGICOMMERCE_ADYENV6_CARD_NUMBER')] }}:
+        ******{{ pluginPaymentToken.data.cardNumber }}
+    </div>
+    <div class="field expiryDate">
+        {{ languageSheet[constant('Plugins\\ComLogicommerceAdyenv6\\Enums\\LanguageLabels::COM_LOGICOMMERCE_ADYENV6_EXPIRY_DATE')] }}:
+        {{ pluginPaymentToken.data.expiryDate }}        
+    </div>
+</div>

@@ -120,6 +120,11 @@
 			"name": "/.*\\.php$|.*\\.twig$/",
 			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
 			"in": "ComLogicommerceMagicfront"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceAdyenv6"
 		}
 	],
 	"map":[
@@ -185,6 +190,9 @@
 		},
 		{
 			"ComLogicommerceMagicfront/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceAdyenv6/twigCoreTemplates":"twigCoreTemplates"
 		}
 	],
 	"output": "build/plugins.phar",

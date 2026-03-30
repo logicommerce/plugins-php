@@ -3,7 +3,7 @@
 namespace Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page;
 
 use FWK\Core\Dtos\Traits\RelatedItemsTrait;
-use Plugins\ComLogicommerceMagicfront\Core\Dtos\Traits\DcsPageTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Dtos\Traits\MagicfrontPageTrait;
 use SDK\Dtos\Catalog\Page\Page as SDKPage;
 
 /**
@@ -11,8 +11,8 @@ use SDK\Dtos\Catalog\Page\Page as SDKPage;
  *
  * @see RelatedItemsTrait
  *
- * @package FWK\Dtos\Catalog
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page
  */
 class Page extends SDKPage {
-    use RelatedItemsTrait, DcsPageTrait;
+    use RelatedItemsTrait, MagicfrontPageTrait;
 }

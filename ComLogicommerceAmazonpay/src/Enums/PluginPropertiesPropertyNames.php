@@ -45,7 +45,5 @@ class PluginPropertiesPropertyNames extends Enum {
 
     public const ENVIRONMENT = 'environment';
 
-    public const EXPRESSCHECKOUT = 'expressCheckout';
-
     public const AMZLOGIN = 'amzLogin';
 }

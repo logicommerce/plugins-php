@@ -15,8 +15,8 @@
 
       {% set twigCode = args.widgetTemplateList[type] %}
       {% if twigCode is not empty %}
-        <div class="dcs-widget" data-widget-id="{{ widgetInstanceId }}">
-          <!-- DCS_WIDGET_START {{ payload|json_encode|raw }} -->
+        <div class="mff-widget" data-widget-id="{{ widgetInstanceId }}">
+          <!-- MFF_WIDGET_START {{ payload|json_encode|raw }} -->
           {% include template_from_string(twigCode) with {
               page: page,
               moduleType: type,
@@ -25,7 +25,7 @@
               version: args.version,
               widgetTemplateList: args.widgetTemplateList|default({}),
           } %}
-          <!-- DCS_WIDGET_END -->
+          <!-- MFF_WIDGET_END -->
         </div>
       {% endif %}
     {% endfor %}

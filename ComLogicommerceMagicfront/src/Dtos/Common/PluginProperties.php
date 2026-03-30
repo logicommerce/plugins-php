@@ -2,6 +2,7 @@
 
 namespace Plugins\ComLogicommerceMagicfront\Dtos\Common;
 
+use Plugins\ComLogicommerceMagicfront\Enums\PluginPropertiesPropertyNames;
 use SDK\Core\Dtos\PluginProperties as CorePluginProperties;
 use SDK\Core\Dtos\Traits\ElementTrait;
 
@@ -33,5 +34,19 @@ class PluginProperties extends CorePluginProperties {
 
     protected function setProperties(array $properties): void {
         $this->properties = $this->setArrayField($properties, PluginPropertiesProperty::class);
+    }
+
+    /**
+     * Returns the list of route types where MagicFront is enabled.
+     *
+     * @return array
+     */
+    public function getAvailablePages(): array {
+        foreach ($this->properties as $property) {
+            if ($property->getName() === PluginPropertiesPropertyNames::AVAILABLEPAGES) {
+                return $property->getValue() ?? [];
+            }
+        }
+        return [];
     }
 }

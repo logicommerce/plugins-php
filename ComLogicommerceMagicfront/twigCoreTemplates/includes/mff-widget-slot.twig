@@ -1,0 +1,24 @@
+{% import "macros/widget.twig" as widgetMacros %}
+    {% set widgetDraftId = subPage.draftId|default(subPage.pId)|default("") %}
+    {% set widgetId = (page.id == 0 ? widgetDraftId : page.id) %}
+    {% set payload = {
+        type: subPage.customType,
+        id: widgetDraftId|default(subPage.id)|default(""),
+        draftId: widgetDraftId,
+        parentId: (subPage.parentId is defined ? subPage.parentId : null),
+        label: (subPage.label is defined ? subPage.label : null)
+    } %}
+    <!-- MFF_WIDGET_START {{ payload|json_encode|raw }} -->
+    <div id="{{ widgetId }}" data-mff-widget-root="1" data-mff-sortable-container="1"
+        data-mff-widget-type="{{ payload.type|default('') }}"
+        data-mff-widget-id="{{ payload.draftId|default(payload.id)|default('') }}"
+        >
+        {% if subPage.subpages is defined %}
+            {{ widgetMacros.widgets({
+                pages: subPage.subpages,
+                version: version,
+                widgetTemplateList: widgetTemplateList
+            }) }}
+        {% endif %}
+    </div>
+    <!-- MFF_WIDGET_END -->
