@@ -1,249 +1,152 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Core\Services;
 
 /**
- * Style mapping utilities for converting styleValues to CSS declarations.
- * Port of dcseditor/src/editor/utils/styleMapping.ts
+ * Maps widget style values to CSS declarations. Kept byte-identical (except
+ * for namespace) with the preview copy at
+ * MagicFront\TemplateRenderer\Css\StyleMapper so preview and production
+ * emit the same CSS for the same values.
  *
- * @package Plugins\ComLogicommerceMagicfront\Services
+ * In the current contract, widgets declare the CSS property name directly
+ * via each style's `cssProperty` field; this mapper just pairs value with
+ * unit and combines the multi-part SHADOW.* group into a single box-shadow
+ * declaration. Legacy SPACING.* / BORDER.* prefixes are intentionally not
+ * handled — no widget in the catalog uses them.
  */
 class StyleMapper {
 
-    /** CSS properties that require "px" unit */
-    private const DIMENSION_PROPS = [
-        'padding-top',
-        'padding-right',
-        'padding-bottom',
-        'padding-left',
-        'margin-top',
-        'margin-right',
-        'margin-bottom',
-        'margin-left',
-        'border-width',
-        'border-radius',
-        'width',
-        'height',
-        'top',
-        'right',
-        'bottom',
-        'left',
-        'gap',
-        'row-gap',
-        'column-gap',
-        'font-size',
-        'letter-spacing'
-        // line-height excluded — bare numbers are CSS multipliers (e.g. 1.6), not px values
-    ];
+    // ─── Public API ───────────────────────────────────────────────────────────
 
     /**
-     * Convert styleTagPId to CSS property name
+     * Generate CSS declarations from an array of styleValue objects.
      *
-     * @param string $styleTagPId e.g., "SHADOW.offsetX", "padding-top"
-     * @return string CSS property, e.g., "box-shadow", "padding-top"
+     * @param  array                    $styleValues    Array of styleValue objects from the API
+     * @param  string                   $elementId      Element identifier (e.g. "title", "root")
+     * @param  array<string,string>|null $cssPropertyMap styleId → cssProperty from the template
+     * @return array  Associative array of CSS property => value
      */
-    public static function propertyIdToCss(string $styleTagPId): string {
-        if (strpos($styleTagPId, 'SHADOW.') === 0) {
-            return 'box-shadow';
-        }
+    public static function generateCssDeclarations(
+        array $styleValues,
+        string $elementId = '',
+        ?array $cssPropertyMap = null
+    ): array {
+        $declarations = [];
+        $shadowValues = [];
 
-        // The propertyId is already a valid CSS property name
-        return $styleTagPId;
-    }
+        foreach ($styleValues as $style) {
+            // styleTagPId / styleId is schema polymorphism — API sends one of the two.
+            // `unit` is genuinely optional (not every style has a unit).
+            $pid   = $style['styleTagPId'] ?? $style['styleId'];
+            $value = self::normalizeValue($style['value']);
+            $unit  = $style['unit'] ?? '';
 
-    /**
-     * Normalize raw values from the API to scalar strings
-     */
-    private static function normalizeValue($value) {
-        if (is_object($value)) {
-            $value = get_object_vars($value);
-        }
-
-        if (is_array($value)) {
-            $keys = array_keys($value);
-            sort($keys);
-            if ($keys === ['unit', 'value'] && isset($value['value']) && isset($value['unit'])) {
-                $rawValue = $value['value'];
-                $unit = $value['unit'];
-                if ((is_int($rawValue) || is_float($rawValue) || is_numeric($rawValue)) && is_string($unit)) {
-                    if ($unit === '' || $unit === 'px') {
-                        return (string)$rawValue;
-                    }
-                    return (string)$rawValue . $unit;
-                }
-                if (is_string($rawValue) && is_string($unit)) {
-                    if ($unit === '' || $unit === 'px') {
-                        return $rawValue;
-                    }
-                    return $rawValue . $unit;
-                }
+            if (empty($pid) || $value === null || $value === '') {
+                continue;
             }
 
-            return '';
+            // SHADOW.* must be collected and combined into one box-shadow declaration
+            if (str_starts_with($pid, 'SHADOW.')) {
+                $shadowValues[$pid] = $value;
+                continue;
+            }
+
+            // Everything else: API sends the correct cssProperty, just format the value
+            $cssProp  = $cssPropertyMap[$pid] ?? $pid;
+            $cssValue = self::toCssValue($value, $unit);
+
+            if ($cssValue !== '') {
+                $declarations[$cssProp] = $cssValue;
+            }
         }
 
-        return $value;
+        // Combine SHADOW.* into box-shadow
+        if (!empty($shadowValues)) {
+            $declarations['box-shadow'] = self::buildBoxShadow($shadowValues);
+        }
+
+        return $declarations;
     }
 
-    /**
-     * Format value for CSS (add "px" to bare numbers if needed)
-     *
-     * @param string $cssProperty CSS property name
-     * @param mixed $value Raw value
-     * @return string Formatted CSS value
-     */
-    public static function toCssValue(string $cssProperty, $value): string {
-        $value = self::normalizeValue($value);
-        $str = strval($value);
+    // ─── Private helpers ──────────────────────────────────────────────────────
 
+    /**
+     * Format a value + unit into a CSS value string.
+     */
+    private static function toCssValue(mixed $value, string $unit = ''): string {
+        $str = (string)$value;
         if ($str === '') {
             return '';
         }
-
-        // Add "px" to bare numbers for dimension properties
-        if (in_array($cssProperty, self::DIMENSION_PROPS, true)) {
-            if (preg_match('/^-?\d+(\.\d+)?$/', $str)) {
-                return $str . 'px';
-            }
+        if (preg_match('/^-?\d+(\.\d+)?$/', $str) && $unit !== '') {
+            return $str . $unit;
         }
-
         return $str;
     }
 
     /**
-     * Build box-shadow from SHADOW.* styleValues
-     *
-     * @param array $shadowValues Associative array of SHADOW.* values
-     * @return string Complete box-shadow CSS value
+     * Build a box-shadow CSS value from SHADOW.* style values. SHADOW.color
+     * is routed through sanitizeCssColor to prevent CSS injection via a
+     * persisted malformed color; no default color is supplied — if API omits
+     * or sends invalid SHADOW.color the shadow renders as invalid CSS and
+     * the bug surfaces.
      */
-    public static function buildBoxShadow(array $shadowValues): string {
-        $get = function ($part, $default) use ($shadowValues) {
-            $key = "SHADOW.{$part}";
-            $value = self::normalizeValue($shadowValues[$key] ?? $default);
-            if ($value === '' && $default !== '') {
-                $value = $default;
-            }
+    private static function buildBoxShadow(array $shadowValues): string {
+        return implode(' ', [
+            self::shadowPart($shadowValues, 'offsetX', '0'),
+            self::shadowPart($shadowValues, 'offsetY', '0'),
+            self::shadowPart($shadowValues, 'blur',    '0'),
+            self::shadowPart($shadowValues, 'spread',  '0'),
+            self::sanitizeCssColor((string) $shadowValues['SHADOW.color'], ''),
+        ]);
+    }
 
-            if ($part === 'color') {
-                return $value;
-            }
+    private static function shadowPart(array $values, string $part, string $default): string {
+        $value = (string)($values["SHADOW.{$part}"] ?? $default);
+        if ($value === '') {
+            $value = $default;
+        }
+        return preg_match('/^-?\d+(\.\d+)?$/', $value) ? $value . 'px' : $value;
+    }
 
-            // Add "px" to numeric values
-            if (preg_match('/^-?\d+(\.\d+)?$/', strval($value))) {
-                return $value . 'px';
-            }
-
+    /**
+     * Normalize a raw API value to a scalar string.
+     * Handles the {value, unit} dimension struct returned by the API.
+     */
+    private static function normalizeValue(mixed $value): mixed {
+        if (is_object($value)) {
+            $value = get_object_vars($value);
+        }
+        if (!is_array($value)) {
             return $value;
-        };
-
-        return sprintf(
-            '%s %s %s %s %s',
-            $get('offsetX', '0'),
-            $get('offsetY', '0'),
-            $get('blur', '0'),
-            $get('spread', '0'),
-            $get('color', 'rgba(0,0,0,0.2)')
-        );
+        }
+        if (count($value) === 2 && isset($value['value'], $value['unit'])) {
+            $raw  = $value['value'];
+            $unit = $value['unit'];
+            if (is_string($unit)) {
+                return $unit === '' ? (string) $raw : (string) $raw . $unit;
+            }
+        }
+        return '';
     }
 
     /**
-     * Group styleValues by type for efficient processing
-     *
-     * @param array $styleValues Array of styleValue objects
-     * @return array Grouped by category
+     * Accept only well-formed hex, rgb(a), hsl(a) or named-color strings.
+     * Falls back to $default when the value doesn't parse — prevents CSS
+     * injection via a persisted malformed color.
      */
-    public static function groupStyleValues(array $styleValues): array {
-        $grouped = [
-            'simple' => [],
-            'spacing' => [],
-            'border' => [],
-            'shadow' => []
-        ];
-
-        foreach ($styleValues as $style) {
-            $pid = $style['styleTagPId'] ?? '';
-            $rawValue = $style['value'] ?? '';
-            $value = self::normalizeValue($rawValue);
-
-            if ($pid === '') {
-                continue;
-            }
-
-            if (strpos($pid, 'SPACING.') === 0) {
-                $grouped['spacing'][$pid] = $value;
-            } elseif (strpos($pid, 'BORDER.') === 0) {
-                $grouped['border'][$pid] = $value;
-            } elseif (strpos($pid, 'SHADOW.') === 0) {
-                $grouped['shadow'][$pid] = $value;
-            } else {
-                $style['value'] = $value;
-                $grouped['simple'][] = $style;
-            }
+    private static function sanitizeCssColor(string $value, string $default): string {
+        $v = trim($value);
+        if (
+            preg_match('/^#[0-9a-fA-F]{3,8}$/', $v) ||
+            preg_match('/^rgba?\s*\([\d\s,%.\/]+\)$/i', $v) ||
+            preg_match('/^hsla?\s*\([\d\s,%.\/]+\)$/i', $v) ||
+            preg_match('/^[a-zA-Z]+$/', $v)
+        ) {
+            return $v;
         }
-
-        return $grouped;
-    }
-
-    /**
-     * Generate CSS declarations from styleValues
-     *
-     * @param array $styleValues Array of styleValue objects
-     * @return array Associative array of CSS property => value
-     */
-    public static function generateCssDeclarations(array $styleValues): array {
-        $grouped = self::groupStyleValues($styleValues);
-        $declarations = [];
-
-        // Process simple properties
-        foreach ($grouped['simple'] as $style) {
-            $pid = $style['styleTagPId'] ?? '';
-            $value = $style['value'] ?? '';
-
-            if ($pid === '' || $value === '') {
-                continue;
-            }
-
-            $cssProp = self::propertyIdToCss($pid);
-            $cssValue = self::toCssValue($cssProp, $value);
-
-            if ($cssValue !== '') {
-                $declarations[$cssProp] = $cssValue;
-            }
-        }
-
-        // Process SPACING.* (convert to padding-*)
-        foreach ($grouped['spacing'] as $pid => $value) {
-            $parts = explode('.', $pid);
-            if (count($parts) !== 2) {
-                continue;
-            }
-
-            $side = strtolower($parts[1]);
-            $cssProp = "padding-{$side}";
-            $cssValue = self::toCssValue($cssProp, $value);
-
-            if ($cssValue !== '') {
-                $declarations[$cssProp] = $cssValue;
-            }
-        }
-
-        // Process BORDER.* (combine if possible)
-        if (!empty($grouped['border'])) {
-            $width = $grouped['border']['BORDER.width'] ?? null;
-            $style = $grouped['border']['BORDER.style'] ?? 'solid';
-            $color = $grouped['border']['BORDER.color'] ?? '#000';
-
-            if ($width !== null && $width !== '') {
-                $declarations['border'] = self::toCssValue('border-width', $width)
-                    . ' ' . $style . ' ' . $color;
-            }
-        }
-
-        // Process SHADOW.* (build box-shadow)
-        if (!empty($grouped['shadow'])) {
-            $declarations['box-shadow'] = self::buildBoxShadow($grouped['shadow']);
-        }
-
-        return $declarations;
+        return $default;
     }
 }

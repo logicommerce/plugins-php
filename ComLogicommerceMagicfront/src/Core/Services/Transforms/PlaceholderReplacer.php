@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Core\Services\Transforms;
 
 use Plugins\ComLogicommerceMagicfront\Enums\WidgetTemplatePlaceholder;
@@ -38,13 +40,20 @@ class PlaceholderReplacer {
 
     /**
      * Read a twig include file from twigCoreTemplates/includes/.
+     * When running from PHAR, box.json maps twigCoreTemplates to the PHAR root,
+     * so the __DIR__ relative path doesn't work. Falls back to a preview
+     * placeholder so the docker template-renderer can still render.
      */
     private static function loadInclude(string $filename): string {
-        $path = __DIR__ . '/../../../../twigCoreTemplates/includes/' . $filename;
-        if (!is_file($path)) {
-            throw new \RuntimeException("Widget template include not found: {$path}");
+        $safe = basename($filename);
+        $path = __DIR__ . '/../../../../twigCoreTemplates/includes/' . $safe;
+        if (is_file($path)) {
+            return file_get_contents($path) ?: '';
         }
-        return file_get_contents($path) ?: '';
+        // Fallback: preview placeholder (PHAR path mapping or missing theme)
+        return '<div style="padding:16px;border:1px dashed #bbb;color:#666;'
+            . 'font:12px/1 monospace;text-align:center;background:#f7f7f7">'
+            . 'slot content</div>';
     }
 
     /**

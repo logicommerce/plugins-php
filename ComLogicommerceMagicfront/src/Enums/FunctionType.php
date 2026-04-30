@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
 use SDK\Core\Enums\Enum;
@@ -19,7 +21,5 @@ abstract class FunctionType extends Enum {
 
     public const GET_WIDGET = 'getWidget';
 
-    public const CUSTOMIZE_CSS = 'customizeCss';
-
-    public const CUSTOMIZE_JS = 'customizeJs';
+    public const CUSTOMIZE_CSS_JS = 'customizeCssJs';
 }

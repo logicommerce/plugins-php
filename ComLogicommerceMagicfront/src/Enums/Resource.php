@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
 use SDK\Core\Enums\Enum;
@@ -17,9 +19,7 @@ abstract class Resource extends Enum {
 
     public const GET_PAGE_WIDGET_BY_ID = "/pages/widgets/{widgetId}";
 
-    public const GET_WIDGET_TEMPLATES = "/widgetTemplates";
-
-    public const GET_WIDGET_TEMPLATE_BY_TYPE = "/widgetTemplates/{type}";
+    public const GET_WIDGET_TEMPLATE_BY_ID = "/widgetTemplates/{id}";
 
     public const GET_PAGES = "/pages";
 

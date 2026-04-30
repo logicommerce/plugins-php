@@ -1,16 +1,26 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 
 use FWK\Core\Dtos\ElementCollection as DtosElementCollection;
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
+use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Services\BatchService;
+use SDK\Core\Services\Parameters\Groups\ParametersGroup;
 use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
-use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 
+/**
+ * Enriches the widget tree with related data (products, categories) by
+ * collecting batch requests per-page and applying the results back onto
+ * the tree.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Resources
+ */
 class PageRelationResolver {
 
     public const LC_PREFIX = 'lc-';
@@ -20,167 +30,142 @@ class PageRelationResolver {
     public const PAGES = 'pages';
 
     public static function setData(?ElementCollection $data): ?ElementCollection {
-        if ($data === null || !$data instanceof ElementCollection)
+        if ($data === null) {
             return null;
-
-        $secondBatchRequests = new BatchRequests();
+        }
         $pages = $data;
-        self::prepareSecondBatchRequestsRecursive($pages, $secondBatchRequests);
-        $batchResults = self::sendSecondBatchRequestsRecursive($secondBatchRequests);
-        self::addExtraDataBatchRecursive($batchResults, $pages);
-
+        $batchRequests = new BatchRequests();
+        self::prepareBatchRequestsRecursive($pages, $batchRequests);
+        $batchResults = BatchService::getInstance()->send($batchRequests);
+        self::applyBatchResultsRecursive($batchResults, $pages);
         return $pages;
     }
 
-    protected static function prepareSecondBatchRequestsRecursive(ElementCollection &$pages, BatchRequests $secondBatchRequests): void {
+    protected static function prepareBatchRequestsRecursive(ElementCollection &$pages, BatchRequests $batchRequests): void {
         $pages = DtosElementCollection::fillFromParentCollection($pages, Page::class);
         foreach ($pages->getItems() as $page) {
             if (!$page instanceof Page) {
                 continue;
             }
-            self::addProductsGridBatchRequests($page, $secondBatchRequests);
+            self::addProductsGridBatchRequests($page, $batchRequests);
 
             $subItems = $page->getSubpages();
             if (!empty($subItems)) {
-                $subPages = new ElementCollection(['items' => $page->getSubPages()]);
-                self::prepareSecondBatchRequestsRecursive($subPages, $secondBatchRequests);
+                $subPages = new ElementCollection(['items' => $subItems]);
+                self::prepareBatchRequestsRecursive($subPages, $batchRequests);
                 $page->setFWKSubpages($subPages->getItems());
             }
         }
     }
 
-    protected static function sendSecondBatchRequestsRecursive(BatchRequests $secondBatchRequests): array {
-        $batchService = BatchService::getInstance();
-        return $batchService->send($secondBatchRequests);
-    }
-
-    protected static function addExtraDataBatchRecursive(array $batchResults, ?ElementCollection $pages = null): void {
+    protected static function applyBatchResultsRecursive(array $batchResults, ?ElementCollection $pages): void {
+        if ($pages === null) {
+            return;
+        }
         foreach ($pages->getItems() as $page) {
             if (!$page instanceof Page) {
                 continue;
             }
-
             $base = self::getBatchKey($page);
-
-            $keyProducts   = $base . '_products';
-            $keyCategories = $base . '_categories';
-
-            if (isset($batchResults[$keyProducts])) {
-                $page->setProducts($batchResults[$keyProducts]);
+            if (isset($batchResults[$base . '_products'])) {
+                $page->setProducts($batchResults[$base . '_products']);
             }
-
-            if (isset($batchResults[$keyCategories])) {
-                $page->setCategories($batchResults[$keyCategories]);
+            if (isset($batchResults[$base . '_categories'])) {
+                $page->setCategories($batchResults[$base . '_categories']);
             }
 
             $subItems = $page->getSubpages();
             if (!empty($subItems)) {
                 $subPages = new ElementCollection(['items' => $subItems]);
-                self::addExtraDataBatchRecursive($batchResults, $subPages);
+                self::applyBatchResultsRecursive($batchResults, $subPages);
                 $page->setFWKSubpages($subPages->getItems());
             }
         }
     }
 
-    protected static function addProductsGridBatchRequests(Page $page, BatchRequests $secondBatchRequests): void {
-        $settings = $page->getModuleSettings();
-        $baseKey = self::getBatchKey($page);
-        $productService = Loader::service(Services::PRODUCT);
-        // Productos
-        if ($page->getCustomType() == 'productsGrid') {
-            self::addBatchRequest(
-                new ProductsParametersGroup(),
-                $settings,
-                self::LC_PREFIX,
-                [$productService, 'addGetProducts'],
-                $baseKey . '_products',
-                $secondBatchRequests
-            );
-        }
-        // Categorías
-        /*$this->addBatchRequest(
-            new CategoryParametersGroup(),
-            $settings,
-            self::LC_PREFIX,
-            [$this->categoryService, 'addGetCategories'],
-            $baseKey . '_categories'
-        );*/
-    }
-
-    protected static function addBatchRequest(object $group, array $settings, string $prefix, callable $serviceAddMethod, string $batchKey, BatchRequests $secondBatchRequests): void {
-        $group = self::buildParametersGroup($group, $settings, $prefix);
-        $defaultgroup = new ProductsParametersGroup();
-        if (count($group->toArray()) == count($defaultgroup->toArray())) {
+    protected static function addProductsGridBatchRequests(Page $page, BatchRequests $batchRequests): void {
+        if ($page->getCustomType() !== 'productsGrid') {
             return;
         }
-        $serviceAddMethod($secondBatchRequests, $batchKey, $group);
+        $productService = Loader::service(Services::PRODUCT);
+        self::addBatchRequest(
+            new ProductsParametersGroup(),
+            $page->getModuleSettings(),
+            self::LC_PREFIX,
+            [$productService, 'addGetProducts'],
+            self::getBatchKey($page) . '_products',
+            $batchRequests
+        );
     }
 
-    protected static function buildParametersGroup(object $group, array $settings, string $prefix): object {
-        $ref = new \ReflectionClass($group);
+    protected static function addBatchRequest(
+        ParametersGroup $group,
+        array $settings,
+        string $prefix,
+        callable $serviceAddMethod,
+        string $batchKey,
+        BatchRequests $batchRequests
+    ): void {
+        $group = self::buildParametersGroup($group, $settings, $prefix);
+        // Skip if the settings did not populate any filter on top of the defaults.
+        if (count($group->toArray()) === count((new (get_class($group))())->toArray())) {
+            return;
+        }
+        $serviceAddMethod($batchRequests, $batchKey, $group);
+    }
 
-        foreach ($ref->getProperties() as $prop) {
-            $name = $prop->getName();
-            $key = $prefix . $name;
-
-            if (!array_key_exists($key, $settings)) {
-                continue;
-            }
-
-            $value = $settings[$key];
+    /**
+     * Populate a parameters group from a `$prefix{propertyName}` keyed
+     * settings array, coercing scalar values to each property's declared type.
+     */
+    protected static function buildParametersGroup(ParametersGroup $group, array $settings, string $prefix): ParametersGroup {
+        foreach ((new \ReflectionClass($group))->getProperties() as $prop) {
+            $name   = $prop->getName();
             $setter = 'set' . ucfirst($name);
+            $key    = $prefix . $name;
 
-            if (!method_exists($group, $setter)) {
+            if (!array_key_exists($key, $settings) || !method_exists($group, $setter)) {
                 continue;
             }
 
-            $type = $prop->getType();
-            if ($type) {
-                $typeName = $type->getName();
-
-                if ($typeName === 'int' && !is_numeric($value)) {
-                    continue;
-                }
-
-                if ($typeName === 'float' && !is_numeric($value)) {
-                    continue;
-                }
-
-                if ($typeName === 'bool') {
-                    $value = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
-                    if ($value === null) {
-                        continue;
-                    }
-                }
-
-                if ($typeName === 'string' && !is_string($value)) {
-                    continue;
-                }
-
-                // Final type conversion
-                settype($value, $typeName);
+            $value = self::coerceToPropertyType($settings[$key], $prop->getType());
+            if ($value === null && $prop->getType() !== null) {
+                continue;
             }
 
-            if ($name === 'categoryId' && $value == 0) {
+            // Category 0 is the "no category" sentinel used by the editor.
+            if ($name === 'categoryId' && (int) $value === 0) {
                 continue;
             }
 
             $group->$setter($value);
         }
-
         return $group;
     }
 
-    protected static function getBatchKey(Page $page): string {
-        return self::PAGE_ID . ($page->getId() == 0 ? $page->getDraftId() : (string)$page->getId());
-    }
-
-    protected static function getPageIdByBatchKey(string $key): string {
-        if (strpos($key, self::PAGE_ID) !== 0) {
-            return '';
+    /**
+     * Coerce `$value` to match the declared property type. Returns null when
+     * the value can't safely be converted (the caller should then skip it).
+     */
+    private static function coerceToPropertyType(mixed $value, ?\ReflectionType $type): mixed {
+        if (!$type instanceof \ReflectionNamedType) {
+            return $value;
         }
-        return substr($key, strlen(self::PAGE_ID));
+        $typeName = $type->getName();
+        return match ($typeName) {
+            'int', 'float' => is_numeric($value) ? self::castScalar($value, $typeName) : null,
+            'bool'         => filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE),
+            'string'       => is_string($value) ? $value : null,
+            default        => $value,
+        };
     }
 
-    // Removed: buildCustomPagesCss() - No longer used, CSS is now handled by CustomizeCssHandler
+    private static function castScalar(mixed $value, string $typeName): mixed {
+        settype($value, $typeName);
+        return $value;
+    }
+
+    protected static function getBatchKey(Page $page): string {
+        return self::PAGE_ID . ($page->getId() === 0 ? $page->getDraftId() : (string) $page->getId());
+    }
 }

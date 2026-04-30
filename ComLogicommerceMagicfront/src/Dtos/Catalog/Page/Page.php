@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page;
 
 use FWK\Core\Dtos\Traits\RelatedItemsTrait;

@@ -1,46 +1,40 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Core\Services;
 
-use SDK\Core\Dtos\ElementCollection;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
-use Plugins\ComLogicommerceMagicfront\Core\Dtos\WidgetInstance;
+use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
+use SDK\Core\Dtos\ElementCollection;
 
 /**
- * Transforms WidgetInstance DTOs from Magic front API to Page format expected by PageRelationResolver.
+ * Transforms WidgetInstance DTOs from the Magic Front API into the Page
+ * format expected by PageRelationResolver.
  *
- * The Magic front API returns widgets with:
- * - id (string): widget ID
- * - type: widget type (e.g., "banner", "heading")
- * - orderIndex: visual order
- * - propertyValues: widget properties
- * - children: nested child widgets
+ *   Magic Front API structure            →  Page-compatible structure
+ *   id (string)                          →  id (int, 0) + draftId (string)
+ *   widgetTemplateId                     →  customType
+ *   orderIndex                           →  position
+ *   propertyValues + styleValues         →  customTagValues + moduleSettings
+ *   children                             →  subpages (plugin Page objects)
  *
- * PageRelationResolver expects Page objects with:
- * - id (int): internal ID (we use 0 and store string ID in draftId)
- * - customType: widget type
- * - position: visual order
- * - customTagValues: properties as tags
- * - subpages: nested children
- *
- * @package Plugins\ComLogicommerceMagicfront\Services
+ * @package Plugins\ComLogicommerceMagicfront\Core\Services
  */
 class WidgetToPageTransformer {
 
+    // ─── Public API ───────────────────────────────────────────────────────────
+
     /**
-     * Transforms a single widget array (from API response) to Page format.
-     * Public method for use in controllers that fetch individual widgets.
-     *
-     * @param array $widgetData Raw widget data from Magic front API
-     * @return Page
+     * Transform a single WidgetInstance DTO to a Page DTO.
      */
-    public static function transformSingle(array $widgetData): Page {
-        $widget = new WidgetInstance($widgetData);
+    public static function transformSingle(WidgetInstance $widget): Page {
         return self::widgetToPage($widget);
     }
 
     /**
-     * Transforms ElementCollection of WidgetInstance to ElementCollection of Page.
+     * Transform an ElementCollection of WidgetInstances into an
+     * ElementCollection of Pages.
      */
     public static function transform(?ElementCollection $widgets): ?ElementCollection {
         if ($widgets === null) {
@@ -48,288 +42,267 @@ class WidgetToPageTransformer {
         }
 
         $items = $widgets->getItems();
-        if ($items === null || empty($items)) {
+        if (empty($items)) {
             return new ElementCollection(['items' => []]);
         }
 
         $pages = [];
-        foreach ($items as $widget) {
-            if ($widget instanceof WidgetInstance) {
-                $pages[] = self::widgetToPage($widget);
-            } elseif (is_array($widget)) {
-                // Handle raw array data
-                $widgetInstance = new WidgetInstance($widget);
-                $pages[] = self::widgetToPage($widgetInstance);
-            }
+        foreach ($items as $item) {
+            $widget  = $item instanceof WidgetInstance ? $item : new WidgetInstance($item);
+            $pages[] = self::widgetToPage($widget);
         }
-
         return new ElementCollection(['items' => $pages]);
     }
 
-    /**
-     * Converts a single WidgetInstance to Page format.
-     */
+    // ─── Core transformation ──────────────────────────────────────────────────
+
     private static function widgetToPage(WidgetInstance $widget): Page {
-        $allPropertyValues = self::mergePropertyValues(
-            $widget->getPropertyValues(),
-            $widget->getStyleValues()
-        );
+        $allValues = array_merge($widget->getPropertyValues(), $widget->getStyleValues());
+        $processed = self::processPropertyValues($widget->getType(), $allValues, count($widget->getChildren()));
 
-        // Transform children to arrays with moduleSettings
-        $childrenArrays = self::transformChildrenToArrays($widget->getChildren());
+        $page = new Page([
+            'id'              => 0,
+            'customType'      => $widget->getType(),
+            'position'        => $widget->getOrderIndex(),
+            'pageType'        => 'CUSTOM',
+            'active'          => true,
+            'customTagValues' => $processed['customTags'],
+            'subpages'        => [],
+            'language'        => $processed['language'],
+            'moduleSettings'  => $processed['moduleSettings'],
+        ]);
 
-        // Extract language and moduleSettings from propertyValues
-        $extracted = self::extractPropertiesForTemplate(
-            $widget->getType(),
-            $allPropertyValues,
-            count($widget->getChildren())  // Pass children count for smart defaults
-        );
+        $page->setDraftId($widget->getId());
+        $page->setSlotId($widget->getSlotId());
+        $page->setSlotPermissions($widget->getSlotPermissions());
 
-        // Don't pass subpages to constructor — SDK PageFactory would create
-        // SDK Page objects that lack moduleSettings (MagicfrontPageTrait property).
-        $pageData = [
-            'id' => 0,  // SDK uses int, we store string ID in draftId
-            'customType' => $widget->getType(),
-            'position' => $widget->getOrderIndex(),
-            'pageType' => 'CUSTOM',  // Widgets are always CUSTOM type
-            'active' => true,
-            'customTagValues' => self::propertyValuesToCustomTags($allPropertyValues),
-            'subpages' => [],  // Empty — children set below as plugin Pages
-            'language' => $extracted['language'],
-            'moduleSettings' => $extracted['moduleSettings'],
-        ];
-
-        $page = new Page($pageData);
-        $page->setDraftId($widget->getId());  // Store Magic front ID as draftId
-
-        // Build children as plugin Page objects (with moduleSettings via MagicfrontPageTrait)
-        // instead of SDK Page objects created by PageFactory.
-        if (!empty($childrenArrays)) {
-            $page->setFWKSubpages(self::buildChildPages($childrenArrays));
+        $children = $widget->getChildren();
+        if (!empty($children)) {
+            $page->setFWKSubpages(self::buildChildPages(self::transformChildrenToArrays($children)));
         }
-
         return $page;
     }
 
+    // ─── Property processing ──────────────────────────────────────────────────
+
     /**
-     * Recursively builds plugin Page objects from child arrays.
+     * Single-pass processing: builds moduleSettings and customTagValues
+     * simultaneously to avoid iterating the same array twice.
      *
-     * SDK's PageFactory creates SDK\Dtos\Catalog\Page\Page objects which don't
-     * have the moduleSettings property (from MagicfrontPageTrait). This method creates
-     * plugin Page objects so that Twig templates can access subpage.moduleSettings.
+     * @return array{moduleSettings: array, customTags: array, language: array}
+     */
+    private static function processPropertyValues(string $type, array $propertyValues, int $childrenCount = 0): array {
+        $moduleSettings = [];
+        $customTags     = [];
+
+        foreach ($propertyValues as $pv) {
+            $entry = self::normalizePropertyEntry($pv);
+            if (!$entry['enabled'] || empty($entry['propertyId'])) {
+                continue;
+            }
+            self::registerModuleSetting($moduleSettings, $type, $entry);
+            $customTags[] = self::customTagEntry($entry);
+        }
+
+        // Smart default: column count falls back to the actual child count.
+        if ($type === 'columns' && $childrenCount > 0) {
+            $moduleSettings['count']         ??= $childrenCount;
+            $moduleSettings['columns.count'] ??= $childrenCount;
+        }
+
+        return ['moduleSettings' => $moduleSettings, 'customTags' => $customTags, 'language' => []];
+    }
+
+    /**
+     * Register a normalized entry under every moduleSettings key the template
+     * might use to look it up (bare, element-scoped, type-scoped, and the
+     * fully-qualified combo).
+     */
+    private static function registerModuleSetting(array &$moduleSettings, string $type, array $entry): void {
+        $propId    = $entry['propertyId'];
+        $value     = $entry['value'];
+        $elementId = $entry['elementId'];
+
+        $moduleSettings[$propId] = $value;
+
+        if ($elementId !== '') {
+            $moduleSettings[$elementId . '.' . $propId] = $value;
+        }
+
+        // Top-level (unprefixed) property IDs get a type-prefixed alias for
+        // template compatibility.
+        if ($type !== '' && !str_contains($propId, '.') && !preg_match('/^[A-Z_]+\./', $propId)) {
+            $moduleSettings[$type . '.' . $propId] = $value;
+            if ($elementId !== '') {
+                $moduleSettings[$type . '.' . $elementId . '.' . $propId] = $value;
+            }
+        }
+    }
+
+    /**
+     * Build a customTagValues entry for an SDK CustomTagValue DTO (string value).
      *
-     * @param array $childrenArrays Arrays from transformChildrenToArrays()
+     * @return array{customTagPId: string, value: string}
+     */
+    private static function customTagEntry(array $entry): array {
+        $value = $entry['value'];
+        return [
+            'customTagPId' => $entry['propertyId'],
+            'value'        => self::stringifyCustomTagValue($value),
+        ];
+    }
+
+    private static function stringifyCustomTagValue(mixed $value): string {
+        if (is_string($value)) {
+            return $value;
+        }
+        if (is_array($value)) {
+            return json_encode($value, JSON_UNESCAPED_UNICODE) ?: '';
+        }
+        return (string) $value;
+    }
+
+    // ─── Child handling ───────────────────────────────────────────────────────
+
+    /**
+     * Build plugin Page objects from child arrays.
+     *
+     * SDK's PageFactory creates SDK Page objects that lack the moduleSettings
+     * property (from MagicfrontPageTrait). Plugin Page objects are used instead
+     * so that Twig templates can access `subpage.moduleSettings`.
+     *
+     * @param  array $childrenArrays  Output of transformChildrenToArrays().
      * @return Page[]
      */
     private static function buildChildPages(array $childrenArrays): array {
         $pages = [];
         foreach ($childrenArrays as $childArray) {
-            // Extract nested subpages before constructing (avoid SDK PageFactory)
-            $nestedSubpages = $childArray['subpages'] ?? [];
+            // transformChildrenToArrays() (below) always populates `subpages`.
+            $nestedSubpages         = $childArray['subpages'];
             $childArray['subpages'] = [];
 
-            // Plugin Page constructor processes moduleSettings via MagicfrontPageTrait
             $childPage = new Page($childArray);
             if (!empty($childArray['pId'])) {
                 $childPage->setDraftId($childArray['pId']);
             }
-
-            // Recursively process grandchildren
+            // slotId / slotPermissions are optional per API schema.
+            if (!empty($childArray['slotId'])) {
+                $childPage->setSlotId($childArray['slotId']);
+            }
+            if (!empty($childArray['slotPermissions'])) {
+                $childPage->setSlotPermissions($childArray['slotPermissions']);
+            }
             if (!empty($nestedSubpages)) {
                 $childPage->setFWKSubpages(self::buildChildPages($nestedSubpages));
             }
-
             $pages[] = $childPage;
         }
         return $pages;
     }
 
     /**
-     * Extract ALL properties into moduleSettings by pId.
-     * Templates access via: moduleSettings['heading.title'], moduleSettings['columns.count'], etc.
+     * Recursively convert child widgets to page-compatible arrays.
      *
-     * @param string $type Widget type
-     * @param array $propertyValues Properties from API
-     * @param int $childrenCount Number of children (for smart defaults)
-     */
-    private static function extractPropertiesForTemplate(string $type, array $propertyValues, int $childrenCount = 0): array {
-        $moduleSettings = [];
-
-        foreach ($propertyValues as $pv) {
-            $normalized = self::normalizePropertyEntry($pv);
-            if ($normalized['enabled'] === false) {
-                continue;
-            }
-
-            $propId = $normalized['propertyId'];
-            if ($propId === '') {
-                continue;
-            }
-
-            $value = $normalized['value'];
-            $elementId = $normalized['elementId'];
-
-            // v2: propId simplificado (title). Guardar también versión prefijada (heading.title) para no romper Twig viejo.
-            $moduleSettings[$propId] = $value;
-            if ($elementId !== '') {
-                $moduleSettings[$elementId . '.' . $propId] = $value;
-            }
-            if ($type !== '' && strpos($propId, '.') === false && !preg_match('/^[A-Z_]+\./', $propId)) {
-                $moduleSettings[$type . '.' . $propId] = $value;
-                if ($elementId !== '') {
-                    $moduleSettings[$type . '.' . $elementId . '.' . $propId] = $value;
-                }
-            }
-        }
-
-        // Smart defaults
-        if ($type === 'columns' && $childrenCount > 0) {
-            // v2: "count" sin prefijo
-            $moduleSettings['count'] = $moduleSettings['count'] ?? $childrenCount;
-            // compat con Twig viejo
-            $moduleSettings['columns.count'] = $moduleSettings['columns.count'] ?? $childrenCount;
-        }
-
-        return [
-            'moduleSettings' => $moduleSettings,
-            'language' => [],
-        ];
-    }
-
-
-    /**
-     * Converts propertyValues array to customTagValues format.
-     */
-    private static function propertyValuesToCustomTags(array $propertyValues): array {
-        $customTags = [];
-        foreach ($propertyValues as $pv) {
-            $normalized = self::normalizePropertyEntry($pv);
-            if ($normalized['enabled'] === false || $normalized['propertyId'] === '') {
-                continue;
-            }
-
-            $customTags[] = [
-                'customTagPId' => $normalized['propertyId'],
-                'value' => $normalized['value'],
-            ];
-        }
-        return $customTags;
-    }
-
-    /**
-     * Normalize property value entry across API versions.
-     */
-    private static function normalizePropertyEntry($propertyValue): array {
-        $propId = '';
-        $value = '';
-        $elementId = '';
-        $enabled = true;
-
-        if (is_array($propertyValue)) {
-            $propId = $propertyValue['propertyId'] ?? ($propertyValue['styleTagPId'] ?? ($propertyValue['pId'] ?? ''));
-            $value = $propertyValue['value'] ?? '';
-            $elementId = $propertyValue['elementId'] ?? '';
-            if (array_key_exists('enabled', $propertyValue)) {
-                $enabled = (bool)$propertyValue['enabled'];
-            }
-        } elseif (is_object($propertyValue)) {
-            $propId = $propertyValue->propertyId ?? ($propertyValue->styleTagPId ?? ($propertyValue->pId ?? ''));
-            $value = $propertyValue->value ?? '';
-            $elementId = $propertyValue->elementId ?? '';
-            if (property_exists($propertyValue, 'enabled')) {
-                $enabled = (bool)$propertyValue->enabled;
-            }
-        }
-
-        return [
-            'propertyId' => $propId,
-            'value' => self::normalizeValue($value),
-            'elementId' => is_string($elementId) ? $elementId : '',
-            'enabled' => $enabled,
-        ];
-    }
-
-    /**
-     * Normalize dimension-like values from the new API.
-     */
-    private static function normalizeValue($value) {
-        if (is_object($value)) {
-            $value = get_object_vars($value);
-        }
-
-        if (is_array($value)) {
-            $keys = array_keys($value);
-            sort($keys);
-            if ($keys === ['unit', 'value'] && isset($value['value']) && isset($value['unit'])) {
-                $rawValue = $value['value'];
-                $unit = $value['unit'];
-                if ((is_int($rawValue) || is_float($rawValue) || is_numeric($rawValue)) && is_string($unit)) {
-                    if ($unit === '') {
-                        return (string)$rawValue;
-                    }
-                    return (string)$rawValue . $unit;
-                }
-            }
-        }
-
-        return $value;
-    }
-
-    /**
-     * Transforms children array recursively to array format (for SDK setSubpages).
-     * SDK expects arrays that it converts to Page objects via PageFactory.
+     * Note: SDK's setSubpages() converts these arrays via PageFactory — which
+     * creates SDK Page objects without moduleSettings. Use buildChildPages()
+     * after this step.
      */
     private static function transformChildrenToArrays(array $children): array {
         $subpages = [];
         foreach ($children as $child) {
-            $childData = is_array($child) ? $child : [];
-            if ($child instanceof WidgetInstance) {
-                $childData = [
-                    'id' => $child->getId(),
-                    'type' => $child->getType(),
-                    'orderIndex' => $child->getOrderIndex(),
-                    'propertyValues' => $child->getPropertyValues(),
-                    'styleValues' => $child->getStyleValues(),
-                    'children' => $child->getChildren(),
-                ];
+            $childData = self::extractChildData($child);
+            if ($childData === null) {
+                continue;
             }
 
-            $childType = $childData['type'] ?? '';
-            $childProps = $childData['propertyValues'] ?? [];
-            $childStyles = $childData['styleValues'] ?? [];
-            $allChildValues = self::mergePropertyValues($childProps, $childStyles);
-            $nestedChildren = $childData['children'] ?? [];
+            $childType = $childData['widgetTemplateId'];
+            $allValues = array_merge($childData['propertyValues'], $childData['styleValues']);
+            $processed = self::processPropertyValues($childType, $allValues);
 
-            // Extract language and moduleSettings for templates
-            $extracted = self::extractPropertiesForTemplate($childType, $allChildValues);
-
-            // Build page-compatible array
-            // NOTE: SDK Page class uses 'pId' field, not 'draftId'
-            // The Twig macro needs to use page.pId as fallback
             $subpages[] = [
-                'id' => 0,
-                'pId' => $childData['id'] ?? '',
-                'customType' => $childType,
-                'position' => $childData['orderIndex'] ?? 0,
-                'pageType' => 'CUSTOM',
-                'active' => true,
-                'customTagValues' => self::propertyValuesToCustomTags($allChildValues),
-                'subpages' => self::transformChildrenToArrays($nestedChildren),
-                'language' => $extracted['language'],
-                'moduleSettings' => $extracted['moduleSettings'],
+                'id'              => 0,
+                'pId'             => $childData['id'],
+                'customType'      => $childType,
+                'position'        => $childData['orderIndex'],
+                'pageType'        => 'CUSTOM',
+                'active'          => true,
+                'customTagValues' => $processed['customTags'],
+                'subpages'        => self::transformChildrenToArrays($childData['children']),
+                'language'        => $processed['language'],
+                'moduleSettings'  => $processed['moduleSettings'],
+                // slotId / slotPermissions are optional per API schema.
+                'slotId'          => $childData['slotId'] ?? null,
+                'slotPermissions' => $childData['slotPermissions'] ?? null,
             ];
         }
         return $subpages;
     }
 
     /**
-     * Merge standard properties with style values.
+     * Normalize a child entry to an associative array. Accepts WidgetInstance
+     * DTOs or already-serialized arrays.
      */
-    private static function mergePropertyValues(array $propertyValues, array $styleValues): array {
-        if (empty($styleValues)) {
-            return $propertyValues;
+    private static function extractChildData(mixed $child): ?array {
+        if ($child instanceof WidgetInstance) {
+            return [
+                'id'               => $child->getId(),
+                'widgetTemplateId' => $child->getWidgetTemplateId(),
+                'orderIndex'       => $child->getOrderIndex(),
+                'propertyValues'   => $child->getPropertyValues(),
+                'styleValues'      => $child->getStyleValues(),
+                'children'         => $child->getChildren(),
+                'slotId'           => $child->getSlotId(),
+                'slotPermissions'  => $child->getSlotPermissions(),
+            ];
         }
+        return is_array($child) ? $child : null;
+    }
 
-        return array_merge($propertyValues, $styleValues);
+    // ─── Normalization ────────────────────────────────────────────────────────
+
+    /**
+     * Normalize a single property value entry. API may send `propertyId`
+     * (PropertyValueDTO) or `styleId` (StyleValueDTO) as the identifier.
+     *
+     * @return array{propertyId: string, value: mixed, elementId: string, enabled: bool}
+     */
+    private static function normalizePropertyEntry(array $propertyValue): array {
+        // `elementId` is optional (unscoped properties have none).
+        // `propertyId` / `styleId` is schema polymorphism — API sends one of the two.
+        return [
+            'propertyId' => $propertyValue['propertyId'] ?? $propertyValue['styleId'],
+            'value'      => self::normalizeValue($propertyValue['value']),
+            'elementId'  => $propertyValue['elementId'] ?? '',
+            'enabled'    => array_key_exists('enabled', $propertyValue) ? (bool) $propertyValue['enabled'] : true,
+        ];
+    }
+
+    /**
+     * Normalize a raw API value to a usable scalar or string.
+     *
+     * Handles:
+     *   - Dimension struct: {"value": 5, "unit": "px"} → "5px"
+     *   - Localized array:  [{"value": "Hello"}, ...]  → "Hello"
+     */
+    private static function normalizeValue(mixed $value): mixed {
+        if (!is_array($value)) {
+            return $value;
+        }
+        if (empty($value)) {
+            return '';
+        }
+        // Dimension type: {"value": 5, "unit": "px"} → "5px"
+        if (count($value) === 2 && isset($value['value'], $value['unit'])) {
+            $raw  = $value['value'];
+            $unit = $value['unit'];
+            if ((is_int($raw) || is_float($raw) || is_numeric($raw)) && is_string($unit)) {
+                return $unit === '' ? (string) $raw : (string) $raw . $unit;
+            }
+        }
+        // Localized type: [{"value": "Hello"}, {"language": "es", "value": "Hola"}, ...]
+        if (isset($value[0]) && is_array($value[0]) && array_key_exists('value', $value[0])) {
+            return (string) $value[0]['value'];
+        }
+        return $value;
     }
 }

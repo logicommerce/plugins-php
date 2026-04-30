@@ -5,18 +5,25 @@
       {# Use draftId for plugin Page class, pId for SDK Page class (subpages) #}
       {% set widgetDraftId = page.draftId|default(page.pId)|default('') %}
       {% set widgetInstanceId = (page.id == 0 ? widgetDraftId : page.id) %}
+      {% set slotId = (page.slotId is defined and page.slotId) ? page.slotId : null %}
+      {% set slotPerms = (page.slotPermissions is defined and page.slotPermissions) ? page.slotPermissions : null %}
       {% set payload = {
         type: type,
         id: widgetDraftId|default(page.id)|default(''),
         draftId: widgetDraftId,
         parentId: (page.parentId is defined ? page.parentId : null),
-        label: (page.label is defined ? page.label : null)
+        label: (page.label is defined ? page.label : null),
+        slotId: slotId
       } %}
 
       {% set twigCode = args.widgetTemplateList[type] %}
       {% if twigCode is not empty %}
-        <div class="mff-widget" data-widget-id="{{ widgetInstanceId }}">
-          <!-- MFF_WIDGET_START {{ payload|json_encode|raw }} -->
+        <div class="mff-widget" data-widget-id="{{ widgetInstanceId }}"
+          {%- if slotId %} data-mff-widget-root="1" data-mff-slot-id="{{ slotId }}"{% endif %}
+          {%- if slotPerms and not slotPerms.allowMove %} data-mff-no-drag="1"{% endif %}
+          {%- if slotPerms and not slotPerms.allowDelete %} data-mff-no-delete="1"{% endif %}
+          {%- if slotPerms and not slotPerms.allowDuplicate %} data-mff-no-duplicate="1"{% endif %}>
+          <!-- MFF_WIDGET_START {{ payload|json_encode(constant('JSON_HEX_TAG'))|raw }} -->
           {% include template_from_string(twigCode) with {
               page: page,
               moduleType: type,

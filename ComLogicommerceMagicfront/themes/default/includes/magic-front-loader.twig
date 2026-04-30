@@ -1,0 +1,164 @@
+{# Magic front Combined CSS + JS Loader #}
+<script>
+(function() {
+    'use strict';
+
+    var config = {
+        apiUrl: '/{{ constant('INTERNAL_PREFIX') }}/resources/plugin_route/com.logicommerce.magicfront',
+        token: '{{ token|default('')|e('js') }}',
+        page: '{{ page|default('')|e('js') }}',
+        functionType: '{{ constant('Plugins\\ComLogicommerceMagicfront\\Enums\\FunctionType::CUSTOMIZE_CSS_JS') }}',
+        styleElementId: 'mff-custom-css',
+        scriptElementId: 'mff-custom-js',
+        // In editor mode the canvas triggers the first load; otherwise auto-load at DOMContentLoaded.
+        autoLoad: {{ isMagicfrontEnabled is defined and isMagicfrontEnabled ? 'false' : 'true' }},
+        maxRetries: 2,
+        retryDelay: 1000
+    };
+
+    var state = {
+        isLoading: false,
+        retryCount: 0,
+        requestSeq: 0
+    };
+
+    // -------------------------------------------------------------------------
+    // DOM injection
+    // -------------------------------------------------------------------------
+
+    function ensureStyleElement() {
+        if (!document.getElementById(config.styleElementId)) {
+            var style = document.createElement('style');
+            style.id = config.styleElementId;
+            style.type = 'text/css';
+            style.setAttribute('data-mff-loader', 'true');
+            style.textContent = '/* Magic front Custom CSS: Loading... */';
+            var head = document.head || document.getElementsByTagName('head')[0];
+            if (head.firstChild) {
+                head.insertBefore(style, head.firstChild);
+            } else {
+                head.appendChild(style);
+            }
+        }
+    }
+
+    function injectCss(css) {
+        var styleEl = document.getElementById(config.styleElementId);
+        if (styleEl) {
+            styleEl.textContent = css || '/* Magic front Custom CSS: Empty */';
+            styleEl.setAttribute('data-loaded', 'true');
+        }
+        window.__mffCssStatus = 'loaded';
+    }
+
+    function injectJs(js) {
+        var existing = document.getElementById(config.scriptElementId);
+        if (existing) {
+            existing.remove();
+        }
+
+        var script = document.createElement('script');
+        script.id = config.scriptElementId;
+        script.type = 'text/javascript';
+        script.setAttribute('data-mff-loader', 'true');
+        script.setAttribute('data-loaded', 'true');
+
+        if (js && js.trim().length > 0) {
+            script.textContent = js;
+            script.onerror = function(e) {
+                console.error('[MFF] Script execution error:', e);
+            };
+        }
+
+        (document.head || document.getElementsByTagName('head')[0]).appendChild(script);
+        window.__mffJsStatus = 'loaded';
+    }
+
+    // -------------------------------------------------------------------------
+    // Fetch
+    // -------------------------------------------------------------------------
+
+    function loadResources() {
+        if (state.isLoading) {
+            return;
+        }
+        if (!config.token) {
+            return;
+        }
+
+        state.isLoading = true;
+        window.__mffCssStatus = 'loading';
+        window.__mffJsStatus = 'loading';
+        var seq = ++state.requestSeq;
+
+        var params = new URLSearchParams();
+        params.append('type', config.functionType);
+        params.append('token', config.token);
+        if (config.page) {
+            params.append('page', config.page);
+        }
+
+        fetch(config.apiUrl + '?' + params.toString(), {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            if (seq !== state.requestSeq) {
+                return;
+            }
+            injectCss(data.css || '');
+            injectJs(data.js || '');
+            state.isLoading = false;
+            state.retryCount = 0;
+        })
+        .catch(function(error) {
+            if (seq !== state.requestSeq) {
+                return;
+            }
+            state.isLoading = false;
+            console.error('[MFF] Load failed:', error);
+
+            if (state.retryCount < config.maxRetries) {
+                state.retryCount++;
+                setTimeout(loadResources, config.retryDelay * state.retryCount);
+            } else {
+                window.__mffCssStatus = 'failed';
+                window.__mffJsStatus = 'failed';
+                state.retryCount = 0;
+            }
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // Init
+    // -------------------------------------------------------------------------
+
+    function init() {
+        ensureStyleElement();
+        if (config.autoLoad) {
+            loadResources();
+        }
+    }
+
+    // Expose single reload function used by ResourceReloadService and canvas init.
+    window.mffReload = function() {
+        state.isLoading = false;
+        state.retryCount = 0;
+        loadResources();
+    };
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+})();
+</script>

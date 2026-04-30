@@ -1,7 +1,8 @@
 <?php
 
-namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers;
+declare(strict_types=1);
 
+namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers;
 
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;

@@ -1,143 +1,101 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute;
 
 use FWK\Core\Controllers\BaseJsonController;
 use FWK\Core\FilterInput\FilterInput;
 use FWK\Core\FilterInput\FilterInputHandler;
+use FWK\Core\Resources\Response;
 use FWK\Enums\Parameters;
 use FWK\Twig\TwigLoader;
-use SDK\Core\Dtos\ElementCollection;
-use SDK\Core\Resources\BatchRequests;
-use SDK\Dtos\Common\Route;
-use FWK\Core\Dtos\ElementCollection as DtosElementCollection;
-use FWK\Core\Resources\Response;
-use FWK\Services\PageService;
-use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssHandler;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeJsHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssJsHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
-use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\Element;
+use SDK\Core\Resources\BatchRequests;
+use SDK\Dtos\Common\Route;
 
 /**
- * Controller to render a single widget's HTML after configuration changes.
- * Used by the Magicfront Editor for live updates without full page reload.
+ * Plugin-route dispatcher for Magicfront editor AJAX calls. Routes each
+ * incoming request to a handler that matches the `type` parameter:
+ *  - `customizeCssJs` → CSS + JS bundle for the current page's widgets.
+ *  - `getWidget`      → HTML/CSS/JS of a single widget (live preview).
+ *
+ * Handlers implement PluginRouteHandlerInterface. The controller picks the
+ * first handler whose `supports()` returns true. If the handler declares a
+ * raw response, its content-type and body are streamed directly; otherwise
+ * the controller falls back to BaseJsonController's DTO flow.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute
  */
 class ComLogicommerceMagicfrontController extends BaseJsonController {
 
     public const PLUGIN_MODULE = 'com.logicommerce.magicfront';
 
-    private ?WidgetsService $widgetsService = null;
-
-    private ?PageService $pageService = null;
-
-    private string $getFunctionType = '';
-
+    /** @var PluginRouteHandlerInterface[] */
     private array $handlers = [];
 
     private ?PluginRouteHandlerInterface $handler = null;
 
-    /**
-     * Constructor
-     */
     public function __construct(Route $route) {
         parent::__construct($route);
-        $this->widgetsService = WidgetsService::getInstance();
-        $this->pageService = PageService::getInstance();
         $this->handlers = [
-            new CustomizeCssHandler(),
-            new CustomizeJsHandler(),
+            new CustomizeCssJsHandler(),
             new GetWidgetHandler(),
         ];
     }
 
     /**
-     * This method returns the origin of the params (see FilterInputHandler::PARAMS_FROM_GET, FilterInputHandler::PARAMS_FROM_QUERY_STRING or FilterInputHandler::PARAMS_FROM_POST,...).
-     * This function must be override in extended controllers to add new parameters to self::requestParams
-     *
-     * @return mixed
+     * Read request params from the GET query string.
      *
      * @see FilterInputHandler
      */
-    protected function getOriginParams() {
+    protected function getOriginParams(): int {
         return FilterInputHandler::PARAMS_FROM_GET;
     }
 
     /**
-     * Defines expected input parameters
+     * Defines expected input parameters.
      */
     protected function getFilterParams(): array {
-        return [Parameters::WIDGET_ID => new FilterInput([
-            FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])] + [Parameters::PAGE => new FilterInput([
-            FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])] + [Parameters::TOKEN => new FilterInput([
-            FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])] + [Parameters::TYPE => new FilterInput([
-            FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])] + [Parameters::LANGUAGE => new FilterInput([
-            FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false
-        ])];
+        $noMod = [FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false];
+        return [
+            Parameters::WIDGET_ID => new FilterInput($noMod),
+            Parameters::PAGE      => new FilterInput($noMod),
+            Parameters::TOKEN     => new FilterInput($noMod),
+            Parameters::TYPE      => new FilterInput($noMod),
+            Parameters::LANGUAGE  => new FilterInput($noMod),
+        ];
     }
 
     protected function initializeAppliedParameters(): void {
         parent::initializeAppliedParameters();
-
-        // Try to get type parameter (may return null)
-        $type = $this->getRequestParam(Parameters::TYPE, false);
-        $this->getFunctionType = $type ?? '';
-
-        $this->handler = $this->resolveHandler($this->getFunctionType);
+        $type          = (string) ($this->getRequestParam(Parameters::TYPE, false) ?? '');
+        $this->handler = $this->resolveHandler($type);
     }
 
     public function run(array $additionalData = [], string $header = null): void {
-        // IMPORTANT: Initialize parameters BEFORE checking handler
-        // Because parent class might not call initializeAppliedParameters before run()
-        if (empty($this->getFunctionType)) {
+        // The parent flow does not guarantee initializeAppliedParameters() has
+        // been called before run(), so make sure the handler is resolved first.
+        if ($this->handler === null) {
             $this->initializeAppliedParameters();
         }
 
         try {
-            // Check if handler needs to return raw response (like CSS or JavaScript)
-            if ($this->handler && $this->handler->isRawResponse()) {
-                $contentType = $this->handler->getRawResponseContentType();
-
-                // Set appropriate response type based on content type
-                if ($contentType && strpos($contentType, 'javascript') !== false) {
-                    Response::setType(Response::TYPE_JS);
-                } else {
-                    Response::setType(Response::TYPE_CSS);
-                }
-
-                if ($contentType) {
-                    Response::addHeader('Content-Type: ' . $contentType);
-                }
-
-                $content = $this->handler->getRawResponseContent($this);
-                Response::output($content ?? '');
+            if ($this->handler !== null && $this->handler->isRawResponse()) {
+                $this->streamRawResponse($this->handler);
                 return;
             }
             parent::run($additionalData, $header);
         } catch (\Throwable $e) {
-            // Return appropriate error response
-            $contentType = $this->handler?->getRawResponseContentType() ?? 'text/plain';
-            Response::addHeader('Content-Type: ' . $contentType);
-
-            if (strpos($contentType, 'javascript') !== false) {
-                Response::output("// ERROR: " . str_replace(['//', '/*', '*/'], '', $e->getMessage()));
-            } else {
-                Response::output("/* ERROR: " . str_replace(['*/', '/*'], '', $e->getMessage()) . " */");
-            }
+            $this->streamErrorResponse($e);
         }
     }
 
     protected function getResponseData(): ?Element {
-        if ($this->handler) {
-            return $this->handler->handle($this);
-        }
-        return null;
+        return $this->handler?->handle($this);
     }
 
     public function getRequestParamValue(string $parameter, bool $required = true, mixed $default = null): mixed {
@@ -165,43 +123,38 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
         return null;
     }
 
-    /**
-     * Process pages recursively to convert them to PluginPage instances
-     * @param ElementCollection $pages
-     * @return ElementCollection|null
-     */
-    protected function processPagesRecursive(ElementCollection &$pages): ?ElementCollection {
-        $pages = DtosElementCollection::fillFromParentCollection($pages, PluginPage::class);
+    private function streamRawResponse(PluginRouteHandlerInterface $handler): void {
+        $contentType = $handler->getRawResponseContentType();
+        $isJs        = $contentType !== null && str_contains($contentType, 'javascript');
 
-        foreach ($pages->getItems() as $page) {
-            if (!$page instanceof PluginPage) {
-                continue;
-            }
-            $subItems = $page->getSubpages();
-            if (!empty($subItems)) {
-                $subPages = new ElementCollection(['items' => $page->getSubPages()]);
-                $this->processPagesRecursive($subPages);
-                $page->setFWKSubpages($subPages->getItems());
-            }
+        Response::setType($isJs ? Response::TYPE_JS : Response::TYPE_CSS);
+
+        if ($contentType !== null) {
+            Response::addHeader('Content-Type: ' . $contentType);
         }
-        return $pages;
+
+        Response::output($handler->getRawResponseContent($this) ?? '');
+    }
+
+    private function streamErrorResponse(\Throwable $e): void {
+        $contentType = $this->handler?->getRawResponseContentType() ?? 'text/plain';
+        Response::addHeader('Content-Type: ' . $contentType);
+
+        if (str_contains($contentType, 'javascript')) {
+            Response::output('// ERROR: ' . str_replace(['//', '/*', '*/'], '', $e->getMessage()));
+        } else {
+            Response::output('/* ERROR: ' . str_replace(['*/', '/*'], '', $e->getMessage()) . ' */');
+        }
     }
 
     /**
-     * This method is the one in charge of defining all the data batch requests that
-     * are needed for the controller and adding them to the BatchRequests given by parameter.
-     *
-     * @param BatchRequests $request
-     * @return void
+     * @see BaseJsonController::setBatchData()
      */
     protected function setBatchData(BatchRequests $request): void {
     }
 
     /**
-     * This method is the one in charge of defining all the data batch requests that are
-     * basic for the controller and adding them to the BatchRequests given by parameter.
-     *
-     * @param BatchRequests $requests
+     * @see BaseJsonController::setControllerBaseBatchData()
      */
     final protected function setControllerBaseBatchData(BatchRequests $requests): void {
     }
