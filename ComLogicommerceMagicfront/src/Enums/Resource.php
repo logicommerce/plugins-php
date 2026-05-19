@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
+use FWK\Core\Resources\Session;
 use SDK\Core\Enums\Enum;
 
 /**

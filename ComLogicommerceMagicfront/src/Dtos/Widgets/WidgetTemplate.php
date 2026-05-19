@@ -6,7 +6,7 @@ namespace Plugins\ComLogicommerceMagicfront\Dtos\Widgets;
 
 use SDK\Core\Dtos\Element;
 use SDK\Core\Dtos\Traits\ElementTrait;
-use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetTemplateTransformer;
+use Plugins\ComLogicommerceMagicfront\Core\Services\Transforms\WidgetTemplateTransformer;
 
 /**
  * This is the WidgetTemplate class.

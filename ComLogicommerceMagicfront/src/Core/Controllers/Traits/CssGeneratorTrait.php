@@ -18,7 +18,7 @@ use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplateStyle;
 trait CssGeneratorTrait {
 
     /** Media query for the tablet breakpoint. Must match preview's InstanceCssBuilder. */
-    private const TABLET_MEDIA = '@media (max-width: 991px)';
+    private const TABLET_MEDIA = '@media (min-width: 768px) and (max-width: 991px)';
 
     /** Media query for the mobile breakpoint. Must match preview's InstanceCssBuilder. */
     private const MOBILE_MEDIA = '@media (max-width: 767px)';
@@ -82,7 +82,7 @@ trait CssGeneratorTrait {
      */
     private function mergeTemplateCss(array $templates): string {
         return implode("\n", array_map(
-            static fn (WidgetTemplate $t): string => $t->getTemplateCss(),
+            static fn(WidgetTemplate $t): string => $t->getTemplateCss(),
             $templates
         ));
     }
@@ -193,7 +193,7 @@ trait CssGeneratorTrait {
         $lines  = explode("\n", rtrim($block, "\n"));
         $prefix = '  ';
         return implode("\n", array_map(
-            static fn (string $l): string => $l === '' ? $l : $prefix . $l,
+            static fn(string $l): string => $l === '' ? $l : $prefix . $l,
             $lines
         )) . "\n";
     }

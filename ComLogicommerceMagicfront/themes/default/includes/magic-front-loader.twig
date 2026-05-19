@@ -5,13 +5,10 @@
 
     var config = {
         apiUrl: '/{{ constant('INTERNAL_PREFIX') }}/resources/plugin_route/com.logicommerce.magicfront',
-        token: '{{ token|default('')|e('js') }}',
         page: '{{ page|default('')|e('js') }}',
         functionType: '{{ constant('Plugins\\ComLogicommerceMagicfront\\Enums\\FunctionType::CUSTOMIZE_CSS_JS') }}',
         styleElementId: 'mff-custom-css',
         scriptElementId: 'mff-custom-js',
-        // In editor mode the canvas triggers the first load; otherwise auto-load at DOMContentLoaded.
-        autoLoad: {{ isMagicfrontEnabled is defined and isMagicfrontEnabled ? 'false' : 'true' }},
         maxRetries: 2,
         retryDelay: 1000
     };
@@ -82,9 +79,6 @@
         if (state.isLoading) {
             return;
         }
-        if (!config.token) {
-            return;
-        }
 
         state.isLoading = true;
         window.__mffCssStatus = 'loading';
@@ -93,7 +87,6 @@
 
         var params = new URLSearchParams();
         params.append('type', config.functionType);
-        params.append('token', config.token);
         if (config.page) {
             params.append('page', config.page);
         }
@@ -142,9 +135,7 @@
 
     function init() {
         ensureStyleElement();
-        if (config.autoLoad) {
-            loadResources();
-        }
+        loadResources();
     }
 
     // Expose single reload function used by ResourceReloadService and canvas init.

@@ -35,11 +35,8 @@ abstract class AbstractCustomizeHandler extends AbstractPluginRouteHandler {
      *
      * @return WidgetInstance[]
      */
-    protected function getPageWidgets(string $token, string $pageId, string $language): array {
-        $items = WidgetsService::getInstance()
-            ->setToken($token)
-            ->getPageWidgetInstances($pageId, $language);
-
+    protected function getPageWidgets(string $pageId, string $language): array {
+        $items = WidgetsService::getInstance()->getPageWidgetInstances($pageId, $language);
         return empty($items) ? [] : $this->flattenWidgetTree($items);
     }
 

@@ -9,8 +9,11 @@ use FWK\Core\Resources\Loader;
 use FWK\Enums\Parameters;
 use FWK\Enums\Services;
 use FWK\Services\PluginService;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontSession;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
+use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
@@ -27,8 +30,6 @@ use SDK\Dtos\Common\Route;
  */
 trait MagicfrontTrait {
 
-    private const MFF_PREVIEW_PARAM = 'mff_preview';
-
     protected ?ElementCollection $pages = null;
 
     protected ?WidgetsService $widgetsService = null;
@@ -41,12 +42,10 @@ trait MagicfrontTrait {
 
     protected bool $pluginMagicfrontEnabled = false;
 
-    protected bool $isMagicfrontEnabled = false;
-
     protected function getFilterParams(): array {
         $noMod = [FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false];
         return [
-            Parameters::TOKEN        => new FilterInput($noMod),
+            MagicfrontSession::MF_TOKEN => new FilterInput($noMod),
             Parameters::PAGE         => new FilterInput($noMod),
         ];
     }
@@ -59,16 +58,11 @@ trait MagicfrontTrait {
         $pluginService = Loader::service(Services::PLUGIN);
         $this->pluginMagicfrontEnabled = $pluginService->isPluginMagicFrontEnabled($route->getType());
 
-        $this->token = $this->getRequestParam(Parameters::TOKEN, false, null);
+        $this->token = MagicfrontSession::setToken($this->getRequestParam(MagicfrontSession::MF_TOKEN, false, null));
         $this->page  = $this->getRequestParam(Parameters::PAGE, false, null);
 
-        $this->isMagicfrontEnabled = !empty($this->token);
-        if ($this->token !== null && $this->token !== '') {
-            $this->widgetsService->setToken($this->token);
-        }
-
         $this->page = $this->page
-            ?? ($this->token !== null && $this->token !== '' ? $this->widgetsService->getPageId((string)$route->getId()) : null);
+            ?? (!empty($this->token) ? $this->widgetsService->getPageId((string)$route->getId()) : null);
     }
 
     protected function setMagicfrontBatchData(BatchRequests $requests): void {
@@ -94,11 +88,17 @@ trait MagicfrontTrait {
             }
         }
 
+        $canvasMode = MagicfrontUtils::isCanvasMode();
+        $showAssets = !$canvasMode && !empty($this->page) && !empty($widgetTypes);
+        $language   = $this->route->getLanguage();
+
         $this->setDataValue('widgetTemplateList', $widgetTemplateList);
         $this->setDataValue('widgetTypes', $widgetTypes);
-        $this->setDataValue('token', $this->token);
         $this->setDataValue('page', $this->page);
-        $this->setDataValue('isMagicfrontEnabled', $this->isMagicfrontEnabled);
-        $this->setDataValue('mgfAssetsUrl', Environment::get('MGF_ASSETS_URL'));
+        $this->setDataValue('mfAssetsUrl', Environment::get('MF_ASSETS_URL'));
+        $this->setDataValue('mfCanvasMode', $canvasMode);
+        $this->setDataValue('mfShowAssets', $showAssets);
+        $this->setDataValue('mfCustomCssUrl', $showAssets ? MagicfrontUtils::storefrontUrl(FunctionType::CUSTOMIZE_CSS, $this->page, $language) : null);
+        $this->setDataValue('mfCustomJsUrl',  $showAssets ? MagicfrontUtils::storefrontUrl(FunctionType::CUSTOMIZE_JS,  $this->page, $language) : null);
     }
 }

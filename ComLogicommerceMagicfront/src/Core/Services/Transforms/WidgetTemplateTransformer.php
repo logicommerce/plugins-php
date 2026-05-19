@@ -2,11 +2,8 @@
 
 declare(strict_types=1);
 
-namespace Plugins\ComLogicommerceMagicfront\Core\Services;
+namespace Plugins\ComLogicommerceMagicfront\Core\Services\Transforms;
 
-use Plugins\ComLogicommerceMagicfront\Core\Services\Transforms\ChildIndexInjector;
-use Plugins\ComLogicommerceMagicfront\Core\Services\Transforms\PlaceholderReplacer;
-use Plugins\ComLogicommerceMagicfront\Core\Services\Transforms\WidgetSlot;
 use Plugins\ComLogicommerceMagicfront\Enums\WidgetTemplatePlaceholder;
 
 /**

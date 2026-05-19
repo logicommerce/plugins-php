@@ -12,11 +12,13 @@ use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
+use SDK\Core\Dtos\ElementCollection;
 
 class GetWidgetHandler extends AbstractCustomizeHandler {
 
@@ -36,15 +38,15 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     }
 
     public function getRawResponseContent(ComLogicommerceMagicfrontController $controller): ?string {
-        $token    = $controller->getRequestParamValue(Parameters::TOKEN, true);
         $pageId   = $controller->getRequestParamValue(Parameters::PAGE, true);
         $widgetId = $controller->getRequestParamValue(Parameters::WIDGET_ID, true);
         $language = Language::getInstance()->getLanguage();
 
         try {
-            $service = WidgetsService::getInstance()->setToken($token);
+            $service = WidgetsService::getInstance();
 
             $widget       = $service->getPageWidgetById($pageId, $widgetId, $language);
+            $widget       = $this->resolveCatalogRelations($widget);
             $neededTypes  = WidgetTypeCollector::fromPages([$widget]);
 
             $templates          = $service->getWidgetTemplatesForTypes($neededTypes);
@@ -72,6 +74,29 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
                 'messageError' => $e->getMessage(),
             ]]);
         }
+    }
+
+    /**
+     * Hydrate catalog-bound relations (products, categories) on the widget so
+     * its templateHtml reads them at render time. The full-page render path
+     * already does this in MagicfrontTrait::setMagicfrontData via
+     * PageRelationResolver::setData; the /getWidget AJAX path renders one
+     * widget in isolation and never went through that flow, which is why
+     * category-bound widgets used to render their empty state in the editor
+     * sidebar preview even after the merchant picked a category.
+     */
+    private function resolveCatalogRelations(?PluginPage $widget): ?PluginPage {
+        if ($widget === null) {
+            return null;
+        }
+        $collection = new ElementCollection(['items' => [$widget]]);
+        $resolved   = PageRelationResolver::setData($collection);
+        $items      = $resolved !== null ? $resolved->getItems() : [];
+        if (empty($items)) {
+            return $widget;
+        }
+        $first = $items[0];
+        return $first instanceof PluginPage ? $first : $widget;
     }
 
     // ─── Template resolution ──────────────────────────────────────────────────

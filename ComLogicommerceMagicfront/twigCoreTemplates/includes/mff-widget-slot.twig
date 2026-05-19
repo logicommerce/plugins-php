@@ -15,12 +15,14 @@
         data-mff-widget-type="{{ payload.type|default('') }}"
         data-mff-widget-id="{{ payload.draftId|default(payload.id)|default('') }}"
         >
-        {% if subPage.subpages is defined %}
+        {% if subPage.subpages is defined and subPage.subpages|length > 0 %}
             {{ widgetMacros.widgets({
                 pages: subPage.subpages,
                 version: version,
                 widgetTemplateList: widgetTemplateList
             }) }}
+        {% elseif previewMode is defined and previewMode %}
+            <div style="padding:16px;border:1px dashed #bbb;color:#999;font:12px/1 monospace;text-align:center;background:#f9f9f9;min-height:80px;display:flex;align-items:center;justify-content:center">slot content</div>
         {% endif %}
     </div>
     <!-- MFF_WIDGET_END -->

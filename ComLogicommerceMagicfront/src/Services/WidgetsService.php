@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Services;
 
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontSession;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
@@ -25,7 +26,6 @@ use SDK\Core\Services\Service;
  * the SDK / FWK Registry classes only accept whitelisted key constants, so
  * a plugin service cannot register through the canonical ServiceTrait.
  *
- * @see WidgetsService::setToken()
  * @see WidgetsService::getPageWidgets()
  * @see WidgetsService::getPageWidgetInstances()
  * @see WidgetsService::getPageWidgetById()
@@ -39,22 +39,11 @@ class WidgetsService extends Service {
 
     private static ?self $instance = null;
 
-    private ?string $token = null;
-
     public static function getInstance(): self {
         if (self::$instance === null) {
             self::$instance = new self();
         }
         return self::$instance;
-    }
-
-    /**
-     * Sets the JWT Bearer token used to authenticate subsequent calls against the
-     * Java dcsapi. Returns `$this` so callers can chain with the fetch method.
-     */
-    public function setToken(string $token): self {
-        $this->token = $token;
-        return $this;
     }
 
     /**
@@ -173,13 +162,15 @@ class WidgetsService extends Service {
 
     /**
      * Overrides SDK `Service::call()` to (1) inject the Bearer JWT header that
-     * the Java dcsapi expects — SDK's Connection only knows LogiCommerce-native
-     * auth — and (2) wrap bare-array list responses into `{items: [...]}` so
-     * `getResponse()` / `getElements()` work natively on our endpoints.
+     * the Java dcsapi expects — pulled from the plugin session so callers don't
+     * have to thread the token through every layer — and (2) wrap bare-array
+     * list responses into `{items: [...]}` so `getResponse()` / `getElements()`
+     * work natively on our endpoints.
      */
     protected function call(Request $request, string $apiUrl = null): array {
-        if ($this->token !== null) {
-            $request->setHeader('Authorization', 'Bearer ' . $this->token);
+        $token = MagicfrontSession::getToken();
+        if (!empty($token)) {
+            $request->setHeader('Authorization', 'Bearer ' . $token);
         }
         $response = parent::call($request, $apiUrl ?? $this->getApiUrl());
         // SDK's Connection::doRequest() appends an `httpStatus` metadata key on
@@ -193,6 +184,6 @@ class WidgetsService extends Service {
     }
 
     private function getApiUrl(): string {
-        return Environment::get('MGF_API_URL');
+        return Environment::get('MF_API_URL');
     }
 }

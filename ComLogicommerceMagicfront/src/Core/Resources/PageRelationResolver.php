@@ -48,6 +48,7 @@ class PageRelationResolver {
                 continue;
             }
             self::addProductsGridBatchRequests($page, $batchRequests);
+            self::addProductListBatchRequests($page, $batchRequests);
 
             $subItems = $page->getSubpages();
             if (!empty($subItems)) {
@@ -96,6 +97,46 @@ class PageRelationResolver {
             self::getBatchKey($page) . '_products',
             $batchRequests
         );
+    }
+
+    /**
+     * Magicfront catalog-bound widget. Reads moduleSettings keys without the
+     * legacy `lc-` prefix (categoryId, productCount → perPage). The result
+     * lands on `$page->setProducts(...)` and the widget Twig reads it as
+     * `page.products` — same surface every other product-list widget uses.
+     */
+    protected static function addProductListBatchRequests(Page $page, BatchRequests $batchRequests): void {
+        if ($page->getCustomType() !== 'productList') {
+            return;
+        }
+        $settings = self::translateProductListSettings($page->getModuleSettings());
+        if (empty($settings['categoryId'])) {
+            return;
+        }
+        $productService = Loader::service(Services::PRODUCT);
+        self::addBatchRequest(
+            new ProductsParametersGroup(),
+            $settings,
+            '',
+            [$productService, 'addGetProducts'],
+            self::getBatchKey($page) . '_products',
+            $batchRequests
+        );
+    }
+
+    /**
+     * Map the widget's editor-facing property IDs to the
+     * ProductsParametersGroup field names buildParametersGroup() will reflect
+     * into. `productCount` becomes `perPage`; we also enable
+     * `includeSubcategories` by default so a parent-category selection lists
+     * its descendants' products too (the storefront default merchants expect).
+     */
+    private static function translateProductListSettings(array $moduleSettings): array {
+        return [
+            'categoryId'           => $moduleSettings['categoryId'] ?? null,
+            'perPage'              => $moduleSettings['productCount'] ?? null,
+            'includeSubcategories' => true,
+        ];
     }
 
     protected static function addBatchRequest(

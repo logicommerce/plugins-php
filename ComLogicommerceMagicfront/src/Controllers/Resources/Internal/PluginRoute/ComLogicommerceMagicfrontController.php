@@ -64,7 +64,6 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
         return [
             Parameters::WIDGET_ID => new FilterInput($noMod),
             Parameters::PAGE      => new FilterInput($noMod),
-            Parameters::TOKEN     => new FilterInput($noMod),
             Parameters::TYPE      => new FilterInput($noMod),
             Parameters::LANGUAGE  => new FilterInput($noMod),
         ];

@@ -55,13 +55,24 @@ class ChildIndexInjector {
             if ($targetIdx === null) {
                 continue;
             }
-            // Idempotent: skip if either of the two attributes is already
-            // present (template author opted in manually, or transform ran
-            // already on a cached template).
-            if (str_contains($lines[$targetIdx], self::ATTR) || str_contains($lines[$targetIdx], self::ID_ATTR)) {
+            // Idempotent per-attribute: only inject the attrs that are
+            // actually missing. Some widget authors hand-write
+            // `data-mff-child-index` (e.g. when they want it visible in the
+            // template source) and previously that would short-circuit the
+            // whole injection, leaving `data-mff-child-id` absent — which
+            // breaks the canvas's child-id-scoped selectors and stops
+            // inline-edit from activating on per-child elements.
+            $hasAttr   = str_contains($lines[$targetIdx], self::ATTR);
+            $hasIdAttr = str_contains($lines[$targetIdx], self::ID_ATTR);
+            if ($hasAttr && $hasIdAttr) {
                 continue;
             }
-            $lines[$targetIdx] = self::addAttributes($lines[$targetIdx], $varName);
+            $lines[$targetIdx] = self::addMissingAttributes(
+                $lines[$targetIdx],
+                $varName,
+                !$hasAttr,
+                !$hasIdAttr
+            );
             $changed           = true;
         }
 
@@ -83,26 +94,31 @@ class ChildIndexInjector {
     }
 
     /**
-     * Append both targeting attributes to the first opening tag on the line.
-     * The id expression uses Twig's `is defined and X` pattern (no
-     * `|default(...)` per project rule) so it works whether `draftId` is
-     * present (plugin Page) or absent (raw array on the preview renderer).
+     * Append the missing targeting attributes to the first opening tag on
+     * the line. The id expression uses Twig's `is defined and X` pattern
+     * (no `|default(...)` per project rule) so it works whether `draftId`
+     * is present (plugin Page) or absent (raw array on the preview
+     * renderer).
      */
-    private static function addAttributes(string $line, string $varName): string {
-        $idValue   = sprintf(
-            '"{{ %s.draftId is defined and %s.draftId ? %s.draftId : %s.id }}"',
-            $varName,
-            $varName,
-            $varName,
-            $varName
-        );
-        $injection = sprintf(
-            ' %s=%s %s=%s',
-            self::ATTR,
-            self::LOOP_VALUE,
-            self::ID_ATTR,
-            $idValue
-        );
+    private static function addMissingAttributes(string $line, string $varName, bool $needAttr, bool $needIdAttr): string {
+        $parts = [];
+        if ($needAttr) {
+            $parts[] = self::ATTR . '=' . self::LOOP_VALUE;
+        }
+        if ($needIdAttr) {
+            $idValue = sprintf(
+                '"{{ %s.draftId is defined and %s.draftId ? %s.draftId : %s.id }}"',
+                $varName,
+                $varName,
+                $varName,
+                $varName
+            );
+            $parts[] = self::ID_ATTR . '=' . $idValue;
+        }
+        if (empty($parts)) {
+            return $line;
+        }
+        $injection = ' ' . implode(' ', $parts);
         return preg_replace(
             '/(<[a-zA-Z][a-zA-Z0-9]*)([^>]*?)(\s*\/?>)/',
             '$1$2' . $injection . '$3',

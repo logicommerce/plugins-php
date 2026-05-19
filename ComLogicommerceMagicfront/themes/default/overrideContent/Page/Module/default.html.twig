@@ -1,19 +1,31 @@
 
 {%- extends layout -%}
 
+{%- block headContent -%}
+    {{ parent() }}
+    {%- if mfShowAssets -%}
+        <link id="mff-custom-css" rel="stylesheet" href="{{ mfCustomCssUrl }}">
+    {%- endif -%}
+{%- endblock headContent -%}
+
 {%- block content -%}
-    <div data-mff-anchor="__page_start__"></div>
+    {%- if mfCanvasMode -%}
+        <div data-mff-anchor="__page_start__"></div>
+    {%- endif -%}
     {% import macrosCore.widget as widgetMacros %}
     {{ widgetMacros.widgets({
         pages: pages,
         version: version,
         widgetTemplateList: widgetTemplateList
     }) }}
-
-    {% if isMagicfrontEnabled %}
-        <script type="module" src="{{ mgfAssetsUrl }}"></script>
-    {% else %}
-        {% include 'includes/magic-front-loader.twig' %}
-    {% endif %}
 {%- endblock content -%}
 
+{%- block jsAssets -%}
+    {{ parent() }}
+    {%- if mfShowAssets -%}
+        <script id="mff-custom-js" src="{{ mfCustomJsUrl }}"></script>
+    {%- endif -%}
+    {%- if mfCanvasMode -%}
+        <script type="module" src="{{ mfAssetsUrl }}"></script>
+    {%- endif -%}
+{%- endblock jsAssets -%}
