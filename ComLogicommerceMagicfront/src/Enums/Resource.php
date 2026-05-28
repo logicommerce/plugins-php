@@ -20,7 +20,9 @@ abstract class Resource extends Enum {
 
     public const GET_PAGE_WIDGET_BY_ID = "/pages/widgets/{widgetId}";
 
-    public const GET_WIDGET_TEMPLATE_BY_ID = "/widgetTemplates/{id}";
+    public const WIDGET_TEMPLATES_BASE = "/widgetTemplates/";
+
+    public const GET_WIDGET_TEMPLATE_BY_ID = self::WIDGET_TEMPLATES_BASE . "{id}";
 
     public const GET_PAGES = "/pages";
 

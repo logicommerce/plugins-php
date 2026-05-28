@@ -48,7 +48,7 @@ class PageRelationResolver {
                 continue;
             }
             self::addProductsGridBatchRequests($page, $batchRequests);
-            self::addProductListBatchRequests($page, $batchRequests);
+            self::addCatalogBoundProductsBatchRequests($page, $batchRequests);
 
             $subItems = $page->getSubpages();
             if (!empty($subItems)) {
@@ -100,19 +100,38 @@ class PageRelationResolver {
     }
 
     /**
-     * Magicfront catalog-bound widget. Reads moduleSettings keys without the
-     * legacy `lc-` prefix (categoryId, productCount → perPage). The result
-     * lands on `$page->setProducts(...)` and the widget Twig reads it as
-     * `page.products` — same surface every other product-list widget uses.
+     * Convention-driven catalog-bound product fetch. ANY Magicfront widget
+     * that exposes a non-zero `categoryId` in its moduleSettings opts into
+     * product resolution — no per-widget handler required. The result lands
+     * on `$page->setProducts(...)` and the widget Twig reads it as
+     * `page.products`.
+     *
+     * Mapping (widget property → ProductsParametersGroup):
+     *   categoryId       → categoryId            (required, non-zero)
+     *   productCount     → perPage               (defaults to 1 when absent,
+     *                                             so single-product widgets
+     *                                             like featuredProduct work
+     *                                             without declaring it)
+     *   (always)         → includeSubcategories=true  (parent-category
+     *                                                  selections list
+     *                                                  descendants' products)
+     *
+     * Adding a new catalog-driven widget requires ZERO code changes here —
+     * just declare `categoryId` (and optionally `productCount`) in the
+     * widget JSON. The widget's Twig consumes `page.products.items` directly,
+     * either looping it (productList) or indexing items[0] (featuredProduct).
      */
-    protected static function addProductListBatchRequests(Page $page, BatchRequests $batchRequests): void {
-        if ($page->getCustomType() !== 'productList') {
+    protected static function addCatalogBoundProductsBatchRequests(Page $page, BatchRequests $batchRequests): void {
+        $moduleSettings = $page->getModuleSettings();
+        $categoryId = $moduleSettings['categoryId'] ?? null;
+        if ($categoryId === null || $categoryId === '' || (int) $categoryId === 0) {
             return;
         }
-        $settings = self::translateProductListSettings($page->getModuleSettings());
-        if (empty($settings['categoryId'])) {
-            return;
-        }
+        $settings = [
+            'categoryId'           => $categoryId,
+            'perPage'              => $moduleSettings['productCount'] ?? 1,
+            'includeSubcategories' => true,
+        ];
         $productService = Loader::service(Services::PRODUCT);
         self::addBatchRequest(
             new ProductsParametersGroup(),
@@ -122,21 +141,6 @@ class PageRelationResolver {
             self::getBatchKey($page) . '_products',
             $batchRequests
         );
-    }
-
-    /**
-     * Map the widget's editor-facing property IDs to the
-     * ProductsParametersGroup field names buildParametersGroup() will reflect
-     * into. `productCount` becomes `perPage`; we also enable
-     * `includeSubcategories` by default so a parent-category selection lists
-     * its descendants' products too (the storefront default merchants expect).
-     */
-    private static function translateProductListSettings(array $moduleSettings): array {
-        return [
-            'categoryId'           => $moduleSettings['categoryId'] ?? null,
-            'perPage'              => $moduleSettings['productCount'] ?? null,
-            'includeSubcategories' => true,
-        ];
     }
 
     protected static function addBatchRequest(

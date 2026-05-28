@@ -125,6 +125,11 @@
 			"name": "/.*\\.php$|.*\\.twig$/",
 			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
 			"in": "ComLogicommerceAdyenv6"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceOmniwallet"
 		}
 	],
 	"map":[
@@ -193,6 +198,9 @@
 		},
 		{
 			"ComLogicommerceAdyenv6/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceOmniwallet/twigCoreTemplates":"twigCoreTemplates"
 		}
 	],
 	"output": "build/plugins.phar",

@@ -14,6 +14,8 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
+use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
+use Plugins\ComLogicommerceMagicfront\Core\Twig\PluginTwigBootstrap;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
@@ -162,6 +164,8 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         if (is_dir($twigCoreTemplatesPath)) {
             $twigEnv->getLoader()->addPath($twigCoreTemplatesPath);
         }
+
+        PluginTwigBootstrap::apply($twigEnv, ContextBuilder::fromSession());
 
         foreach ($controller->getDefaultDataForWidgetRender() as $key => $value) {
             $twigEnv->addGlobal($key, $value);

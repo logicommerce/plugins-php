@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Services;
 
-use Plugins\ComLogicommerceMagicfront\Core\Services\Transforms\WidgetArrayTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use SDK\Core\Dtos\ElementCollection;

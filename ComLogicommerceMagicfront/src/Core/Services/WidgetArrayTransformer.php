@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Plugins\ComLogicommerceMagicfront\Core\Services\Transforms;
+namespace Plugins\ComLogicommerceMagicfront\Core\Services;
 
 /**
  * Self-contained array-only widget → page transformer.
@@ -25,9 +25,9 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Services\Transforms;
  * \Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer}
  * reuse the exact same normalization rules as the preview renderer.
  *
- * @package Plugins\ComLogicommerceMagicfront\Core\Services\Transforms
+ * @package Plugins\ComLogicommerceMagicfront\Core\Services
  */
-class WidgetArrayTransformer {
+final class WidgetArrayTransformer {
 
     /**
      * Transform a widget array into a page-compatible array.

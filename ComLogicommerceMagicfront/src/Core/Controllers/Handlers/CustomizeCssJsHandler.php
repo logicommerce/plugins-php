@@ -10,7 +10,7 @@ use FWK\Enums\Parameters;
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontSession;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 
@@ -62,7 +62,7 @@ class CustomizeCssJsHandler extends AbstractCustomizeHandler {
     public function getRawResponseContent(ComLogicommerceMagicfrontController $controller): ?string {
         Response::addHeader('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
-        $token = MagicfrontSession::getToken();
+        $token = MagicfrontToken::getToken();
         if (empty($token) || !$this->isValidToken($token)) {
             return $this->slice($this->emptyData());
         }

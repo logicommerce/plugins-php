@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Plugins\ComLogicommerceMagicfront\Core\Services\Transforms;
+namespace Plugins\ComLogicommerceMagicfront\Core\Twig;
 
 /**
  * Auto-injects two targeting attributes on the first HTML element inside

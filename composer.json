@@ -33,6 +33,7 @@
 			"ComLogicommerceRedsysinsite/vendor/autoload.php",
 			"ComLogicommerceMagicfront/vendor/autoload.php",
 			"ComLogicommerceAdyenv6/vendor/autoload.php",
+			"ComLogicommerceOmniwallet/vendor/autoload.php",
 			"_config.php"
 		]
 	},

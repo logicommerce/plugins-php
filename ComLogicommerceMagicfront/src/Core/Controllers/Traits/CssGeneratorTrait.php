@@ -23,6 +23,8 @@ trait CssGeneratorTrait {
     /** Media query for the mobile breakpoint. Must match preview's InstanceCssBuilder. */
     private const MOBILE_MEDIA = '@media (max-width: 767px)';
 
+    private const TITLE_WEIGHT_BASE_CSS = '[data-property="title"]{font-weight:400}[data-property="title"] strong,[data-property="title"] b{font-weight:700}';
+
     // ─── Public API ───────────────────────────────────────────────────────────
 
     /**
@@ -38,13 +40,14 @@ trait CssGeneratorTrait {
         $templateCss     = $this->mergeTemplateCss($templates);
         $instanceCss     = $this->generateInstanceCss($widgets, $styleElementMap, $cssPropertyMap, $slotTypes);
 
-        if ($templateCss === '') {
-            return $instanceCss;
+        $parts = [self::TITLE_WEIGHT_BASE_CSS];
+        if ($templateCss !== '') {
+            $parts[] = $templateCss;
         }
-        if ($instanceCss === '') {
-            return $templateCss;
+        if ($instanceCss !== '') {
+            $parts[] = $instanceCss;
         }
-        return $templateCss . "\n\n" . $instanceCss;
+        return implode("\n\n", $parts);
     }
 
     /**

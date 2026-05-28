@@ -1,6 +1,6 @@
 <?php
 
-define('PLUGINS_RELEASE_VERSION', '20260216-175600');
+define('PLUGINS_RELEASE_VERSION', '20260528-093000');
 
 define('PLUGINS_NAMESPACE', 'Plugins\\');
 

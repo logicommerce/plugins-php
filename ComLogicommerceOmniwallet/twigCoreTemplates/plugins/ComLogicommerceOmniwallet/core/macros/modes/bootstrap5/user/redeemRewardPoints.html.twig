@@ -1,0 +1,43 @@
+
+{%- set properties = args.pluginRewardPoints[0].properties -%}
+{%- set settings = properties.eventsResults.SETTINGS.getSettings.data -%}
+{%- set customer = properties.eventsResults.CUSTOMER.getCustomer.data -%}
+
+<div class="section-user-reward-points rewardPoint rewardPointsRecord">
+    <div class="rewardPointHeader">
+        <span class="name">{{ languageSheet[constant('Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_ACCOUNT_DATA')] }}</span>
+        {%- if rewardPoint.language.description|length -%}
+            <span class="description">{{ rewardPoint.language.description }}</span>
+        {%- endif -%}
+    </div>
+    {%- set name = rewardPoint.language.name -%}
+    <div class="rewardPoint rewardPointsBalance">
+        <div class="rewardPointName">
+            <span class="name">{{ languageSheet[constant('Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_NAME')] }}</span>
+            <span class="value">{{customer['NAME']|default('') }}</span>
+        </div>
+        <div class="rewardPointEmail">
+            <span class="name">{{ languageSheet[constant('Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_EMAIL')] }}</span>
+            <span class="value">{{customer['EMAIL']|default('') }}</span>
+        </div>
+        <div class="rewardPointAvailable">            
+            {{- languageSheet[constant('FWK\\Enums\\LanguageLabels::REWARD_POINTS_AVAILABLE')]|replace({
+                '{{name}}': '<span class="name">' ~ settings['CURRENCY']|default('Points')|capitalize ~ '</span>',
+                '{{value}}': '<span class="value">' ~ customer['POINTS']|default('') ~ '</span>',
+            }) -}}
+        </div>
+    </div>
+    <div class="rewardPoint rewardPointDistribution">
+        <div class="rewardPointDistribution title">
+            <div class="rewardPointCard">
+                <span class="name">{{ languageSheet[constant('Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_CARD_NUMBER')] }}</span>
+                <span class="value">{{customer['CARD']|default('') }}</span>
+            </div>
+        </div>
+        <div class="rewardPointDistribution detail">
+            <div class="rewardPointCardBarcode">
+                <img src="{{customer['BARCODE']|default('')}}" alt="Barcode" class="barcode">
+            </div>
+        </div>
+    </div>
+</div>
