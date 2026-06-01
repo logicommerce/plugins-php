@@ -60,6 +60,13 @@ class CustomizeCssJsHandler extends AbstractCustomizeHandler {
     }
 
     public function getRawResponseContent(ComLogicommerceMagicfrontController $controller): ?string {
+        // Only the canvas hot-reload type (customizeCssJs, fetched by JS from
+        // inside the editor iframe) needs fresh data. The customizeCss /
+        // customizeJs types are loaded by storefront <link>/<script> on every
+        // customer page view — those should benefit from cache like the rest.
+        if ($this->resolvedType === FunctionType::CUSTOMIZE_CSS_JS) {
+            WidgetsService::getInstance()->disableCache();
+        }
         Response::addHeader('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
         $token = MagicfrontToken::getToken();

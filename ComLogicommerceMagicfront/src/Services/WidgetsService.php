@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Services;
 
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
+use Plugins\ComLogicommerceMagicfront\Core\Services\SuccessCacheTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
@@ -14,7 +16,6 @@ use SDK\Core\Builders\RequestBuilder;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Dtos\Request;
 use SDK\Core\Resources\Environment;
-use SDK\Core\Services\CacheTrait;
 use SDK\Core\Services\Service;
 
 /**
@@ -38,12 +39,8 @@ use SDK\Core\Services\Service;
  */
 class WidgetsService extends Service {
 
-    use CacheTrait {
-        call as cacheTraitCall;
-    }
+    use SuccessCacheTrait;
 
-    /** Path prefixes for cacheable GETs. Match-by-prefix so per-resource paths
-     *  (e.g. /widgetTemplates/{id}) are all covered by a single entry. */
     private const CACHEABLE_PATH_PREFIXES = [
         Resource::WIDGET_TEMPLATES_BASE,
     ];
@@ -174,9 +171,9 @@ class WidgetsService extends Service {
     /**
      * Overrides SDK `Service::call()` to:
      *   1) inject the Bearer JWT header dcsapi expects,
-     *   2) route static widget-template GETs through CacheTrait (page-data
-     *      fetches mutate on every editor save and stay uncached; X-DEVEL-HEADER
-     *      bypasses cache so developers always see fresh data),
+     *   2) route static widget-template GETs through Redis (page-data fetches
+     *      mutate on every editor save and stay uncached; X-DEVEL-HEADER and
+     *      canvas-mode requests both bypass cache so changes show up immediately),
      *   3) wrap bare-array list responses into `{items: [...]}` so
      *      `getResponse()` / `getElements()` work on our endpoints.
      */
@@ -189,11 +186,13 @@ class WidgetsService extends Service {
         $apiUrl    = $apiUrl ?? $this->getApiUrl();
         $devel     = defined('DEVEL_HEADER') && DEVEL_HEADER;
         $cacheable = !$devel
+            && !$this->bypassCache
+            && !MagicfrontUtils::isCanvasMode()
             && $request->getMethod() === 'GET'
             && $this->isCacheablePath($request->getPath());
 
         $response = $cacheable
-            ? $this->cacheTraitCall($request, $apiUrl)
+            ? $this->cacheSuccessOnly($request, $apiUrl)
             : parent::call($request, $apiUrl);
 
         unset($response['httpStatus']);

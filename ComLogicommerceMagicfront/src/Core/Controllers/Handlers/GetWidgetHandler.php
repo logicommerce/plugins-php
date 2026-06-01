@@ -45,7 +45,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         $language = Language::getInstance()->getLanguage();
 
         try {
-            $service = WidgetsService::getInstance();
+            $service = WidgetsService::getInstance()->disableCache();
 
             $widget       = $service->getPageWidgetById($pageId, $widgetId, $language);
             $widget       = $this->resolveCatalogRelations($widget);
@@ -159,7 +159,11 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
 
         $twigEnv  = $twig->getTwigEnvironment();
         $pluginDir = Utils::getCamelFromSnake(ComLogicommerceMagicfrontController::PLUGIN_MODULE, '.');
-        $twigCoreTemplatesPath = PLUGINS_LOAD_PATH . '/' . $pluginDir . '/twigCoreTemplates';
+        $pharPath = \Phar::running();
+        if (strlen($pharPath) === 0) {
+            $pharPath = PLUGINS_LOAD_PATH . '/' . $pluginDir;
+        }
+        $twigCoreTemplatesPath = $pharPath . '/twigCoreTemplates';
 
         if (is_dir($twigCoreTemplatesPath)) {
             $twigEnv->getLoader()->addPath($twigCoreTemplatesPath);
