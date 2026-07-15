@@ -1,0 +1,18 @@
+{#-
+    @version 2
+    @description Text arrows and "page x of x". [< Old][1 of 3][New >]
+
+    @param {SDK\Core\Dtos\Pagination} pagination
+    @param {FWK\Core\Theme\Dtos\Pagination} pagerParameters
+
+    @see assets/css/category/modules/pagination03.css
+-#}
+
+{%- import macrosCore.util as utilMacros -%}
+<div class="module module-no-space mff-module-pagination mff-module-pagination-03" data-module="pagination03">
+    {{- utilMacros.pagination({
+        pagination: pagination,
+        pagerParameters: pagerParameters,
+        mode: constant('FWK\\ViewHelpers\\Util\\Macro\\Pagination::MODE_TEXT'),
+    }) -}}
+</div>

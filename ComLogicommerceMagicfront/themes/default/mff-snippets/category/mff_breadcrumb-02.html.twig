@@ -1,0 +1,33 @@
+{#-
+    @version 2
+    @description Background color block with breadcrumb.
+
+    @param {Breadcrumb[]} [breadcrumbData = route.breadcrumb]
+    @param {string} [containerClass = "container-md"]
+
+    @see assets/css/category/modules/breadcrumb02.css
+-#}
+
+{%- import macrosCore.util as utilMacros -%}
+
+{%- if not breadcrumbData is defined -%}
+    {%- set breadcrumbData = route.breadcrumb -%}
+{%- endif -%}
+
+{%- if not containerClass is defined -%}
+    {%- set containerClass = "container-md" -%}
+{%- endif -%}
+
+<div class="module module-no-space mff-module-breadcrumb mff-module-breadcrumb-02 block-full-width" data-module="breadcrumb02">
+    <div class="mff-background-block">
+        <div class="{{- containerClass -}}">
+            {%- if route.type is constant('FWK\\Enums\\RouteType::BLOG_POST') -%}
+                {{- utilMacros.breadcrumb({ data: breadcrumbData, showHome: false, showArea: false }) -}}
+            {%- elseif route.type is constant('FWK\\Enums\\RouteType::AREA') -%}
+                {{- utilMacros.breadcrumb({ data: breadcrumbData, showHome: true, showArea: true }) -}}
+            {%- else -%}
+                {{- utilMacros.breadcrumb({ data: breadcrumbData, showHome: true, showArea: false }) -}}
+            {%- endif -%}
+        </div>
+    </div>
+</div>

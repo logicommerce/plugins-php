@@ -1,0 +1,23 @@
+.mff-category-list-01 .mff-category-list-title-link {
+  padding: .75rem 0;
+  display: block;
+}
+
+.mff-category-list-01 .mff-category-list-title-link:not(:hover) {
+  color: inherit;
+}
+
+.mff-category-list-01 .mff-category-list-title {
+  font-size: 20px;
+  line-height: 1.1;
+}
+
+@media (min-width: 576px) {
+  .mff-category-list-01 .mff-category-list-title {
+    text-align: center;
+  }
+
+  .mff-category-list-01 .mff-category-list-title-link {
+    padding: 1rem 1rem 1.25rem;
+  }
+}

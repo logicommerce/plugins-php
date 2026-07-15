@@ -1,0 +1,63 @@
+.mff-module-products-grid-01 {
+  --grid-gutter-x: .75rem;
+  --grid-gutter-y: 1.5rem;
+}
+
+.mff-module-products-grid-01 .mff-grid-items {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--grid-gutter-y) var(--grid-gutter-x);
+}
+
+.mff-module-products-grid-01 .mff-grid-item {
+  min-width: 0;
+}
+
+.mff-module-products-grid-01 .mff-grid-item .mff-product-list {
+  height: 100%;
+}
+
+.mff-module-products-grid-01 .mff-module-title {
+  margin-bottom: .75rem;
+}
+
+@media (max-width: 575px) {
+  .mff-module-products-grid-01.mff-row-items-xs-2 .mff-grid-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 576px) {
+  .mff-module-products-grid-01 .mff-grid-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .mff-module-products-grid-01 {
+    --grid-gutter-y: 3rem;
+    --grid-gutter-x: 1.5rem;
+  }
+
+  .mff-module-products-grid-01 .mff-grid-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .mff-module-products-grid-01.template-2 .mff-grid-items {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .mff-module-products-grid-01 .mff-module-title {
+    margin-bottom: 1.5rem;
+  }
+}
+
+@media (min-width: 1200px) {
+  .mff-module-products-grid-01 .mff-grid-items {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .mff-module-products-grid-01.template-2 .mff-grid-items {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}

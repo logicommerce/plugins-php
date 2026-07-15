@@ -1,0 +1,25 @@
+{#- 
+    @version 2
+    @description Arrows and products, square style. [<][1][…][3][>]
+
+    @param {SDK\Core\Dtos\Pagination} pagination
+    @param {FWK\Core\Theme\Dtos\Pagination} pagerParameters
+
+    @example 
+        {%- include version ~ '/snippets/modules/pagination/pagination01.html.twig' with {
+            pagination: collectionPagination,
+            pagerParameters: pagerParameters,
+        } -%}
+
+    @see SITE/assets/commerce/css/components/pagination.css
+    @see SITE/assets/commerce/css/modules/pagination01.css
+-#}
+
+{%- import macrosCore.util as utilMacros -%}
+<div class="module module-no-space mff-module-pagination mff-module-pagination-01" data-module="pagination01">
+    {{- utilMacros.pagination({ 
+        pagination: pagination,
+        pagerParameters: pagerParameters,
+        mode: constant('FWK\\ViewHelpers\\Util\\Macro\\Pagination::MODE_BLOCKS'),
+    }) -}}
+</div>

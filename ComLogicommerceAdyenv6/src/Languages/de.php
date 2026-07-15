@@ -27,5 +27,6 @@ return [
     LanguageLabels::COM_LOGICOMMERCE_ADYENV6_EX_TAX => "Steuer",
     LanguageLabels::COM_LOGICOMMERCE_ADYENV6_EX_TAX_BASE => "Steuerbasis",
     LanguageLabels::COM_LOGICOMMERCE_ADYENV6_PROCESSING_PAYMENT => "Verarbeitung Ihrer Zahlung, bitte warten...",
-    LanguageLabels::COM_LOGICOMMERCE_ADYENV6_ERROR_APPLE_PAY => "Fehler bei der Verarbeitung von Apple Pay"
+    LanguageLabels::COM_LOGICOMMERCE_ADYENV6_ERROR_APPLE_PAY => "Fehler bei der Verarbeitung von Apple Pay",
+    LanguageLabels::COM_LOGICOMMERCE_ADYENV6_ERROR_SELECT_OPTIONS => "Bitte wählen Sie alle erforderlichen Optionen aus"
 ];

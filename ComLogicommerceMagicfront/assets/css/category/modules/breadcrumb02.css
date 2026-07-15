@@ -1,0 +1,20 @@
+.mff-module-breadcrumb-02 .mff-background-block {
+  padding-top: .5rem;
+  padding-bottom: .5rem;
+  background-color: var(--bs-gray-100);
+}
+
+.mff-module-breadcrumb-02 .breadcrumb>li>a {
+  color: #555;
+}
+
+.mff-module-breadcrumb-02 .breadcrumb>li>a:hover {
+  color: #000;
+}
+
+@media (min-width: 768px) {
+  .mff-module-breadcrumb-02 .mff-background-block {
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+  }
+}

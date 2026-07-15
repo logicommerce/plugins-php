@@ -11,6 +11,8 @@ use FWK\Core\Resources\Response;
 use FWK\Enums\Parameters;
 use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssJsHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignStyleHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignScriptHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
 use SDK\Core\Dtos\Element;
@@ -42,6 +44,8 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
     public function __construct(Route $route) {
         parent::__construct($route);
         $this->handlers = [
+            new CustomizeDesignStyleHandler(),
+            new CustomizeDesignScriptHandler(),
             new CustomizeCssJsHandler(),
             new GetWidgetHandler(),
         ];
@@ -66,6 +70,10 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             Parameters::PAGE      => new FilterInput($noMod),
             Parameters::TYPE      => new FilterInput($noMod),
             Parameters::LANGUAGE  => new FilterInput($noMod),
+            // Design routes: PAGE carries the page type, TEMPLATE the design key.
+            // Both are declared in Parameters.php so Varnish forwards them
+            // (custom query params would be stripped by the cache layer).
+            Parameters::TEMPLATE  => new FilterInput($noMod),
         ];
     }
 

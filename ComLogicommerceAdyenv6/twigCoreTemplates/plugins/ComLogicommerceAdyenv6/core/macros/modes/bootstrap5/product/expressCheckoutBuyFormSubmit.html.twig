@@ -23,8 +23,7 @@
 		{%- set express = property.value -%}
 	{%- endif -%}
 {%- endfor -%}
-
-{%- if session.user.id == 0 and express == "true" and subPaymentSystem == "applepay" -%}
+{%- if session.user.id == 0 and args.expressCheckout and express == "true" and subPaymentSystem == "applepay" -%}
 	{%- set selectorId = "adyen-applepay-container" ~ plugin.id ~ "-" ~ args.id -%}
 	<div id="{{ selectorId }}" class="adyen-applepay-express-checkout-plugin express-checkout-plugin"></div>
 	<script>

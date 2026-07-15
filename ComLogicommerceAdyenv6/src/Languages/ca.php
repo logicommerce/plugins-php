@@ -27,7 +27,8 @@ return [
     LanguageLabels::COM_LOGICOMMERCE_ADYENV6_EX_TAX => "Impost",
     LanguageLabels::COM_LOGICOMMERCE_ADYENV6_EX_TAX_BASE => "Base imposable",
     LanguageLabels::COM_LOGICOMMERCE_ADYENV6_PROCESSING_PAYMENT => "Processant el seu pagament, si us plau, esperi...",
-    LanguageLabels::COM_LOGICOMMERCE_ADYENV6_ERROR_APPLE_PAY => "Error en processar Apple Pay"
+    LanguageLabels::COM_LOGICOMMERCE_ADYENV6_ERROR_APPLE_PAY => "Error en processar Apple Pay",
+    LanguageLabels::COM_LOGICOMMERCE_ADYENV6_ERROR_SELECT_OPTIONS => "Si us plau, seleccioneu totes les opcions requerides"
 ];
 
 

@@ -1,0 +1,30 @@
+#stockAlert .modal-body {
+  padding: 1.5rem;
+}
+
+#stockAlert .product {
+  font-size: small;
+  margin-bottom: 1.5rem;
+}
+
+#stockAlert .product .title {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+#stockAlert .product .options {
+  color: var(--bs-gray-600);
+}
+
+#stockAlert .product .options .name::after {
+  content: ": ";
+}
+
+#stockAlert .mff-login-required-message {
+  margin-bottom: 1.5rem;
+}
+
+#stockAlert #stockAlertSubmit,
+#stockAlert .btn.mff-stock-alert-login {
+  width: 100%;
+}

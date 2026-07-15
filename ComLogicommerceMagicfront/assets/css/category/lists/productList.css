@@ -1,0 +1,408 @@
+.mff-product-list {
+  --btns-size: 36px;
+}
+
+.mff-product-list,
+.mff-product-list-img-cont {
+  position: relative;
+}
+
+.mff-product-list-img-cont .mff-product-list-img {
+  max-height: 100%;
+  max-width: 100%;
+  z-index: 10;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+  height: auto;
+  width: auto;
+}
+
+.mff-product-list-ribbons {
+  position: absolute;
+  left: .5rem;
+  top: .5rem;
+  right: .5rem;
+  z-index: 11;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.mff-product-list .btn.shoppingListButton {
+  height: 2rem;
+  width: 2rem;
+  border-radius: 50%;
+}
+
+.mff-product-list .product-price .price {
+  font-size: 16px;
+  color: #000;
+}
+
+.mff-product-list .product-basePrice .price {
+  font-size: 14px;
+  color: #9a9a9a;
+  text-decoration: line-through;
+}
+
+.mff-product-list .mff-product-list-title-link:not(:hover) {
+  color: inherit;
+}
+
+.mff-product-list .mff-product-list-title {
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.mff-product-list .productRateValoration {
+  display: none;
+}
+
+.mff-product-list .mff-product-list-order-box {
+  margin-top: .75rem;
+}
+
+.mff-product-list .mff-product-list-order-box .row {
+  --bs-gutter-x: 1rem;
+}
+
+.mff-product-list .col-quantity>.form-control {
+  width: 100%;
+}
+
+.mff-product-list .buyFormQuantity {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.mff-product-list .buyFormSubmit {
+  height: var(--btns-size);
+  font-size: 14px;
+  display: flex;
+}
+
+.mff-product-list .col-quick-buy .buyFormSubmit {
+  width: 100%;
+}
+
+.mff-product-list .buyFormSubmit.selectOption,
+.mff-product-list .buyFormSubmit.notAvailable {
+  font-size: 11px;
+  letter-spacing: .025em;
+  white-space: normal;
+  line-height: 1.1;
+}
+
+.mff-product-list .mff-product-list-stock-info .product-stock {
+  margin-top: 15px;
+  display: block;
+  line-height: 1;
+}
+
+.mff-product-list .mff-product-list-stock-info .product-stock>span {
+  display: inline-block;
+  line-height: 1;
+  font-size: 12px;
+  color: var(--bs-gray-600);
+  vertical-align: bottom;
+}
+
+.mff-product-list .mff-product-list-stock-info .product-stock.stock-ok>span {
+  color: var(--tb-primary-500);
+}
+
+.mff-product-list .mff-product-list-stock-info .product-stock>span+span {
+  margin-left: 4px;
+}
+
+.mff-product-list .mff-product-list-stock-info .availabilityImage img {
+  height: 15px;
+  display: block;
+  max-width: 100%;
+}
+
+.mff-product-list .mff-product-list-stock-alert button.stockAlertButton {
+  width: 100%;
+  font-size: small;
+}
+
+.mff-product-list .mff-product-list-stock-alert button.stockAlertButton:hover,
+.mff-product-list .mff-product-list-stock-alert button.stockAlertButton:active {
+  color: #333;
+}
+
+.mff-product-list .countdown-content {
+  position: absolute;
+  top: .25rem;
+  left: .25rem;
+  right: .25rem;
+  padding: .25rem .5rem;
+  border-radius: .5rem;
+  z-index: 20;
+  text-align: center;
+  font-size: small;
+}
+
+.mff-product-list .countdown .cd-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mff-product-list .countdown .icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+  margin-right: 5px;
+}
+
+@media (max-width: 575px) {
+  .mff-row-items-xs-2 .mff-product-list .mff-product-list-stock-alert button.stockAlertButton {
+    text-align: left;
+    margin-left: -10px;
+    font-size: 12px;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .buyFormQuantity,
+  .mff-row-items-xs-2 .mff-product-list .btn.btn-number {
+    height: 30px;
+    min-height: 30px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .buyFormSubmit {
+    height: 30px;
+    font-size: 12px;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .mff-product-list-order-box .col {
+    width: 100%;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .mff-product-list-order-box .col+.col {
+    margin-top: 6px;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .countdown {
+    font-size: 12px;
+    height: 26px;
+    line-height: 26px;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .countdown .cd-wrap {
+    justify-content: flex-start;
+  }
+
+  .mff-row-items-xs-2 .mff-product-list .countdown .icon {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (min-width: 576px) and (max-width: 767px) {
+
+  .mff-product-list .mff-product-list-order-box-select .col,
+  .mff-product-list .mff-product-list-order-box-plus-minus .col {
+    width: 100%;
+  }
+
+  .mff-product-list .mff-product-list-order-box-select .col+.col,
+  .mff-product-list .mff-product-list-order-box-plus-minus .col+.col {
+    margin-top: 6px;
+  }
+}
+
+/* ----------- Product-list special basket ----------- */
+.product-list-special .mff-product-list-title {
+  margin-bottom: 10px;
+  display: block;
+  color: #000;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 19px;
+  height: 38px;
+}
+
+.product-list-special .btn.shoppingListButton {
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  border: 0;
+  background-image: url("data:image/svg+xml,%3Csvg version='1.1' xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='%23666'%3E%3Cpath d='M29.732 4.5c-1.512-1.476-3.601-2.214-6.268-2.214-0.738 0-1.491 0.128-2.259 0.384s-1.482 0.601-2.143 1.036c-0.661 0.434-1.229 0.842-1.706 1.223s-0.928 0.786-1.357 1.214c-0.429-0.428-0.881-0.833-1.357-1.214s-1.045-0.788-1.706-1.223c-0.661-0.435-1.375-0.78-2.143-1.036s-1.521-0.384-2.259-0.384c-2.667 0-4.756 0.738-6.268 2.214s-2.268 3.524-2.268 6.143c0 0.798 0.14 1.619 0.42 2.464s0.598 1.566 0.955 2.161c0.357 0.595 0.762 1.175 1.214 1.741s0.783 0.955 0.991 1.169c0.208 0.214 0.372 0.369 0.491 0.465l11.143 10.75c0.214 0.214 0.476 0.322 0.786 0.322s0.572-0.107 0.786-0.322l11.125-10.715c2.726-2.726 4.089-5.404 4.089-8.035 0-2.619-0.756-4.667-2.268-6.142zM26.357 17l-10.357 9.982-10.375-10c-2.226-2.226-3.339-4.339-3.339-6.339 0-0.964 0.128-1.815 0.384-2.553s0.583-1.325 0.982-1.759c0.399-0.435 0.884-0.788 1.455-1.063s1.131-0.458 1.679-0.554c0.548-0.095 1.131-0.143 1.75-0.143s1.286 0.152 2 0.455c0.714 0.304 1.372 0.684 1.973 1.143s1.116 0.887 1.545 1.286c0.428 0.399 0.786 0.765 1.071 1.098 0.214 0.262 0.506 0.393 0.875 0.393s0.661-0.131 0.875-0.393c0.286-0.333 0.643-0.699 1.071-1.098s0.944-0.827 1.544-1.286c0.601-0.458 1.259-0.839 1.974-1.143s1.381-0.455 2-0.455 1.202 0.048 1.75 0.143c0.548 0.095 1.107 0.28 1.679 0.554s1.057 0.628 1.455 1.063c0.399 0.434 0.726 1.021 0.982 1.759s0.384 1.589 0.384 2.553c-0 2-1.119 4.119-3.357 6.357z'%3E%3C/path%3E%3C/svg%3E");
+  background-size: 1rem;
+  background-repeat: no-repeat;
+  background-position: center;
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  z-index: 11;
+  transition: background-color .15s ease-in-out, background-size 100ms ease;
+}
+
+.product-list-special .btn.shoppingListButton:hover,
+.product-list-special .btn.shoppingListButton:active {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.product-list-special .btn.shoppingListButton:active {
+  background-size: 50%;
+}
+
+.product-list-special .btn.shoppingListButton.shoppingListButtonAdded {
+  background-image: url("data:image/svg+xml,%3Csvg version='1.1' xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32' fill='%23ff1744'%3E%3Cpath d='M29.732 4.5c-1.512-1.476-3.601-2.214-6.268-2.214-0.738 0-1.491 0.128-2.259 0.384s-1.482 0.601-2.143 1.036c-0.661 0.434-1.229 0.842-1.706 1.223s-0.928 0.786-1.357 1.214c-0.429-0.428-0.881-0.833-1.357-1.214s-1.045-0.788-1.706-1.223c-0.661-0.435-1.375-0.78-2.143-1.036s-1.521-0.384-2.259-0.384c-2.667 0-4.756 0.738-6.268 2.214s-2.268 3.524-2.268 6.143c0 0.798 0.14 1.619 0.42 2.464s0.598 1.566 0.955 2.161c0.357 0.595 0.762 1.176 1.214 1.741s0.783 0.955 0.991 1.17c0.208 0.214 0.372 0.369 0.491 0.464l11.143 10.75c0.214 0.214 0.476 0.322 0.786 0.322s0.572-0.107 0.786-0.321l11.125-10.715c2.726-2.726 4.089-5.405 4.089-8.036 0-2.619-0.756-4.667-2.268-6.143z'%3E%3C/path%3E%3C/svg%3E");
+}
+
+.product-list-special .mff-product-list-content {
+  padding: 10px 15px 15px;
+}
+
+.product-list-special .mff-product-list-title {
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 19px;
+  height: 38px;
+}
+
+.product-list-special .mff-product-list-prices>span {
+  margin-top: 10px;
+  display: inline-block;
+  vertical-align: bottom;
+  line-height: 1;
+  margin-right: 8px;
+}
+
+.product-list-special .mff-product-list-prices .product-price .price {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.product-list-special .mff-product-list-stock-alert button.stockAlertButton {
+  text-align: left;
+  margin-left: -10px;
+}
+
+.product-list-special .buyFormSubmit {
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+@media (max-width: 575px) {
+  .mff-row-items-xs-2 .product-list-special .btn.shoppingListButton {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mff-row-items-xs-2 .product-list-special .mff-product-list-content {
+    padding: 10px 6px 12px;
+    text-align: left;
+  }
+}
+/* Cross-version feature support (scoped to .mff-product-list; version skins refine aesthetics). */
+
+/* Anchor for absolute children (ribbons, floating buttons, hover image, quick-buy overlay). */
+.mff-product-list .mff-product-list-img-cont,
+.mff-product-list .mff-product-list-img-size {
+  position: relative;
+}
+
+/* Hidden options: kept invisible (!important beats the quick-buy reveal rule). */
+.mff-product-list .mff-product-list-hidden-options {
+  display: none !important;
+}
+
+/* hoverImage: second image crossfades in on card hover. */
+.mff-product-list .mff-product-list-img-size .mff-product-list-img-hover {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-size: cover;
+  z-index: 10;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .375s cubic-bezier(0.4, 0, 0.2, 1), visibility .375s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.mff-product-list:hover .mff-product-list-img-size .mff-product-list-img-hover {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* buyPanel: reveal=always = inline in content; reveal=hover = overlay over image. */
+.mff-product-list .mff-buy-reveal-hover.mff-product-list-quick-buy {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+}
+.mff-product-list .mff-buy-reveal-hover.mff-product-list-quick-buy > *:not(.shoppingListButton) {
+  display: none;
+}
+.mff-product-list .mff-buy-reveal-always.mff-product-list-quick-buy {
+  position: static;
+  opacity: 1;
+  transform: none;
+}
+@media (min-width: 768px) {
+  .mff-product-list .mff-buy-reveal-hover.mff-product-list-quick-buy {
+    background-color: rgba(0, 0, 0, .3);
+    padding: .75rem;
+    opacity: 0;
+    transform: translateY(25%);
+    transition: opacity .15s ease-in-out, transform .15s ease-in-out;
+    color: var(--tb-mono-white);
+  }
+  .mff-product-list:hover .mff-buy-reveal-hover.mff-product-list-quick-buy {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .mff-product-list .mff-buy-reveal-hover.mff-product-list-quick-buy > *:not(.shoppingListButton) {
+    display: block;
+  }
+}
+
+/* optionsLink: the "+ options" link below the price. */
+.mff-product-list .linkToProduct {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+}
+.mff-product-list .linkToProduct:not(:hover) {
+  color: var(--tb-primary-500);
+}
+
+/* buyOptions: in-card product option chips (shown when buyOptions is on). */
+.mff-product-list .productOptions {
+  --options-space: 0.5rem;
+  --options-size: 1.5rem;
+  --options-values-space: .5rem;
+  --options-values-font-size: 12px;
+  margin-bottom: 0.75rem;
+  --tb-form-control-height: var(--options-size);
+}
+.mff-product-list .productOption {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.mff-product-list .productOption~.productOption {
+  margin-top: 8px;
+}
+.mff-product-list .productOptionPrompt {
+  margin: 0;
+  flex: 0 0 auto;
+  width: 100%;
+  font-size: 12px;
+}
+.mff-product-list .productOptionValues {
+  flex: 0 0 auto;
+  width: 100%;
+}
+.mff-product-list div.productOptionRadioValue:not(.productOptionImageValue) .productOptionValueName {
+  font-size: 12px;
+}

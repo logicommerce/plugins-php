@@ -1,0 +1,188 @@
+.mff-module-products-filter-03 {
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+
+.mff-module-products-filter-03 .btn-filter.dropdown-toggle {
+  text-decoration: none;
+}
+
+.mff-module-products-filter-03 .mff-filter-by-row-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--bs-gray-400);
+}
+
+.mff-module-products-filter-03 .mff-filter-by-row-mobile .mff-total-products {
+  color: var(--bs-gray-600);
+}
+
+.mff-module-products-filter-03 .mff-filter-by-row-mobile .btn {
+  height: 2.25rem;
+}
+
+.mff-module-products-filter-03 .mff-filter-by-row-mobile .mff-filter-by-elements {
+  display: flex;
+  gap: .75rem;
+}
+
+.mff-module-products-filter-03 .btn-menu-filter-close {
+  width: 2.25rem;
+  padding: 0;
+  color: #fff;
+}
+
+.mff-module-products-filter-03 .btn-menu-filter-close .icon,
+.mff-module-products-filter-03 .btn-menu-filter .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Offcanvas ---------------------------- */
+#menu-filter-03 .offcanvas-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+#menu-filter-03 .offcanvas-body {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#menu-filter-03 .offcanvas-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  gap: 1rem;
+}
+
+#menu-filter-03 .offcanvas-footer .btn {
+  flex: 1;
+}
+
+#menu-filter-03 .filterSubmit {
+  display: none;
+}
+
+#menu-filter-03 .accordion-item {
+  border: 0;
+}
+
+#menu-filter-03 .mff-inset-filter-elements {
+  padding: 1.25rem 0.75rem;
+}
+
+#menu-filter-03 .filterElementRange {
+  position: relative;
+  width: calc(100% - 4rem);
+  margin-inline: auto;
+}
+
+#menu-filter-03 .btn-filter.accordion-button {
+  justify-content: space-between;
+  height: 4rem;
+  font-size: 16px;
+  border-radius: 0;
+  box-shadow: none;
+  gap: .5rem;
+  padding: 1rem 1.25rem;
+}
+
+#menu-filter-03 .btn-filter.accordion-button:not(.collapsed) {
+  color: var(--bs-primary-text-emphasis);
+}
+
+#menu-filter-03 .btn-filter.accordion-button .n-applied-filter {
+  margin-right: auto;
+}
+
+#menu-filter-03 .btn-filter.accordion-button .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+#menu-filter-03 .content-filters-place-mobile .clearFilterButton {
+  display: none;
+}
+
+@media(min-width: 992px) {
+  .mff-module-products-filter-03 .mff-filter-row-content {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--bs-gray-200);
+    position: relative;
+  }
+
+  .mff-module-products-filter-03 .mff-filter-by-dropdown {
+    margin-left: auto;
+  }
+
+  .mff-module-products-filter-03 #dOrderBy {
+    padding-left: 0;
+  }
+
+  .mff-module-products-filter-03 #dFilterBy {
+    padding-right: 0;
+  }
+
+  .mff-module-products-filter-03 .mff-filter-by-dropdown .dropdown {
+    position: static;
+  }
+
+  .mff-module-products-filter-03 .mff-filter-by-dropdown .dropdown-menu {
+    width: 100%;
+    padding: 1rem 1rem 4.5rem;
+  }
+
+  .mff-module-products-filter-03.autosubmit .mff-filter-by-dropdown .dropdown-menu {
+    padding-bottom: 4.5rem;
+  }
+
+  .mff-module-products-filter-03 .filtersForm {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+  }
+
+  .mff-module-products-filter-03 .accordion-item {
+    border: 0;
+  }
+
+  .mff-module-products-filter-03 .mff-filter-name-desktop {
+    margin-bottom: 1rem;
+  }
+
+  .mff-module-products-filter-03 .filterElementRange {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .mff-module-products-filter-03 .filterSubmit {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 120px;
+  }
+
+  .mff-module-products-filter-03 .mff-filter-by-dropdown .clearFilterButton {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 120px;
+  }
+
+  .mff-module-products-filter-03.filtering .filterSubmit {
+    transform: translateX(calc(-100% - .5rem));
+  }
+
+  .mff-module-products-filter-03.filtering .mff-filter-by-dropdown .clearFilterButton {
+    transform: translateX(calc(-0% + .5rem));
+    height: auto;
+  }
+}

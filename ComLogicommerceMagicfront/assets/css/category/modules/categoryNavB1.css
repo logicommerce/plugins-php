@@ -1,0 +1,96 @@
+#desktop-menu-b1 .accordion-item {
+  border: 0;
+}
+
+#desktop-menu-b1 a {
+  color: var(--tb-primary-700);
+}
+
+#desktop-menu-b1 a:hover {
+  color: var(--category-color, var(--tb-primary-400));
+}
+
+#desktop-menu-b1 .accordion-button {
+  padding: .5rem .75rem;
+  font-weight: 500;
+  font-size: 13px;
+  border: 0;
+  box-shadow: none;
+  border-bottom: 1px solid var(--category-color, var(--bs-gray-400));
+  z-index: 1;
+}
+
+#desktop-menu-b1 .accordion-header {
+  position: relative;
+}
+
+#desktop-menu-b1 .mff-desktop-menu-lvl-2-header {
+  position: relative;
+}
+
+#desktop-menu-b1 .mff-desktop-menu-lvl-2-header .accordion-button {
+  border: 0;
+  z-index: 10;
+}
+
+#desktop-menu-b1 button.accordion-button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: auto;
+  aspect-ratio: 1 / 1;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+}
+
+#desktop-menu-b1 button.accordion-button .icon {
+  margin: auto;
+}
+
+#desktop-menu-b1 .accordion-body {
+  padding: .5rem 0 .5rem;
+}
+
+#desktop-menu-b1 ul {
+  margin-bottom: 0;
+}
+
+#desktop-menu-b1 .mff-desktop-menu-list-lvl-2>li>a,
+#desktop-menu-b1 .mff-desktop-menu-list-lvl-2>li>.mff-desktop-menu-lvl-2-header>a {
+  padding: .35rem 1.5rem;
+  display: flex;
+  font-weight: 500;
+  font-size: 13px;
+}
+
+#desktop-menu-b1 a.mff-active-anchor:not(.mff-view-all) {
+  color: var(--tb-primary-500);
+}
+
+#desktop-menu-b1 .mff-desktop-menu-title {
+  padding: .65rem 1rem;
+  font-weight: 700;
+  background-color: var(--category-color, var(--tb-primary-200));
+  color: #FFF;
+  border-radius: .25rem;
+  font-size: 16px;
+  text-align: center;
+  margin-bottom: .5rem;
+  text-transform: uppercase;
+}
+
+#desktop-menu-b1 a.selected, #desktop-menu-b1 a.mff-active-anchor:not(.mff-view-all) {
+  color: var(--category-color, var(--tb-primary-200));
+}
+
+#desktop-menu-b1 .mff-desktop-menu-list-lvl-2 ul {
+  list-style: disc;
+  padding-left: 3.5rem;
+  margin-bottom: .5rem;
+  font-size: 13px;
+}

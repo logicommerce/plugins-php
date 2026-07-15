@@ -1,0 +1,39 @@
+{# Shared products block. cfg drives grid version + whether a subcategories grid
+   participates (with prodFirst ordering). gridContainerClass lets the column
+   layout drop the inner container ("" ) while single keeps container-md. #}
+{%- set category = controllerItem -%}
+{%- set gridContainerClass = gridContainerClass|default('container-md') -%}
+
+{%- set productsBlock -%}
+    {%- if products.pagination.totalItems -%}
+        {%- include cfg.grid with {
+            containerClass: gridContainerClass,
+            products: products,
+            mobileColumns: 2,
+            pl: cfg.productList,
+        } -%}
+    {%- elseif cfg.categoriesGrid is null or not subcategories|length -%}
+        <section class="section mff-category-empty">
+            <div class="container-md">
+                <span class="empty-text">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::EMPTY_CATEGORY')] -}}
+                </span>
+            </div>
+        </section>
+    {%- endif -%}
+{%- endset -%}
+
+{%- if cfg.categoriesGrid -%}
+    {%- set categoriesBlock -%}
+        {%- if products.pagination.page == 1 -%}
+            {%- include cfg.categoriesGrid with { categories: subcategories } -%}
+        {%- endif -%}
+    {%- endset -%}
+    {%- if category.prodFirst -%}
+        {{- productsBlock -}}{{- categoriesBlock -}}
+    {%- else -%}
+        {{- categoriesBlock -}}{{- productsBlock -}}
+    {%- endif -%}
+{%- else -%}
+    {{- productsBlock -}}
+{%- endif -%}

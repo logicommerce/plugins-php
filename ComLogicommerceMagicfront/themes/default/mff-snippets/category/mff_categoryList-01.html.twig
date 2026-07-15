@@ -1,0 +1,24 @@
+{#- 
+    @version 2
+    @description Category list 01
+
+    @param {Category} category
+
+    @example 
+        {%- include 'mff-snippets/category/mff_categoryList-01.html.twig' with {
+            category: category,
+        } -%}
+
+    @see SITE/assets/commerce/css/lists/categoryList01.css
+-#}
+
+<div class="mff-category-list mff-category-list-01 {% if category.offer %}offer-true{% endif %} {% if category.featured %}featured-true{% endif %}">
+    <div class="mff-inset">
+        <a class="ratio ratio-4x3 mff-category-list-img-link" href="{{- category.language.link -}}" target="{{- category.language.target -}}" {% if not category.language.linkFollowing %}rel="nofollow"{% endif %} title="{{- category.language.name|striptags -}}">
+            <img src="{{- category.language.smallImage|default(notFoundImage) -}}" alt="{{- category.language.name|striptags -}}" class="mff-category-list-img img-fluid" onError="this.src='{{ notFoundImage }}'; this.onerror=null;" loading="lazy">
+        </a>
+        <a class="mff-category-list-title-link" href="{{- category.language.link -}}" target="{{- category.language.target -}}" {% if not category.language.linkFollowing %}rel="nofollow"{% endif %} title="{{- category.language.name|striptags -}}">
+            <div class="mff-category-list-title">{{- category.language.name -}}</div>
+        </a>
+    </div>
+</div>

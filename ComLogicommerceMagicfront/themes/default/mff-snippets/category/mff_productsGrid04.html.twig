@@ -1,0 +1,53 @@
+{#-
+    @version 2
+    @description Grid of products (productList04), optional block title
+
+    @param {Product[]} products
+    @param {string} [containerClass = "container-md"]
+    @param {int} [mobileColumns = 1] 1 or 2, default 1
+    @param {string} [titleNode = "div"] Module title HTML node type.
+    @param {string} [titleClass = "heading"] Module title additional class.
+    @param {string} [titleText = null] Module title content.
+
+    @see assets/css/category/modules/productsGrid04.css
+    @see assets/css/category/lists/productList.css
+    @see assets/css/category/lists/productList04.css
+-#}
+
+{%- if products|length -%}
+    {%- if not mobileColumns is defined or not mobileColumns in [1, 2] -%}
+        {%- set mobileColumns = 1 -%}
+    {%- endif -%}
+    {%- if not titleNode is defined or not titleNode|length -%}
+        {%- set titleNode = "div" -%}
+    {%- endif -%}
+    {%- if not titleClass is defined or not titleClass|length -%}
+        {%- set titleClass = "heading" -%}
+    {%- endif -%}
+    {%- if not containerClass is defined -%}
+        {%- set containerClass = "container-md" -%}
+    {%- endif -%}
+
+    <section class="{{ classes('module', 'mff-module-products', 'mff-module-products-grid-04', 'template-' ~ (mffTemplate|default('1')), { 'mff-row-items-xs-2': mobileColumns == 2 }) }}" data-module="productsGrid04">
+        <div class="{{- containerClass -}}">
+            {%- if titleText is defined and titleText|length -%}
+                <div class="mff-module-title-wrap">
+                    <{{ titleNode }} class="mff-module-title {{ titleClass }}">
+                        {{- titleText -}}
+                    </{{ titleNode }}>
+                </div>
+            {%- endif -%}
+
+            <div class="mff-grid-items">
+                {%- for product in products -%}
+                    <div class="mff-grid-item">
+                        {%- include pl.snippet with {
+                            product: product,
+                            pl: pl,
+                        } -%}
+                    </div>
+                {%- endfor -%}
+            </div>
+        </div>
+    </section>
+{%- endif -%}

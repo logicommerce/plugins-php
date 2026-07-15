@@ -14,11 +14,14 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
+use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\PluginTwigBootstrap;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
+use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
+use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
 
@@ -47,7 +50,10 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         try {
             $service = WidgetsService::getInstance()->disableCache();
 
-            $widget       = $service->getPageWidgetById($pageId, $widgetId, $language);
+            // Fetch the raw instance subtree ONCE: the Page view drives rendering,
+            // the flattened instance list drives per-instance CSS.
+            $instance     = $service->getPageWidgetInstanceById($pageId, $widgetId, $language);
+            $widget       = $instance !== null ? WidgetToPageTransformer::transformSingle($instance) : null;
             $widget       = $this->resolveCatalogRelations($widget);
             $neededTypes  = WidgetTypeCollector::fromPages([$widget]);
 
@@ -55,8 +61,13 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             $widgetTemplateList = $this->buildWidgetTemplateList($neededTypes, $templates);
             $html               = $this->renderWidget($controller, $widget, $widgetTemplateList);
 
-            // CSS/JS for this widget's types only — no page-wide widget list needed.
-            $css = $this->generateCss([], $templates);
+            // Per-instance CSS: flatten the instance subtree so every widget's styleValues
+            // emit their `[data-widget-id]`-scoped rules — same generator the full page uses.
+            // Previously this passed `[]`, shipping only class/template CSS; a slot child added
+            // live (linkBar, footerInfoColumns…) then rendered at browser defaults until a full
+            // page reload regenerated the server `mff-chrome-{kind}-css` block.
+            $flatWidgets = $instance !== null ? WidgetTypeCollector::flatten([$instance]) : [];
+            $css = $this->generateCss($flatWidgets, $templates);
             $js  = $this->generateJs($templates);
 
             // Wrap in { data: {...} } to match the envelope FWK adds for DTO responses,
@@ -68,6 +79,9 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
                 'html'     => $html,
                 'css'      => $css,
                 'js'       => $js,
+                // Per-widget write revision — the canvas compares it against the
+                // DATA_CHANGED's widgetRevision to detect stale renders mid-chain.
+                'widgetRevision' => $widget->getWidgetRevision(),
             ]]);
         } catch (\Throwable $e) {
             return json_encode(['data' => [
@@ -175,7 +189,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             $twigEnv->addGlobal($key, $value);
         }
 
-        $twigEnv->addGlobal('widgetTemplateList', $widgetTemplateList);
+        $twigEnv->addGlobal(MagicfrontControllerData::WIDGET_TEMPLATE_LIST, $widgetTemplateList);
 
         return $twigEnv;
     }

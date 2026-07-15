@@ -4,34 +4,44 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits;
 
+use FWK\Core\Controllers\Controller;
 use FWK\Core\FilterInput\FilterInput;
-use FWK\Core\Resources\Loader;
 use FWK\Enums\Parameters;
-use FWK\Enums\Services;
-use FWK\Services\PluginService;
-use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
+use Plugins\ComLogicommerceMagicfront\Dtos\Content\PageDocument;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
-use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
-use Plugins\ComLogicommerceMagicfront\Core\Twig\PluginTwigBootstrap;
-use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
+use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetAssetsBuilder;
+use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
+use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
+use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
+use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Resources\Environment;
+use SDK\Dtos\Catalog\Page\Page;
 use SDK\Dtos\Common\Route;
 
 /**
- * Mixes Magicfront-aware batch/data hooks into HTML controllers (Home,
- * Page\Module). Controllers extending the FWK base classes call
- * magicfrontInit() in their constructor, then delegate their setBatchData
- * and setData to setMagicfrontBatchData / setMagicfrontData.
+ * Mixes MagicFront-aware batch/data hooks into HTML controllers (Home,
+ * Page\Page). Two paths, dispatched by isEditor() — true iff the request
+ * is the dcseditor canvas iframe (Sec-Fetch-Dest: iframe) OR carries a
+ * non-empty mfToken in the query:
+ *
+ *   Editor path     — widgets + templates come from dcsapi via WidgetsService.
+ *
+ *   Storefront path — regular customer page view. Reads the published blob
+ *                     from controllerItem's pageContent (the LC FOB page
+ *                     already loaded by FWK). ZERO dcsapi calls — customers
+ *                     are unauthenticated for that API.
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits
  */
 trait MagicfrontTrait {
+
+    public const MFF_PREVIEW = 'mff_preview';
 
     protected ?ElementCollection $pages = null;
 
@@ -39,33 +49,158 @@ trait MagicfrontTrait {
 
     protected ?Route $route = null;
 
-    protected ?string $token = null;
+    protected ?string $pageId = null;
 
-    protected ?string $page = null;
+    protected bool $editorMode = false;
 
-    protected bool $pluginMagicfrontEnabled = false;
+    /**
+     * Flat list of WidgetInstance for the current page. Populated by either
+     * loadStorefrontData (from the blob) or setMagicfrontBatchData (from
+     * dcsapi). Consumed by emitMagicfrontData to build inline CSS/JS.
+     *
+     * @var WidgetInstance[]
+     */
+    protected array $widgets = [];
+
+    /**
+     * The page's chrome doc-id refs `{header:<id>, footer:<id>}`. Populated in the editor
+     * path from the page record; consumed by emitMagicfrontData → controllerData so
+     * TwigInitializer can fetch each chrome doc by id (empty kinds fall back to defaults).
+     *
+     * @var array{header?: string, footer?: string}
+     */
+    protected array $pageChrome = [];
+
+    // ─── FWK lifecycle ─────────────────────────────────────────────────────
 
     protected function getFilterParams(): array {
         $noMod = [FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false];
         return [
             MagicfrontToken::MF_TOKEN => new FilterInput($noMod),
             Parameters::PAGE         => new FilterInput($noMod),
+            self::MFF_PREVIEW        => new FilterInput($noMod),
         ];
     }
 
     protected function magicfrontInit(Route $route): void {
         $this->route = $route;
+
+        $rawToken = $this->getRequestParam(MagicfrontToken::MF_TOKEN, false, null);
+        $this->editorMode = MagicfrontUtils::isCanvasMode() || !empty($rawToken);
+
+        if (!$this->editorMode) {
+            return;
+        }
+
+        MagicfrontToken::setToken($rawToken);
         $this->widgetsService = WidgetsService::getInstance();
+        $this->pageId = $this->getRequestParam(Parameters::PAGE, false, null)
+            ?? $this->widgetsService->getPageId((string)$route->getId());
+    }
 
-        /** @var PluginService $pluginService */
-        $pluginService = Loader::service(Services::PLUGIN);
-        $this->pluginMagicfrontEnabled = $pluginService->isPluginMagicFrontEnabled($route->getType());
+    // ─── Batch / data hooks ────────────────────────────────────────────────
 
-        $this->token = MagicfrontToken::setToken($this->getRequestParam(MagicfrontToken::MF_TOKEN, false, null));
-        $this->page  = $this->getRequestParam(Parameters::PAGE, false, null);
+    protected function setMagicfrontBatchData(BatchRequests $requests): void {
+        if (!$this->isEditor() || !$this->pageId) {
+            return;
+        }
+        $instances       = $this->widgetsService->getPageWidgetInstances($this->pageId, $this->route->getLanguage());
+        $this->widgets   = WidgetTypeCollector::flatten($instances);
+        $this->pages     = WidgetToPageTransformer::transform(new ElementCollection(['items' => $instances]));
+        $this->pageChrome = $this->widgetsService->getPageChromeRefs($this->pageId);
+    }
 
-        $this->page = $this->page
-            ?? (!empty($this->token) ? $this->widgetsService->getPageId((string)$route->getId()) : null);
+    protected function setMagicfrontData(): void {
+        $templates = $this->isEditor()
+            ? $this->loadEditorTemplates()
+            : $this->loadStorefrontData();
+        $this->emitMagicfrontData($templates);
+    }
+
+    // ─── Editor path (dcsapi) ──────────────────────────────────────────────
+
+    /**
+     * $this->widgets is already populated by setMagicfrontBatchData; the editor
+     * path only needs the matching widget templates from dcsapi.
+     *
+     * @return array<string, WidgetTemplate>
+     */
+    private function loadEditorTemplates(): array {
+        $types = WidgetTypeCollector::fromWidgets($this->widgets);
+        return $types !== []
+            ? $this->widgetsService->getWidgetTemplatesForTypes($types)
+            : [];
+    }
+
+    // ─── Storefront path (LC FOB blob) ─────────────────────────────────────
+
+    /**
+     * The LC page was already loaded by FWK (controllerItem); its pageContent
+     * carries the published blob with both widgets and templates. NO request
+     * to dcsapi — customers are unauthenticated for that API.
+     *
+     * Side-effects: sets $this->pages and $this->pageId from the blob.
+     *
+     * @return array<string, WidgetTemplate>
+     */
+    private function loadStorefrontData(): array {
+        $pageDto = $this->getControllerData(Controller::CONTROLLER_ITEM);
+        if (!$pageDto instanceof Page) {
+            return [];
+        }
+        $document = PageDocument::fromJson($pageDto->getLanguage()?->getPageContent());
+        if ($document === null) {
+            return [];
+        }
+        $this->widgets = WidgetTypeCollector::flatten($document->widgets()?->getItems() ?? []);
+        $this->pages   = $document->toPages();
+        $this->pageId  = (string) $pageDto->getId();
+        return $document->templatesById();
+    }
+
+    // ─── Shared output ─────────────────────────────────────────────────────
+
+    /**
+     * @param array<string, WidgetTemplate> $templates
+     */
+    private function emitMagicfrontData(array $templates): void {
+        $this->pages = PageRelationResolver::setData($this->pages);
+        $this->setDataValue(PageRelationResolver::PAGES, $this->pages);
+
+        $widgetTypes = WidgetTypeCollector::fromWidgets($this->widgets);
+
+        $widgetTemplateList = [];
+        foreach ($templates as $type => $template) {
+            $widgetTemplateList[$type] = $template->getTemplateHtml();
+        }
+
+        $canvasMode = MagicfrontUtils::isCanvasMode();
+        $previewMode = !empty($this->getRequestParam(self::MFF_PREVIEW, false, null));
+        $showAssets = (!$canvasMode || $previewMode) && !empty($this->pageId) && !empty($widgetTypes);
+        $assets = $showAssets
+            ? (new WidgetAssetsBuilder())->build($this->widgets, $templates)
+            : ['css' => '', 'js' => ''];
+
+        $this->setDataValue(MagicfrontControllerData::WIDGET_TEMPLATE_LIST, $widgetTemplateList);
+        $this->setDataValue(MagicfrontControllerData::WIDGET_TYPES, $widgetTypes);
+        $this->setDataValue(MagicfrontControllerData::PAGE, $this->pageId);
+        $this->setDataValue(MagicfrontControllerData::PAGE_CHROME, $this->pageChrome);
+        $this->setDataValue(MagicfrontControllerData::ASSETS_URL, Environment::get('MF_ASSETS_URL'));
+        $this->setDataValue(MagicfrontControllerData::CANVAS_MODE, $canvasMode);
+        $this->setDataValue(MagicfrontControllerData::PREVIEW_MODE, $previewMode);
+        $this->setDataValue(MagicfrontControllerData::SHOW_ASSETS, $showAssets);
+        $this->setDataValue(MagicfrontControllerData::CUSTOM_CSS, $assets['css']);
+        $this->setDataValue(MagicfrontControllerData::CUSTOM_JS, $assets['js']);
+    }
+
+    // ─── Helpers ───────────────────────────────────────────────────────────
+
+    /**
+     * Editor mode is decided once in magicfrontInit() — see $editorMode for
+     * the signals (Sec-Fetch-Dest: iframe OR a non-empty mfToken on the URL).
+     */
+    private function isEditor(): bool {
+        return $this->editorMode;
     }
 
     protected function isCacheable(): bool {
@@ -75,85 +210,4 @@ trait MagicfrontTrait {
         return parent::isCacheable();
     }
 
-    /**
-     * Register the plugin's Twig customisation on the storefront's Twig
-     * environments so widget templates — including those rendered via
-     * `template_from_string` inside the widgets.html.twig macro — can resolve
-     * `mff_price`.
-     *
-     * fwk's TwigLoader keeps TWO envs: `$twig` (main) and a private `$coreTwig`
-     * that hosts core macros (including the widget macro). By the time this
-     * hook runs, `loadCore()` has already loaded macros into coreTwig, so
-     * coreTwig's extension set is initialised — `addFunction()` / `addGlobal()`
-     * throw on it. We use `registerUndefinedFunctionCallback()` for coreTwig
-     * (the only Twig API immune to the init lock) and the normal `addFunction`
-     * path for the still-unlocked main env. Reflection is required because
-     * TwigLoader exposes no getter for coreTwig.
-     *
-     * The single-widget AJAX render path (GetWidgetHandler) wires the same
-     * bootstrap into its own private Twig env — see
-     * GetWidgetHandler::buildTwigEnvironment.
-     */
-    protected function addTwigBaseFunctions(TwigLoader $twig): void {
-        parent::addTwigBaseFunctions($twig);
-        $ctx = ContextBuilder::fromSession();
-        PluginTwigBootstrap::apply($twig->getTwigEnvironment(), $ctx);
-        PluginTwigBootstrap::applyLazyFunctions(self::fwkCoreTwig($twig), $ctx);
-    }
-
-    /**
-     * Reach fwk's private `$coreTwig` env. No public getter exposes it. If the
-     * property ever disappears or stops being a Twig\Environment, throw —
-     * silently skipping would let featuredProduct render with empty prices
-     * and hide the contract drift.
-     */
-    private static function fwkCoreTwig(TwigLoader $twig): \Twig\Environment {
-        $ref = new \ReflectionProperty(TwigLoader::class, 'coreTwig');
-        $ref->setAccessible(true);
-        $coreTwig = $ref->getValue($twig);
-        if (!$coreTwig instanceof \Twig\Environment) {
-            throw new \RuntimeException(
-                'MagicfrontTrait: fwk TwigLoader::$coreTwig is not a Twig\\Environment instance.'
-            );
-        }
-        return $coreTwig;
-    }
-
-
-    protected function setMagicfrontBatchData(BatchRequests $requests): void {
-        if (!$this->pluginMagicfrontEnabled || !$this->token || !$this->page) {
-            return;
-        }
-        $this->pages = $this->widgetsService->getPageWidgets($this->page, $this->route->getLanguage());
-    }
-
-    protected function setMagicfrontData(): void {
-        $this->pages = PageRelationResolver::setData($this->pages);
-        $this->setDataValue(PageRelationResolver::PAGES, $this->pages);
-
-        $widgetTemplateList = [];
-        $widgetTypes        = [];
-
-        if ($this->pluginMagicfrontEnabled && $this->token && $this->pages !== null) {
-            $widgetTypes = WidgetTypeCollector::fromPages($this->pages->getItems() ?? []);
-            if ($widgetTypes !== []) {
-                foreach ($this->widgetsService->getWidgetTemplatesForTypes($widgetTypes) as $type => $template) {
-                    $widgetTemplateList[$type] = $template->getTemplateHtml();
-                }
-            }
-        }
-
-        $canvasMode = MagicfrontUtils::isCanvasMode();
-        $showAssets = !$canvasMode && !empty($this->page) && !empty($widgetTypes);
-        $language   = $this->route->getLanguage();
-
-        $this->setDataValue('widgetTemplateList', $widgetTemplateList);
-        $this->setDataValue('widgetTypes', $widgetTypes);
-        $this->setDataValue('page', $this->page);
-        $this->setDataValue('mfAssetsUrl', Environment::get('MF_ASSETS_URL'));
-        $this->setDataValue('mfCanvasMode', $canvasMode);
-        $this->setDataValue('mfShowAssets', $showAssets);
-        $this->setDataValue('mfCustomCssUrl', $showAssets ? MagicfrontUtils::storefrontUrl(FunctionType::CUSTOMIZE_CSS, $this->page, $language) : null);
-        $this->setDataValue('mfCustomJsUrl',  $showAssets ? MagicfrontUtils::storefrontUrl(FunctionType::CUSTOMIZE_JS,  $this->page, $language) : null);
-    }
 }

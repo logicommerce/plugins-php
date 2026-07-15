@@ -1,0 +1,32 @@
+.mff-module-categories-grid-01 {
+  --grid-gutter-x: .75rem;
+  --grid-gutter-y: .75rem;
+}
+
+.mff-module-categories-grid-01 .mff-grid-items {
+  display: grid;
+  gap: var(--grid-gutter-y) var(--grid-gutter-x);
+}
+
+.mff-module-categories-grid-01 .mff-grid-item {
+  min-width: 0;
+}
+
+@media(min-width: 576px) {
+  .mff-module-categories-grid-01 .mff-grid-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media(min-width: 768px) {
+  .mff-module-categories-grid-01 .mff-grid-items {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 992px) {
+  .mff-module-categories-grid-01 {
+    --grid-gutter-x: 1.5rem;
+    --grid-gutter-y: 1.5rem;
+  }
+}

@@ -26,5 +26,18 @@ abstract class Resource extends Enum {
 
     public const GET_PAGES = "/pages";
 
+    /** Single page record by id; its `chrome` field carries the {header,footer} chrome doc ids. */
+    public const GET_PAGE_BY_ID = "/pages/{pageId}";
+
     public const AUTH = "/auth";
+
+    /**
+     * Site chrome doc addressed by its own id (= root widget id). Returns the chrome
+     * widget tree (header or footer) for that doc. `{id}` is the chrome doc id the page
+     * points at via `page.chrome.{header|footer}`; query `language`. The per-commerce
+     * DEFAULT of a kind is read through this same endpoint with `{id}` = the kind token
+     * ("header"/"footer") and query `default=true` (the backend lazy-seeds it) — there is
+     * no dedicated defaults endpoint.
+     */
+    public const GET_CHROME_DOC = "/chrome/{id}";
 }

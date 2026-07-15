@@ -1,0 +1,34 @@
+{#- 
+    @version 2
+    @description Simple text line breadcrumb.
+
+    @param {Breadcrumb[]} [breadcrumbData = route.breadcrumb]
+
+    @example 
+        {%- include version ~ '/snippets/modules/breadcrumb/breadcrumb01.html.twig' -%}
+
+    @see SITE/assets/commerce/css/components/breadcrumb.css
+    @see SITE/assets/commerce/css/modules/breadcrumb01.css
+-#}
+
+{%- import macrosCore.util as utilMacros -%}
+
+{%- if not breadcrumbData is defined -%}
+    {%- set breadcrumbData = route.breadcrumb -%} 
+{%- endif -%}
+ 
+{%- if not containerClass is defined -%}
+    {%- set containerClass = "container-md" -%}
+{%- endif -%}
+
+<div class="module module-no-space mff-module-breadcrumb mff-module-breadcrumb-01" data-module="breadcrumb01">
+    <div class="{{- containerClass -}}">
+        {%- if route.type is constant('FWK\\Enums\\RouteType::BLOG_POST') -%}
+            {{- utilMacros.breadcrumb({ data: breadcrumbData, showHome: false, showArea: false }) -}}
+        {%- elseif route.type is constant('FWK\\Enums\\RouteType::AREA') -%}
+            {{- utilMacros.breadcrumb({ data: breadcrumbData, showHome: true, showArea: true }) -}}
+        {%- else -%}
+            {{- utilMacros.breadcrumb({ data: breadcrumbData, showHome: true, showArea: false }) -}}
+        {%- endif -%}
+    </div>
+</div>

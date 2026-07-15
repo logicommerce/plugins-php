@@ -1,0 +1,32 @@
+/* Wishlist (shopping list) button heart icon.
+   The buttonShoppingList macro emits a bare <button class="shoppingListButton">
+   with no inner icon, so the heart comes entirely from this background-image.
+   This store's components/buttons.css is an older version that lacks the
+   --tb-bg-heart* vars, so define them self-contained here. Scoped to
+   .mff-product-list and only loaded on the category page. */
+.mff-product-list .btn.shoppingListButton {
+  --tb-bg-heart-gray: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16"><path fill="%23686868" d="M11 1.5a4.23 4.23 0 0 0-3 1.235A4.23 4.23 0 0 0 5 1.5c-2.28 0-4 1.72-4 4s1.715 4.005 4.825 7.055c.56.545 1.165 1.14 1.82 1.795l.355.355.355-.355c.655-.655 1.26-1.25 1.82-1.795C13.29 9.505 15 7.825 15 5.5s-1.72-4-4-4M9.475 11.845c-.46.45-.95.93-1.475 1.45-.525-.52-1.015-1-1.475-1.45C3.515 8.89 2 7.405 2 5.5c0-1.71 1.29-3 3-3s2.55 1.225 2.585 1.275L8 4.39l.42-.615c.035-.05.89-1.28 2.585-1.28s3 1.29 3 3c0 1.905-1.515 3.39-4.525 6.345z"/></svg>');
+  --tb-bg-heart-black: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16"><path fill="%231c1c1c" d="M11 1.5a4.23 4.23 0 0 0-3 1.235A4.23 4.23 0 0 0 5 1.5c-2.28 0-4 1.72-4 4s1.715 4.005 4.825 7.055c.56.545 1.165 1.14 1.82 1.795l.355.355.355-.355c.655-.655 1.26-1.25 1.82-1.795C13.29 9.505 15 7.825 15 5.5s-1.72-4-4-4M9.475 11.845c-.46.45-.95.93-1.475 1.45-.525-.52-1.015-1-1.475-1.45C3.515 8.89 2 7.405 2 5.5c0-1.71 1.29-3 3-3s2.55 1.225 2.585 1.275L8 4.39l.42-.615c.035-.05.89-1.28 2.585-1.28s3 1.29 3 3c0 1.905-1.515 3.39-4.525 6.345z"/></svg>');
+  --tb-bg-heart-filled-red: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16"><path fill="%23e94949" d="M15 5.5c0 2.325-1.715 4.005-4.825 7.055-.56.545-1.165 1.14-1.82 1.795L8 14.705l-.355-.355c-.655-.655-1.26-1.25-1.82-1.795C2.715 9.505 1 7.825 1 5.5s1.72-4 4-4c1.485 0 2.485.725 3 1.235A4.23 4.23 0 0 1 11 1.5c2.28 0 4 1.72 4 4"/></svg>');
+
+  width: var(--btns-size, 2rem);
+  height: var(--btns-size, 2rem);
+  padding: 0;
+  border: 0;
+  background-color: var(--bs-gray-100);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 1rem;
+  background-image: var(--tb-bg-heart-gray);
+  transition: background-color .15s ease-in-out, background-image 100ms ease;
+}
+
+.mff-product-list .btn.shoppingListButton:not(.shoppingListButtonAdded):where(:hover, :active) {
+  background-color: var(--bs-gray-100);
+  background-image: var(--tb-bg-heart-black);
+}
+
+.mff-product-list .btn.shoppingListButton.shoppingListButtonAdded {
+  background-color: var(--bs-danger);
+  background-image: var(--tb-bg-heart-filled-red);
+}

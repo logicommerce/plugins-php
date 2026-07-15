@@ -1,0 +1,13 @@
+{# Shared: category long description. #}
+{%- set category = controllerItem -%}
+{%- if category.language.longDescription|length -%}
+    <section class="section mff-category-long-description">
+        <div class="container-md">
+            <div class="inset mff-category-text">
+                <div class="html-output">
+                    {{- category.language.longDescription|responsiveIframe('16x9', true)|wordOutput -}}
+                </div>
+            </div>
+        </div>
+    </section>
+{%- endif -%}

@@ -1,0 +1,148 @@
+{#-
+    @description Unified product card. ONE structure for every skin; `pl.version`
+    only selects the CSS skin class (mff-product-list-{version}). Every optional
+    element is flag-gated from the resolved productList config `pl`. Element class
+    names are kept stable so the per-version skin CSS keeps matching.
+
+    @param {Product} product
+    @param {object}  pl  resolved productList config (version + features + flags)
+    @param {int}     [linkedsSectionId = 0]
+    @param {int}     [discountSelectableGiftId = 0]
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+{#- Buy panel captured once; placed by reveal mode below:
+    hover skins (list04) render it as an overlay over the image; inline skins
+    (list01/02) render it in the content flow, below the prices. -#}
+{%- set buyPanelBlock -%}
+    {%- if pl.buyPanel.enabled and product.definition.showOrderBox -%}
+        <div class="mff-product-list-quick-buy mff-buy-reveal-{{ pl.buyPanel.reveal }}">
+            {%- if pl.buyOptions -%}
+                {{- productMacros.buyFormOptions({ product: product, showShortDescription: true, showUnavailableLabel: true, selectDefaults: true, showImageOptions: true }) -}}
+            {%- else -%}
+                {#- Hidden but selectDefaults pre-picks values so add-to-cart enables. -#}
+                <div class="mff-product-list-hidden-options">
+                    {{- productMacros.buyFormOptions({ product: product, selectDefaults: true }) -}}
+                </div>
+            {%- endif -%}
+            <div class="mff-product-list-order-box mff-product-list-order-box-{{ pl.orderBox.style }}">
+                <div class="row">
+                    {%- if pl.orderBox.quantity -%}
+                        <div class="col col-quantity col-6 col-sm-6">
+                            {{- productMacros.buyFormQuantity({ product: product, quantityPlugin: true, class: 'form-control' }) -}}
+                        </div>
+                        <div class="col col-quick-buy col-6 col-sm-6">
+                            {{- productMacros.buyFormSubmit({ id: product.id, showOrderBox: product.definition.showOrderBox, class: 'btn btn-primary' }) -}}
+                        </div>
+                    {%- else -%}
+                        <div class="col col-quick-buy col-12">
+                            {{- productMacros.buyFormSubmit({ id: product.id, showOrderBox: product.definition.showOrderBox, class: 'btn btn-primary' }) -}}
+                        </div>
+                    {%- endif -%}
+                </div>
+            </div>
+        </div>
+    {%- endif -%}
+{%- endset -%}
+
+{%- set contentBuyForm -%}
+    <div class="{{ classes('mff-product-list', 'mff-product-list-' ~ pl.version,
+            { 'offer-true': product.definition.offer, 'featured-true': product.definition.featured }) }}">
+        <div class="mff-inset">
+
+            {#=== Media ===#}
+            <div class="mff-product-list-img-cont">
+                <a class="mff-product-list-img-link" href="{{- product.language.urlSeo -}}" title="{{- product.language.name|striptags -}}"
+                   {% if not product.language.linkFollowing %}rel="nofollow"{% endif %}>
+
+                    {%- if pl.hoverImage and product.additionalImages -%}
+                        {{- printCssTag('.mff-bg' ~ product.id, "background-image: url('" ~ product.additionalImages[0].smallImage ~ "');") -}}
+                    {%- endif -%}
+
+                    <div class="mff-product-list-img-size ratio ratio-1x1">
+                        <img class="mff-product-list-img img-fluid" src="{{- product.mainImages.smallImage|default(notFoundImage) -}}"
+                             alt="{{- product.language.altImageKeywords|default(product.language.name|striptags) -}}"
+                             onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                        {%- if pl.hoverImage and product.additionalImages -%}
+                            <div class="mff-product-list-img-hover mff-bg{{- product.id -}}"></div>
+                        {%- endif -%}
+                    </div>
+
+                    {%- set offerOn = pl.ribbons.offer.enabled and product.definition.offer -%}
+                    {%- set featuredOn = pl.ribbons.featured.enabled and product.definition.featured -%}
+                    {%- set discountsOn = pl.ribbons.discounts.enabled and product.definition.showDiscounts and themeConfiguration.commerce.showDiscounts and product.id in productsIdsWithDiscounts and discountsImage|length -%}
+                    {%- if (offerOn and offerImage|length) or (featuredOn and featuredImage|length) or discountsOn -%}
+                        <div class="mff-product-list-ribbons">
+                            {%- if featuredOn and featuredImage|length -%}
+                                <img class="mff-product-list-ribbon featured-ribbon img-fluid" src="{{- featuredImage -}}" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FEATURED_IMAGE_ALT')] -}}">
+                            {%- endif -%}
+                            {%- if offerOn and offerImage|length -%}
+                                <img class="mff-product-list-ribbon sale-ribbon img-fluid" src="{{- offerImage -}}" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::OFFER_IMAGE_ALT')] -}}">
+                            {%- endif -%}
+                            {%- if discountsOn -%}
+                                <img class="mff-product-list-ribbon discounts-ribbon img-fluid" src="{{- discountsImage -}}" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::DISCOUNTS_IMAGE_ALT')] -}}">
+                            {%- endif -%}
+                        </div>
+                    {%- endif -%}
+                </a>
+
+                {#--- Floating actions (skin CSS pins these onto the image) ---#}
+                {%- if pl.flags.shoppingList -%}
+                    {{- productMacros.buttonShoppingList({ item: product, showLabel: false, class: 'btn btn-secondary' }) -}}
+                {%- endif -%}
+                {%- if pl.flags.comparison and settings.catalogSettings.productComparisonActive and themeConfiguration.commerce.showProductComparison -%}
+                    {{- productMacros.buttonProductComparison({ product: product, showLabel: false, class: 'btn btn-secondary' }) -}}
+                {%- endif -%}
+
+                {#--- Buy panel — overlay skins (reveal=hover) render it over the image here. ---#}
+                {%- if pl.buyPanel.reveal == 'hover' -%}
+                    {{- buyPanelBlock -}}
+                {%- endif -%}
+            </div>
+
+            {#=== Content ===#}
+            <div class="mff-product-list-content">
+                <a class="mff-product-list-title-link" href="{{- product.language.urlSeo -}}" title="{{- product.language.name|striptags -}}"
+                   {% if not product.language.linkFollowing %}rel="nofollow"{% endif %}>
+                    {%- if route.type in [constant('SDK\\Enums\\RouteType::HOME'), constant('SDK\\Enums\\RouteType::CATEGORY')] -%}
+                        <h3 class="mff-product-list-title">{{ product.language.name }}</h3>
+                    {%- else -%}
+                        <div class="mff-product-list-title">{{ product.language.name }}</div>
+                    {%- endif -%}
+                </a>
+
+                {%- if pl.flags.stockAlert and themeConfiguration.commerce.showStockAlert and formProductStockAlert is defined -%}
+                    <div class="mff-product-list-stock-alert">
+                        {{- productMacros.property({ product: product, property: 'stock', stockAlertButton: true, stockAlertButtonClass: 'btn btn-link' }) -}}
+                    </div>
+                {%- endif -%}
+
+                <div class="mff-product-list-prices">
+                    {{- productMacros.property({ product: product, property: 'price' }) -}}
+                    {{- productMacros.property({ product: product, property: 'basePrice' }) -}}
+                </div>
+
+                {%- if pl.optionsLink and product.options|length -%}
+                    <a class="linkToProduct" href="{{- product.language.urlSeo -}}" {% if not product.language.linkFollowing %}rel="nofollow"{% endif %}>
+                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PLUS_OPTIONS')] -}}
+                    </a>
+                {%- endif -%}
+
+                {#--- Buy panel — inline skins (reveal!=hover) render it in the content flow. ---#}
+                {%- if pl.buyPanel.reveal != 'hover' -%}
+                    {{- buyPanelBlock -}}
+                {%- endif -%}
+            </div>
+
+        </div>
+    </div>
+{%- endset -%}
+
+{{- productMacros.buyProductForm({
+    content: contentBuyForm,
+    class: 'mff-product-list-form',
+    product: product,
+    sectionId: linkedsSectionId ?? 0,
+    discountSelectableGiftId: discountSelectableGiftId ?? 0,
+}) -}}

@@ -28,11 +28,9 @@ use SDK\Core\Services\Service;
  * the SDK / FWK Registry classes only accept whitelisted key constants, so
  * a plugin service cannot register through the canonical ServiceTrait.
  *
- * @see WidgetsService::getPageWidgets()
  * @see WidgetsService::getPageWidgetInstances()
  * @see WidgetsService::getPageWidgetById()
  * @see WidgetsService::getPageId()
- * @see WidgetsService::getToken()
  * @see WidgetsService::getWidgetTemplatesForTypes()
  *
  * @package Plugins\ComLogicommerceMagicfront\Services
@@ -55,7 +53,7 @@ class WidgetsService extends Service {
     }
 
     /**
-     * Returns all widgets for the given page, transformed into Page format.
+     * Returns raw WidgetInstance objects for the given page.
      *
      * `$language` is required: the Java endpoint applies locale filtering only when
      * `?language=` is present. Calling without it returns the multi-locale shape
@@ -63,20 +61,6 @@ class WidgetsService extends Service {
      * All current callers (storefront route, customize handlers) already have a
      * locale in scope; making the parameter mandatory closes the door so a future
      * caller can't silently break the renderer.
-     */
-    public function getPageWidgets(string $pageId, string $language): ?ElementCollection {
-        return WidgetToPageTransformer::transform(
-            $this->fetchCollection(
-                WidgetInstance::class,
-                $this->replaceWildcards(Resource::GET_PAGE_WIDGETS, ['pageId' => $pageId]),
-                ['language' => $language]
-            )
-        );
-    }
-
-    /**
-     * Returns raw WidgetInstance objects for the given page. See {@see getPageWidgets()}
-     * for why `$language` is required.
      *
      * @return WidgetInstance[]
      */
@@ -89,17 +73,84 @@ class WidgetsService extends Service {
     }
 
     /**
-     * Returns a single widget by ID, transformed into Page format.
+     * Returns a single widget by ID as the raw WidgetInstance subtree (children +
+     * styleValues intact). Callers that need per-instance CSS flatten this via
+     * {@see WidgetTypeCollector::flatten}; callers that only render use
+     * {@see getPageWidgetById} (the Page-transformed view).
      */
-    public function getPageWidgetById(string $pageId, string $widgetId, string $language): ?Page {
+    public function getPageWidgetInstanceById(string $pageId, string $widgetId, string $language): ?WidgetInstance {
         $widget = $this->getResourceElement(
             WidgetInstance::class,
             $this->replaceWildcards(Resource::GET_PAGE_WIDGET_BY_ID, ['pageId' => $pageId, 'widgetId' => $widgetId]),
             ['language' => $language]
         );
-        return $widget instanceof WidgetInstance
+        return $widget instanceof WidgetInstance ? $widget : null;
+    }
+
+    /**
+     * Returns a single widget by ID, transformed into Page format.
+     */
+    public function getPageWidgetById(string $pageId, string $widgetId, string $language): ?Page {
+        $widget = $this->getPageWidgetInstanceById($pageId, $widgetId, $language);
+        return $widget !== null
             ? WidgetToPageTransformer::transformSingle($widget)
             : null;
+    }
+
+    /**
+     * Returns the chrome widget tree for the chrome DOC addressed by its own id
+     * (= root widget id). The page points at this id via `page.chrome.{header|footer}`;
+     * the same id resolves whether the doc is the shared default or a page-specific fork.
+     * No pageId / kind in the fetch path — the id alone selects the doc.
+     *
+     * When `$asDefault` is true, `$id` is a KIND token ("header"/"footer") and the backend
+     * resolves (lazy-seeding if missing) the per-commerce DEFAULT doc of that kind — the
+     * dedicated `/commerces/chrome/defaults` endpoint was removed by the doc-ref rework, the
+     * default of a kind is now read via `GET /chrome/{kind}?default=true`. The returned tree's
+     * root id IS the default doc id.
+     *
+     * @param string $id        Chrome doc id (root widget id), or a kind token when $asDefault.
+     * @param string $language  2-letter ISO language code.
+     * @param bool   $asDefault Resolve the commerce default of kind `$id` instead of a doc by id.
+     *
+     * @return WidgetInstance[]
+     */
+    public function getChromeDoc(string $id, string $language, bool $asDefault = false): array {
+        $urlParams = ['language' => $language];
+        if ($asDefault) {
+            $urlParams['default'] = 'true';
+        }
+        return $this->fetchCollection(
+            WidgetInstance::class,
+            $this->replaceWildcards(Resource::GET_CHROME_DOC, ['id' => $id]),
+            $urlParams
+        )?->getItems() ?? [];
+    }
+
+    /**
+     * Returns the `page.chrome` doc-id refs `{header:<id>, footer:<id>}` for a page, read
+     * from the page record (`GET /pages/{pageId}`). Empty entries are omitted so the caller
+     * can fall back to the commerce default per kind via {@see getChromeDoc()} with `$asDefault`.
+     *
+     * @return array{header?: string, footer?: string}
+     */
+    public function getPageChromeRefs(string $pageId): array {
+        $data = $this->call(
+            (new RequestBuilder())
+                ->path($this->replaceWildcards(Resource::GET_PAGE_BY_ID, ['pageId' => $pageId]))
+                ->build()
+        );
+        $chrome = $data['chrome'] ?? null;
+        if (!is_array($chrome)) {
+            return [];
+        }
+        $refs = [];
+        foreach (['header', 'footer'] as $kind) {
+            if (isset($chrome[$kind]) && is_string($chrome[$kind]) && $chrome[$kind] !== '') {
+                $refs[$kind] = $chrome[$kind];
+            }
+        }
+        return $refs;
     }
 
     /**
@@ -115,21 +166,6 @@ class WidgetsService extends Service {
                 ->build()
         );
         return (string) $data['items'][0]['id'];
-    }
-
-    /**
-     * Exchanges a BOB token for a Magic Front JWT token. Bypasses the `call()`
-     * override because the BOB token is not the JWT stored on `$this->token`.
-     */
-    public function getToken(string $bobToken): string {
-        $data = parent::call(
-            (new RequestBuilder())
-                ->path(Resource::AUTH)
-                ->headers(['Authorization' => 'Bearer ' . $bobToken])
-                ->build(),
-            $this->getApiUrl()
-        );
-        return (string) $data['token'];
     }
 
     /**

@@ -40,13 +40,13 @@
 				settings.clientKey = "{{clientKey}}";
 				settings.environment = "{{environment}}";
 				settings.selector = "#{{selectorId}}";
-				const adyenAppleCheckout = new LcAdyenApplePayExpress(settings);
+				const adyenAppleCheckout = new LcAdyenApplePayExpressCheckout(settings);
 				adyenAppleCheckout.render();
 			}
-			if (typeof LcAdyenApplePayExpress !== 'undefined') {
+			if (typeof LcAdyenApplePayExpressCheckout !== 'undefined') {
 				init();
 			} else {
-				document.addEventListener('LcAdyenApplePayExpressReady', init, { once: true });
+				document.addEventListener('LcAdyenApplePayExpressCheckoutReady', init, { once: true });
 			}
 		})(window);
 	</script>

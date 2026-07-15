@@ -1,0 +1,16 @@
+.mff-bundle-recommend-modal #bundleRecommendSubmit,
+.mff-product-recommend-modal #productRecommendSubmit {
+  width: 100%;
+}
+
+.mff-bundle-recommend-modal #bundleRecommendSubmitContainer,
+.mff-product-recommend-modal #productRecommendSubmitContainer {
+  margin: 0;
+}
+
+.mff-bundle-recommend-modal .mff-bundle-recommend-title,
+.mff-product-recommend-modal .mff-product-recommend-title {
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 500;
+}

@@ -1,0 +1,130 @@
+{#-
+    @version 2
+    @description Collapsible contents in mobile and bootstrap tabs in desktop.
+
+    @param {Product} product
+    @param {Pages[]} productBottomPages
+
+    @example
+        {%- include version ~ '/snippets/product/mff_productPageBottom01.html.twig' with {
+            product: product,
+            productBottomPages: productBottomPages,
+        } -%}
+
+    @see SITE/assets/js/product/productPageBottom01.js
+    @see SITE/assets/css/product/modules/productPageBottom01.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+{%- set activeTab = '' -%}
+{%- if product.language.longDescription|length -%}
+    {%- set activeTab = 'desc' -%}
+{%- elseif productBottomPages is defined and productBottomPages|length -%}
+    {%- set activeTab = 'page' -%}
+{%- else -%}
+    {%- set activeTab = 'reviews' -%}
+{%- endif -%}
+
+<section class="module mff-module-product-page-bottom mff-module-product-page-bottom-01" data-module="productPageBottom01">
+    <div class="container-md">
+        <div class="mff-product-bottom-tabs">
+            <ul class="nav nav-tabs d-none d-lg-flex" role="tablist">
+                {#- Tab - Desc -#}
+                {%- if product.language.longDescription|length -%}
+                    <li role="presentation">
+                        <a href="#product-long-description" aria-controls="product-long-description" role="tab" class="nav-link {% if activeTab == 'desc' %}active{% endif %}" data-bs-toggle="tab">
+                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_DESCRIPTION')] -}}
+                        </a>
+                    </li>
+                {%- endif -%}
+                {#- Tab - Pages -#}
+                {%- for page in productBottomPages -%}
+                    <li role="presentation">
+                        <a href="#product-tab-page-{{ page.id }}" aria-controls="product-tab-page-{{ page.id }}" role="tab" class="nav-link {% if loop.first and activeTab == 'page' %}active{% endif %}" data-bs-toggle="tab">
+                            {{- page.language.name -}}
+                        </a>
+                    </li>
+                {%- endfor -%}
+                {#- Tab - Reviews -#}
+                <li role="presentation">
+                    <a href="#product-reviews" aria-controls="product-reviews" role="tab" class="nav-link {% if activeTab == 'reviews' %}active{% endif %}" data-bs-toggle="tab">
+                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::REVIEWS')] -}}
+                        {%- if productComments is defined and productComments.pagination.totalItems -%}
+                            &nbsp;({{- productComments.pagination.totalItems -}})
+                        {%- endif -%}
+                    </a>
+                </li>
+            </ul>
+            <div class="tab-content">
+                {#- Tab - Desc -#}
+                {%- if product.language.longDescription|length -%}
+                    <div id="product-long-description" role="tabpanel" class="tab-pane {% if activeTab == 'desc' %} active {% endif %}">
+                        <button class="btn btn-bottom-collapse collapsed d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#collap-prod-long-desc" aria-expanded="false" aria-controls="collap-prod-long-desc">
+                            <span class="name">
+                                {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_DESCRIPTION')] -}}
+                            </span>
+                            {%- include 'mff-snippets/product/mff_iconPlus.html.twig' -%}
+                        </button>
+                        <div class="mff-product-bottom-tab-content collapse" id="collap-prod-long-desc">
+                            <div class="mff-inset-bottom-tab">
+                                <div class="html-output">
+                                    {{- product.language.longDescription|responsiveIframe('16x9', true)|wordOutput -}}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {%- endif -%}
+                {#- Tab - Pages -#}
+                {%- for page in productBottomPages -%}
+                    <div id="product-tab-page-{{ page.id }}" role="tabpanel" class="tab-pane {% if loop.first and activeTab == 'page' %} active {% endif %}">
+                        <button class="btn btn-bottom-collapse collapsed d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#collap-prod-page-{{ page.id }}" aria-expanded="false" aria-controls="collap-prod-page-{{ page.id }}">
+                            <span class="name">{{- page.language.name -}}</span>
+                            {%- include 'mff-snippets/product/mff_iconPlus.html.twig' -%}
+                        </button>
+                        <div class="mff-product-bottom-tab-content collapse" id="collap-prod-page-{{ page.id }}">
+                            <div class="mff-inset-bottom-tab">
+                                <div class="html-output">
+                                    {{- page.language.pageContent|responsiveIframe('16x9', true)|wordOutput -}}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {%- endfor -%}
+                {#- Tab - Reviews -#}
+                <div id="product-reviews" role="tabpanel" class="tab-pane {% if activeTab == 'reviews' %} active {% endif %}">
+                    <button class="btn btn-bottom-collapse collapsed d-lg-none" type="button" data-bs-toggle="collapse" data-bs-target="#collap-prod-reviews" aria-expanded="false" aria-controls="collap-prod-reviews">
+                        <span class="name">
+                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::REVIEWS')] -}}
+                            {%- if productComments is defined and productComments.pagination.totalItems -%}
+                                &nbsp;({{- productComments.pagination.totalItems -}})
+                            {%- endif -%}
+                        </span>
+                        {%- include 'mff-snippets/product/mff_iconPlus.html.twig' -%}
+                    </button>
+                    <div class="mff-product-bottom-tab-content collapse" id="collap-prod-reviews">
+                        <div class="mff-inset-bottom-tab">
+                            <div class="mff-product-new-review">
+                                <span class="text">
+                                    {%- if productComments.pagination.totalItems == 0 -%}
+                                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::BE_THE_FIRST_TO_COMMENT')] -}}
+                                    {%- else -%}
+                                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::BE_THE_SECOND_TO_COMMENT')] -}}
+                                    {%- endif -%}
+                                </span>
+                                <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#productComments">
+                                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::MAKE_A_REVIEW')] -}}
+                                </button>
+                            </div>
+                            {%- if productComments.pagination.totalItems -%}
+                                {{- productMacros.comments({
+                                    comments: productComments,
+                                }) -}}
+                            {%- endif -%}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

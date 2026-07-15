@@ -1,0 +1,58 @@
+{#-
+    @version 2
+    @description This file is intended to use with bundles that contains between 2 and 5 items
+                 It can be modified under client requirements to be able to show other number of blocks that are commented below.
+
+    @param {ElementCollection} productBundles
+
+    @example
+        {%- if themeConfiguration.commerce.showBundles -%}
+            {%- include 'mff-snippets/product/mff_productBundles.html.twig' with {
+                productBundles: productBundles,
+            } -%}
+        {%- endif -%}
+
+    @see SITE/assets/css/product/modules/productBundles.css
+-#}
+
+{%- if productBundles.items|length > 0 -%}
+    {%- import macrosCore.product as productMacros -%}
+
+    <section class="section product-bundles">
+        <div class="container-md">
+            {{- productMacros.bundles({
+                productBundles: productBundles,
+                showBundleDefinition: true,
+                buyFormOptionsArgs: {
+                    showShortDescription: true,
+                    showUnavailableLabel: true,
+                    selectDefaults: true,
+                },
+                buyBundleForm: {
+                    class: '',
+                    showBundleBuyTitle: languageSheet[constant('SITE\\Enums\\LanguageLabels::BUY_BUNDLE_TITLE')],
+                    showQuantity: false,
+                    showQuantitySelectableBox: false,
+                    minQuantity: 1,
+                    maxQuantity: 5,
+                    showPrice: true,
+                    showBasePrice: true,
+                    showSaving: true,
+                },
+            }) -}}
+            {#- Recommend and shopping list bundle buttons parameters (optional) -#}
+            {#-
+                shoppingListButtonArgs: {
+                    showLabel: false,
+                    class: 'btn btn-secondary',
+                    showDefaultShoppingListButton: not themeConfiguration.commerce.showShoppingLists,
+                    showShoppingLists: themeConfiguration.commerce.showShoppingLists,
+                    allowAddShoppingList: themeConfiguration.commerce.showShoppingLists,
+                },
+                buttonRecommendArgs: {
+                    class: 'product-share-link btn btn-secondary',
+                },
+            -#}
+        </div>
+    </section>
+{%- endif -%}

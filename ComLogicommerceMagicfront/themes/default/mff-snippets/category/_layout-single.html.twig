@@ -1,0 +1,22 @@
+{# Single-column layout (designs 190/191/199): everything in the content flow.
+   Inline filter sits between the title and the products. Expects cfg + categoryTitleH1. #}
+{%- include 'mff-snippets/category/_categoryHeaderImage.html.twig' -%}
+
+{%- if cfg.breadcrumb -%}
+    {%- include cfg.breadcrumb -%}
+{%- endif -%}
+
+{%- include 'mff-snippets/category/_categoryTitle.html.twig' with { categoryTitleH1: categoryTitleH1 } -%}
+
+{%- if cfg.filterInline -%}
+    {%- include cfg.filterInline with {
+        products: products,
+        filtering: filtering,
+        paginationSnippet: cfg.pagination,
+        paginationPos: cfg.paginationPos|default('both'),
+    } -%}
+{%- endif -%}
+
+{%- include 'mff-snippets/category/_categoryProducts.html.twig' with { cfg: cfg } -%}
+{%- include 'mff-snippets/category/_categoryPagination.html.twig' with { cfg: cfg } -%}
+{%- include 'mff-snippets/category/_categoryLongDescription.html.twig' -%}

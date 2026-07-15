@@ -1,0 +1,84 @@
+.mff-module-product-page-bottom-02 .mff-product-bottom-content+.mff-product-bottom-content {
+  padding-top: 30px;
+}
+
+.mff-module-product-page-bottom-02 .mff-product-bottom-title {
+  font-size: 18px;
+  color: var(--tb-primary-400);
+  font-weight: 700;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+  border-bottom: 1px solid;
+  line-height: 1.2;
+}
+
+.mff-module-product-page-bottom-02 .productCommentsContainer {
+  padding-top: 30px;
+  max-height: 650px;
+  overflow: auto;
+}
+
+.mff-module-product-page-bottom-02 .mff-product-new-review .text {
+  text-align: center;
+  display: block;
+  color: var(--bs-gray-600);
+  margin-bottom: 15px;
+}
+
+.mff-module-product-page-bottom-02 .mff-product-new-review {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mff-module-product-page-bottom-02 .tabs-scroll {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-bottom: 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+}
+
+.mff-module-product-page-bottom-02 .tabs-scroll .btn.btn-primary {
+  --bs-btn-color: var(--tb-mono-white);
+  --bs-btn-bg: var(--tb-primary-300);
+  --bs-btn-border-color: var(--tb-primary-300);
+  --bs-btn-hover-color: var(--tb-primary-400);
+  --bs-btn-hover-bg: var(--tb-mono-white);
+  --bs-btn-hover-border-color: var(--tb-primary-400);
+  --bs-btn-focus-shadow-rgb: transparent;
+  --bs-btn-active-color: var(--tb-mono-white);
+  --bs-btn-active-bg: var(--tb-primary-400);
+  --bs-btn-active-border-color: var(--tb-primary-400);
+  --bs-btn-disabled-color: var(--tb-mono-white);
+  --bs-btn-disabled-bg: var(--tb-primary-500);
+  --bs-btn-disabled-border-color: var(--tb-primary-500);
+}
+
+@media (min-width: 576px) {
+  .mff-module-product-page-bottom-02 .mff-product-bottom-content+.mff-product-bottom-content {
+    padding-top: 45px;
+  }
+}
+
+@media(min-width: 768px) {
+  .mff-module-product-page-bottom-02 .tabs-scroll {
+    flex-direction: row;
+  }
+}
+
+@media (min-width: 992px) {
+  .mff-module-product-page-bottom-02 {
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+
+  .mff-module-product-page-bottom-02 .mff-product-bottom-content+.mff-product-bottom-content {
+    padding-top: 60px;
+  }
+
+  .mff-module-product-page-bottom-02 .mff-product-bottom-title {
+    margin-bottom: 20px;
+  }
+}

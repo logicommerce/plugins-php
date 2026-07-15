@@ -1,0 +1,119 @@
+{#- 
+    @version 2
+    @description Vertical accordion (part 2), and orderby + pagination on desktop (part 2).
+
+    @param {ElementCollection<Product>} products
+    @param {bool} filtering
+
+    @param {array} productsFilter Global scope variable. Source of var: FWK/src/Core/Controllers/FiltrableProductListTrait.php
+    @param {Pagination} paginationData Global scope variable. Source of var: SITE/src/Core/Controllers/Traits/ProductsFilterModuleDataProviderTrait.php
+    @param {ItemList} itemListData Global scope variable. Source of var: SITE/src/Core/Controllers/Traits/ProductsFilterModuleDataProviderTrait.php
+
+    @example 
+        {%- include version ~ '/snippets/productsFilter/productsFilter04Column.html.twig' -%}
+        {%- include version ~ '/snippets/productsFilter/productsFilter04Content.html.twig' -%}
+
+    @see SITE/assets/commerce/css/modules/productsFilter04.css
+    @see SITE/assets/commerce/js/modules/productsFilter04.js
+-#}
+
+{%- if products is defined -%}
+    {%- import macrosCore.product as productMacros -%}
+    {%- import macrosCore.util as utilMacros -%}
+
+    {%- if not containerClass is defined -%}
+        {%- set containerClass = "container-md" -%}
+    {%- endif -%}
+
+    {%- set showFiltersBlock = true -%}
+    {%- set showOrderByBlock = true -%}
+
+    {%- if not filtering and paginationData.totalItems < 2 -%}
+        {%- set showFiltersBlock = false -%}
+    {%- endif -%}
+
+    {%- if paginationData.totalItems < 2 -%}
+        {%- set showOrderByBlock = false -%}
+    {%- endif -%}
+
+    {%- if showFiltersBlock or showOrderByBlock -%}
+        <section class="{{ classes('module module-no-space mff-module-products-filter module-products-filter-04 mff-module-content', { 'filtering': filtering, 'd-lg-none': not showOrderByBlock and showFiltersBlock }) }}" data-module="productsFilter04" data-module-part="2/2">
+            {%- if showOrderByBlock -%}
+                {%- set activeOrderByClasses = productsFilter.sort|replace({ '.': '-' })|lower -%}
+                <div class="mff-order-by-row-container mff-module-products-filter-content d-none d-lg-flex">
+                    <div class="mff-order-by-row">
+                        <div class="mff-filter-block-order-by">
+                            {# <div class="mff-order-by-label">
+                                {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ORDER_BY')] -}}
+                            </div> #}
+                            <div class="order-by-dropdown">
+                                <div class="dropdown">
+                                    <button class="btn btn-filter btn-secondary dropdown-toggle" type="button" id="dOrderBy" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <span class="name">
+                                            {# {%- set activeOrderByClass = activeOrderByClasses|split(',')|first -%}
+                                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ORDER_BY_' ~ activeOrderByClass|replace({ '-': '_' })|upper)] -}} #}
+                                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ORDER_BY')] -}}
+                                        </span>
+                                        <svg class="icon">
+                                            <use xlink:href="#icon-angle-down"></use>
+                                        </svg>
+                                    </button>
+                                    <div class="dropdown-menu" aria-labelledby="dOrderBy">
+                                        {{- utilMacros.viewSection({
+                                            itemList: itemListData,
+                                            showElementsList: 'sort',
+                                        }) -}}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mff-filter-module-template d-none d-lg-block">
+                            {#- commerce 0's fwk macro renders the template options as text
+                                ("Vista 1/2"); swap each link's text for the grid SVG icon to
+                                match template-8's structure, keeping the macro-built hrefs. -#}
+                            {%- set mffTemplateHtml -%}
+                                {{- utilMacros.viewSection({
+                                    itemList: itemListData,
+                                    showElementsList: 'template',
+                                }) -}}
+                            {%- endset -%}
+                            {{- mffTemplateHtml
+                                |preg_replace('/(<a class="viewElement templateElement1[^"]*"[^>]*>)[^<]*(<\\/a>)/', '$1<svg class="icon"><use xlink:href="#icon-grid-2x2"></use></svg>$2')
+                                |preg_replace('/(<a class="viewElement templateElement2[^"]*"[^>]*>)[^<]*(<\\/a>)/', '$1<svg class="icon"><use xlink:href="#icon-grid-3x3"></use></svg>$2')
+                                |raw -}}
+                        </div>
+                    </div>
+                </div>
+            {%- endif -%}
+            
+            {%- if showFiltersBlock -%}
+                <div class="{{- containerClass }} d-lg-none">
+                    <div class="mff-filter-by-row-mobile">
+                        <span class="mff-total-products">
+                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_RESULTS')]|replace({
+                                '{{items}}': paginationData.totalItems,
+                            }) -}}
+                        </span>
+                        <div class="mff-filter-by-elements">
+                            <button class="btn btn-secondary btn-menu-filter" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu-filter-04" aria-controls="menu-filter-04">
+                                <svg class="icon"><use xlink:href="#icon-filter"></use></svg>
+                                {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FILTER')] -}}
+                                <span class="n-total-applied-filter n-0"></span>
+                            </button>
+                            {%- set buttonClearProductsFilter -%}
+                                {{- productMacros.buttonClearProductsFilter({
+                                    class: 'btn btn-danger btn-menu-filter-close',
+                                    show: constant('FWK\\ViewHelpers\\Product\\Macro\\ButtonClearProductsFilter::SHOW_FITLERING'),
+                                    applicableFilters: applicableFiltersData,
+                                    appliedFilters: productsFilter,
+                                    productItems: paginationData.totalItems,
+                                }) -}}
+                            {%- endset -%}
+                            {{- buttonClearProductsFilter|preg_replace('/(<a[^>]*>)(.+?)(<\\/a>)/', '$1<svg class="icon"><use xlink:href="#icon-close"></use></svg>$3') -}}
+                        </div>
+                    </div>
+                </div>
+            {%- endif -%}
+        </section>
+    {%- endif -%}
+{%- endif -%}

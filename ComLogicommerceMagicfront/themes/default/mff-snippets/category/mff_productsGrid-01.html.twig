@@ -1,0 +1,63 @@
+{#- 
+    @version 2
+    @description Grid of products (productList02), optional block title
+
+    @param {Product[]} products
+    @param {string} [containerClass = "container-md"]
+    @param {int} [mobileColumns = 1] 1 or 2, default 1
+    @param {string} [titleNode = "div"] Module title HTML node type.
+    @param {string} [titleClass = "h3"] Module title additional class.
+    @param {string} [titleText = null] Module title content.
+
+    @example 
+        {%- include version ~ '/snippets/modules/products/grids/productsGrid02.html.twig' with {
+            products: products,
+            mobileColumns: 2,
+            titleNode: "div",
+            titleClass: "h3",
+            titleText: languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCTS')],
+        } -%}
+
+    @see SITE/assets/commerce/css/modules/productsGrid02.css
+    @see SITE/assets/commerce/css/lists/productList.css
+    @see SITE/assets/commerce/css/lists/productList02.css
+    @see SITE/themes/default/Responsive/snippets/lists/productList02.html.twig
+-#}
+
+{%- if products|length -%}
+    {%- if not mobileColumns is defined or not mobileColumns in [1, 2] -%}
+        {%- set mobileColumns = 1 -%}
+    {%- endif -%}
+    {%- if not titleNode is defined or not titleNode|length -%}
+        {%- set titleNode = "div" -%}
+    {%- endif -%}
+    {%- if not titleClass is defined or not titleClass|length -%}
+        {%- set titleClass = "heading" -%}
+    {%- endif -%}
+    {%- if not containerClass is defined -%}
+        {%- set containerClass = "container-md" -%}
+    {%- endif -%}
+
+    <section class="{{ classes('module', 'mff-module-products', 'mff-module-products-grid-02', 'template-' ~ (mffTemplate|default('1')), { 'mff-row-items-xs-2': mobileColumns == 2 }) }}" data-module="productsGrid02">
+        <div class="{{- containerClass -}}">
+            {%- if titleText is defined and titleText|length -%}
+                <div class="module-title-wrap">
+                    <{{ titleNode }} class="mff-module-title {{ titleClass }}">
+                        {{ titleText }}
+                    </{{ titleNode }}>
+                </div>
+            {%- endif -%}
+
+            <div class="mff-grid-items">
+                {%- for product in products -%}
+                    <div class="mff-grid-item">
+                        {%- include pl.snippet with {
+                            product: product,
+                            pl: pl,
+                        } -%}
+                    </div>
+                {%- endfor -%}
+            </div>
+        </div>
+    </section>
+{%- endif -%}

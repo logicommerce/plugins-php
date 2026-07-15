@@ -1,0 +1,184 @@
+.mff-product-main-gallery,
+.product-additional-gallery {
+  position: relative;
+}
+
+.mff-product-main-gallery .swiper-main-gallery img {
+  margin: 0 auto;
+}
+
+.mff-product-main-gallery .zoom-gallery-img {
+  cursor: pointer;
+  cursor: zoom-in;
+}
+
+.product-additional-gallery .item-gallery img {
+  opacity: .65;
+}
+
+.product-additional-gallery .item-gallery.swiper-slide-thumb-active img {
+  opacity: 1;
+}
+
+.product-main-title {
+  font-size: 18px;
+  color: #000;
+  line-height: 1.2;
+  margin-bottom: 0;
+  width: 100%;
+}
+
+.product-prices .product-price .price {
+  font-size: 24px;
+  color: #000;
+  margin-right: 8px;
+}
+
+.product-prices .product-basePrice .price {
+  color: #9a9a9a;
+  text-decoration: line-through;
+}
+
+.productReviewNick {
+  display: block;
+  font-weight: 500;
+}
+
+.productReviewAnswer {
+  margin-top: 1rem;
+  margin-left: 1.5rem;
+}
+
+.productReviewAnswer .productReviewBody {
+  min-height: 0;
+}
+
+.productReviewRate .total-rate,
+.productReviewRate .stars-container {
+  vertical-align: middle;
+  display: inline-block;
+}
+
+.productReviewHeader {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+}
+
+.productReviewRate .totalRate {
+  display: none;
+}
+
+.productReviewDate {
+  font-size: 12px;
+  color: var(--bs-gray-500);
+  margin-top: .75rem;
+}
+
+.productReviewBody {
+  margin-top: .75rem;
+  min-height: 2.5rem;
+}
+
+.product-ribbons {
+  position: absolute;
+  left: .5rem;
+  top: .5rem;
+  z-index: 11;
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+.module-product-page-top .countdown {
+  padding: 0 10px;
+  margin-bottom: 15px;
+  font-size: 14px;
+}
+
+.module-product-page-top .countdown .cd-wrap {
+  height: 36px;
+  line-height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.module-product-page-top .countdown .icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+}
+
+.module-product-page-top .gridCombinations .gridCombinationValue {
+  width: 65px;
+}
+
+/* Reward points ------------------------ */
+.productRewardPoints {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.productRewardPoints .productRewardPointsItemName {
+  font-weight: 500;
+}
+
+.productRewardPoints .productRewardPointsItemDesc {
+  font-size: small;
+  color: var(--bs-gray-600);
+}
+
+.productRewardPoints .productRewardPointsRules {
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.productRewardPoints .ruleName {
+  font-weight: 500;
+}
+
+.productRewardPoints .ruleDescription {
+  font-size: small;
+  color: var(--bs-gray-600);
+}
+
+.productRewardPoints .ruleLabel {
+  color: var(--tb-primary-500);
+  font-weight: bold;
+}
+
+.productRewardPointsRule {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--bs-gray-300);
+  border-radius: var(--bs-border-radius-lg);
+}
+
+@media (min-width: 576px) {
+  .module-product-page-top .countdown {
+    padding: 0 15px;
+    font-size: 16px;
+  }
+
+  .module-product-page-top .countdown .cd-wrap {
+    height: 45px;
+    line-height: 45px;
+  }
+
+  .module-product-page-top .countdown .icon {
+    margin-right: 10px;
+  }
+}
+
+@media (min-width: 992px) {
+  .module-product-page-top .countdown {
+    max-width: 460px;
+  }
+}

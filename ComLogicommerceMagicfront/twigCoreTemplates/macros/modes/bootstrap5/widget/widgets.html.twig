@@ -1,8 +1,20 @@
 {% macro widgets(args) %}
+  {# Permission combines with each widget's slotPermissions additively:
+     constrained if EITHER says so. allowAdjacent: false = positional anchor. #}
+  {% set defaultPermission = {
+    allowMove: true,
+    allowDelete: true,
+    allowDuplicate: true,
+    allowEdit: true,
+    allowAdd: true,
+    allowAdjacent: true
+  } %}
+  {% set permission = defaultPermission|merge(args.permission|default({})) %}
+
   {% if args.pages is defined %}
     {% for page in args.pages %}
       {% set type = page.customType|default('') %}
-      {# Use draftId for plugin Page class, pId for SDK Page class (subpages) #}
+      {# draftId for plugin Page, pId for SDK Page (subpages) #}
       {% set widgetDraftId = page.draftId|default(page.pId)|default('') %}
       {% set widgetInstanceId = (page.id == 0 ? widgetDraftId : page.id) %}
       {% set slotId = (page.slotId is defined and page.slotId) ? page.slotId : null %}
@@ -20,9 +32,12 @@
       {% if twigCode is not empty %}
         <div class="mff-widget" data-widget-id="{{ widgetInstanceId }}"
           {%- if slotId %} data-mff-widget-root="1" data-mff-slot-id="{{ slotId }}"{% endif %}
-          {%- if slotPerms and not slotPerms.allowMove %} data-mff-no-drag="1"{% endif %}
-          {%- if slotPerms and not slotPerms.allowDelete %} data-mff-no-delete="1"{% endif %}
-          {%- if slotPerms and not slotPerms.allowDuplicate %} data-mff-no-duplicate="1"{% endif %}>
+          {%- if not permission.allowMove or (slotPerms and not slotPerms.allowMove) %} data-mff-no-drag="1"{% endif %}
+          {%- if not permission.allowDelete or (slotPerms and not slotPerms.allowDelete) %} data-mff-no-delete="1"{% endif %}
+          {%- if not permission.allowDuplicate or (slotPerms and not slotPerms.allowDuplicate) %} data-mff-no-duplicate="1"{% endif %}
+          {%- if not permission.allowEdit %} data-mff-no-edit="1"{% endif %}
+          {%- if not permission.allowAdd %} data-mff-no-add="1"{% endif %}
+          {%- if not permission.allowAdjacent %} data-mff-no-adjacent="1"{% endif %}>
           <!-- MFF_WIDGET_START {{ payload|json_encode(constant('JSON_HEX_TAG'))|raw }} -->
           {% include template_from_string(twigCode) with {
               page: page,
@@ -31,6 +46,7 @@
               widgetId: widgetInstanceId,
               version: args.version,
               widgetTemplateList: args.widgetTemplateList|default({}),
+              permission: permission,
           } %}
           <!-- MFF_WIDGET_END -->
         </div>

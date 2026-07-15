@@ -1,0 +1,85 @@
+{#-
+    @version 2
+    @description Simple product bottom, static content blocks.
+
+    @param {Product} product
+    @param {Pages[]} productBottomPages
+
+    @example
+        {%- include version ~ '/snippets/modules/product/bottoms/productPageBottom02.html.twig' with {
+            product: product,
+            productBottomPages: productBottomPages,
+        } -%}
+
+    @see SITE/assets/commerce/js/modules/productPageBottom02.js
+    @see SITE/assets/commerce/css/modules/productPageBottom02.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+<section class="module mff-module-product-page-bottom mff-module-product-page-bottom-02" data-module="productPageBottom02">
+    <div class="tabs-scroll">
+        {%- if product.language.longdescription|length -%}
+            <a href="#product-long-description" class="btn btn-primary">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_DESCRIPTION')] -}}</a>
+        {%- endif -%}
+        {%- for page in productBottomPages -%}
+            <a href="#product-foot-page-{{ page.id }}" class="btn btn-primary">{{- page.language.name|striptags -}}</a>
+        {%- endfor -%}
+        <a href="#product-reviews" class="btn btn-primary">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::REVIEWS')] -}}</a>
+        {%- if showRelatedsBtn is defined and showRelatedsBtn == true -%}
+            <a href="#product-relateds" class="btn btn-primary">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::RANDOM_PRODUCTS_TITLE')] -}}</a>
+        {%- endif -%}
+    </div>
+
+    <div class="container-md">
+        {%- if product.language.longdescription|length -%}
+            <div id="product-long-description" class="mff-product-bottom-content">
+                <div class="inset">
+                    <div class="mff-product-bottom-title">
+                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_DESCRIPTION')] -}}
+                    </div>
+                    <div class="html-output">
+                        {{- product.language.longdescription|responsiveIframe('16x9', true)|wordOutput -}}
+                    </div>
+                </div>
+            </div>
+        {%- endif -%}
+        {%- for page in productBottomPages -%}
+            <div id="product-foot-page-{{ page.id }}" class="mff-product-bottom-content">
+                <div class="inset">
+                    <div class="mff-product-bottom-title">{{- page.language.name -}}</div>
+                    <div class="html-output">
+                        {{- page.language.pageContent|responsiveIframe('16x9', true)|wordOutput -}}
+                    </div>
+                </div>
+            </div>
+        {%- endfor -%}
+        <div id="product-reviews" class="mff-product-bottom-content">
+            <div class="inset">
+                <div class="mff-product-bottom-title">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::REVIEWS')] -}}
+                    {%- if productComments is defined and productComments.pagination.totalItems -%}
+                        &nbsp;({{- productComments.pagination.totalItems -}})
+                    {%- endif -%}
+                </div>
+                <div class="mff-product-new-review">
+                    <span class="text">
+                        {%- if productComments.pagination.totalItems == 0 -%}
+                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::BE_THE_FIRST_TO_COMMENT')] -}}
+                        {%- else -%}
+                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::BE_THE_SECOND_TO_COMMENT')] -}}
+                        {%- endif -%}
+                    </span>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#productComments">
+                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::MAKE_A_REVIEW')] -}}
+                    </button>
+                </div>
+                {%- if productComments.pagination.totalItems -%}
+                    {{- productMacros.comments({
+                        comments: productComments,
+                    }) -}}
+                {%- endif -%}
+            </div>
+        </div>
+    </div>
+</section>

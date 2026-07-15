@@ -1,0 +1,70 @@
+{# MagicFront chrome overlay. Override header/footer when BO toggles are on; parent() otherwise.
+   Unique filename avoids self-recursion when extending merchant's default. #}
+{%- extends "Responsive/layouts/default.html.twig" -%}
+
+{% import macrosCore.widget as widgetMacros %}
+
+{%- block headContent -%}
+    {{ parent() }}
+    {%- if mffOverrideHeader|default(false) and mffHeaderCss|default('')|length -%}
+        <style id="mff-chrome-header-css">{{ mffHeaderCss|raw }}</style>
+    {%- endif -%}
+    {%- if mffOverrideFooter|default(false) and mffFooterCss|default('')|length -%}
+        <style id="mff-chrome-footer-css">{{ mffFooterCss|raw }}</style>
+    {%- endif -%}
+    {# Per-design page CSS, set by RendersDesignAssetsTrait on designable pages. #}
+    {%- if mffDesignCssUrl|default('')|length -%}
+        <link rel="stylesheet" href="{{ mffDesignCssUrl }}">
+    {%- endif -%}
+{%- endblock headContent -%}
+
+{%- block header -%}
+    {%- if mffOverrideHeader|default(false) -%}
+        {%- include version ~ '/snippets/includes/mobileMenu.html.twig' with {
+            moduleName: themeConfiguration.commerce.mobileMenu,
+        } -%}
+        {%- if themeConfiguration.commerce.miniBasketOffcanvas -%}
+            {%- include version ~ '/snippets/includes/miniBasket.html.twig' with {
+                moduleName: themeConfiguration.commerce.miniBasket,
+            } -%}
+        {%- endif -%}
+        {%- if themeConfiguration.commerce.smallLoginOffcanvas -%}
+            {%- include version ~ '/snippets/smallLoginOffCanvas.html.twig' -%}
+        {%- endif -%}
+
+        {{ widgetMacros.widgets({
+            pages: mffHeaderPages,
+            version: version,
+            widgetTemplateList: mffHeaderTemplateList
+        }) }}
+    {%- else -%}
+        {{- parent() -}}
+    {%- endif -%}
+{%- endblock header -%}
+
+{%- block footer -%}
+    {%- if mffOverrideFooter|default(false) -%}
+        {{ widgetMacros.widgets({
+            pages: mffFooterPages,
+            version: version,
+            widgetTemplateList: mffFooterTemplateList
+        }) }}
+    {%- else -%}
+        {{- parent() -}}
+    {%- endif -%}
+{%- endblock footer -%}
+
+{%- block jsAssets -%}
+    {{ parent() }}
+    {%- if mffOverrideHeader|default(false) and mffHeaderJs|default('')|length -%}
+        <script id="mff-chrome-header-js">{{ mffHeaderJs|raw }}</script>
+    {%- endif -%}
+    {%- if mffOverrideFooter|default(false) and mffFooterJs|default('')|length -%}
+        <script id="mff-chrome-footer-js">{{ mffFooterJs|raw }}</script>
+    {%- endif -%}
+    {# Per-design page JS, set by RendersDesignAssetsTrait on designable pages.
+       Deferred so it runs after the store's deferred commerce 'core' bundle. #}
+    {%- if mffDesignJsUrl|default('')|length -%}
+        <script src="{{ mffDesignJsUrl }}" defer></script>
+    {%- endif -%}
+{%- endblock jsAssets -%}

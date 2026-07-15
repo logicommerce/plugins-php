@@ -1,0 +1,43 @@
+{#-
+    @version 2
+    @description Recommend item modal
+
+    @param {string} type Constant from SDK\Enums\RecommendItemType
+    @param {Form} formRecommend
+
+    @example
+        {%- include 'mff-snippets/product/mff_itemRecommend.html.twig' with {
+            formRecommend: formProductRecommend,
+            type: constant('SDK\\Enums\\RecommendItemType::PRODUCT')|lower,
+        } -%}
+
+    @example
+        {%- if themeConfiguration.commerce.showBundles and formBundleRecommend is defined -%}
+            {%- include 'mff-snippets/product/mff_itemRecommend.html.twig' with {
+                formRecommend: formBundleRecommend,
+                type: constant('SDK\\Enums\\RecommendItemType::BUNDLE')|lower,
+            } -%}
+        {%- endif -%}
+
+    @see SITE/assets/css/product/modules/modalItemRecommend.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+<div id="{{ type }}Recommend" class="lcModal modal fade {{ type }}Recommend mff-{{ type }}-recommend-modal mff-item-recommend-modal" tabindex="-1" aria-hidden="true" aria-labelledby="{{ type }}RecommendTitle" data-lc-modal-callback="recommendCallback">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="{{ type }}RecommendTitle" class="mff-{{ type }}-recommend-title heading">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::' ~ type|upper ~ '_RECOMMEND')] -}}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="lcModalContainer styled-form">
+                    {{- productMacros.recommendForm({ form: formRecommend }) -}}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,31 @@
+#viewDiscountsModal #discounts {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+#viewDiscountsModal .discount-link {
+  color: inherit;
+}
+
+#viewDiscountsModal .discount-content {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+#viewDiscountsModal .discount-date {
+  font-size: 12px;
+  color: var(--bs-gray-500);
+}
+
+#viewDiscountsModal .discount-large-image img,
+#viewDiscountsModal .discount-small-image img {
+  max-width: 100%;
+  display: block;
+  height: auto;
+}
+
+#viewDiscountsModal .discount-name {
+  font-size: 18px;
+}

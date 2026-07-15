@@ -1,0 +1,206 @@
+{#-
+    @version 2
+    @description Full width top, left column static gallery and affix product info column.
+
+    @param {Product} product
+    @param {Pages[]} productTopPages
+
+    @example
+        {%- include 'mff-snippets/product/mff_productPageTop03.html.twig' with {
+            product: product,
+            productTopPages: productTopPages,
+        } -%}
+
+    @see assets/js/product/productPageTop03.js
+    @see assets/css/product/modules/productPageTop03.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+{%- set optionImages = [] -%}
+{%- for option in product.options -%}
+    {%- for value in option.values -%}
+        {%- if value.images.largeImage|length -%}
+            {%- set optionImages = optionImages|merge([{
+                image: value.images.largeImage,
+                alt: value.language.value|striptags,
+            }]) -%}
+        {%- endif -%}
+    {%- endfor -%}
+{%- endfor -%}
+
+{%- if product.language.altImageKeywords|length -%}
+    {%- set imageGalleryAlt = product.language.altImageKeywords -%}
+{%- else -%}
+    {%- set imageGalleryAlt = product.language.name|striptags -%}
+{%- endif -%}
+
+<section class="module module-product-page-top mff-module-product-page-top-03" data-module="productPageTop03">
+    <div class="container-lg">
+        <div class="mff-module-inset">
+            <div class="mff-product-gallery">
+                {%- set offer = product.definition.offer and offerImage|length -%}
+                {%- set featured = product.definition.featured and featuredImage|length -%}
+                {%- set discounts = product.definition.showDiscounts and themeConfiguration.commerce.showDiscounts and mainProductDiscounts|length and discountsImage|length -%}
+                {%- if offer or featured or discounts -%}
+                    <div class="product-ribbons">
+                        {%- if featured -%}
+                            <img src="{{- featuredImage -}}" class="product-list-ribbon featured-ribbon img-fluid" loading="lazy" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FEATURED_IMAGE_ALT')] -}}">
+                        {%- endif -%}
+                        {%- if offer -%}
+                            <img src="{{- offerImage -}}" class="product-list-ribbon sale-ribbon img-fluid" loading="lazy" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::OFFER_IMAGE_ALT')] -}}">
+                        {%- endif -%}
+                        {%- if discounts -%}
+                            <img src="{{- discountsImage -}}" class="product-list-ribbon discounts-ribbon img-fluid" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::DISCOUNTS_IMAGE_ALT')] -}}">
+                        {%- endif -%}
+                    </div>
+                {%- endif -%}
+                <div class="swiper mff-swiper-main-gallery">
+                    <div class="swiper-wrapper">
+                        <div class="swiper-slide">
+                            <div class="item-img-wrap">
+                                {%- set classList = classes('img-fluid', {
+                                    'zoom-gallery-img': product.mainImages.largeImage|length,
+                                }) -%}
+                                <img class="{{ classList }}" src="{{- product.mainImages.largeImage|default(notFoundImage) -}}" alt="{{- imageGalleryAlt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                            </div>
+                        </div>
+
+                        {%- for image in product.additionalImages -%}
+                            {%- if image.largeImage|length -%}
+                                <div class="swiper-slide">
+                                    <div class="item-img-wrap">
+                                        <img class="zoom-gallery-img img-fluid" src="{{- image.largeImage -}}" alt="{{- image.alt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                                    </div>
+                                </div>
+                            {%- endif -%}
+                        {%- endfor -%}
+
+                        {%- for optionImage in optionImages -%}
+                            <div class="swiper-slide swiper-slide-option">
+                                <div class="item-img-wrap">
+                                    <img src="{{- optionImage.image -}}" class="zoom-gallery-img img-fluid" alt="{{- optionImage.alt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                                </div>
+                            </div>
+                        {%- endfor -%}
+                    </div>
+                </div>
+                <div class="swiper-pagination"></div>
+            </div>
+
+            {%- set contentBuyForm -%}
+                <div class="header">
+                    <h1 class="product-main-title">{{- product.language.name -}}</h1>
+                    {%- if product.codes.sku|length -%}
+                        <div class="product-info-sku">
+                            <span>{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::BEFORE_SKU')] -}}:</span>
+                            <span>{{- product.codes.sku -}}</span>
+                        </div>
+                    {%- endif -%}
+                </div>
+
+                {{- productMacros.buyFormOptions({
+                    product: product,
+                    showShortDescription: true,
+                    showUnavailableLabel: true,
+                    selectDefaults: false,
+                    showImageOptions: true,
+                }) -}}
+
+                {%- if productTopSizePages is defined and productTopSizePages|length -%}
+                    <div class="mff-product-size-guide">
+                        {% for page in productTopSizePages %}
+                            <a class="btn btn-link mff-btn-size-guide" data-bs-toggle="modal" data-bs-target="#productTopSizePageModal">
+                                <svg class="icon">
+                                    <use xlink:href="#icon-size-guide"></use>
+                                </svg>
+                                <span class="name">{{- page.language.name -}}</span>
+                            </a>
+                            <div id="productTopSizePageModal" class="lcModal modal fade product-info-modal" tabindex="-1" aria-hidden="true" aria-labelledby="productTopSizePageModalTitle">
+                                <div class="modal-dialog modal-lg modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="lcModalContainer">
+                                                {%- if page.language.largeImage|length -%}
+                                                    <img src="{{- page.language.largeImage -}}" class="img-fluid" loading="lazy" />
+                                                {%- else -%}
+                                                    <div class="html-output">
+                                                        {{- page.language.pageContent|responsiveIframe('16x9', true)|wordOutput -}}
+                                                    </div>
+                                                {%- endif -%}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {%- endif -%}
+
+                <div class="product-prices">
+                    {{- productMacros.property({ product: product, property: 'price' }) -}}
+                    {{- productMacros.property({ product: product, property: 'basePrice' }) -}}
+                </div>
+
+                <div class="mff-product-actions">
+                    <div class="mff-col-buy">
+                        {{- productMacros.buyFormSubmit({
+                            id: product.id,
+                            showOrderBox: product.definition.showOrderBox,
+                            class: 'btn btn-primary',
+                        }) -}}
+                    </div>
+                    <div class="mff-col-shopping-list">
+                        {{- productMacros.buttonShoppingList({
+                            item: product,
+                            showLabel: false,
+                            class: 'btn btn-secondary',
+                            showDefaultShoppingListButton: not themeConfiguration.commerce.showShoppingLists,
+                            showShoppingLists: themeConfiguration.commerce.showShoppingLists,
+                            allowAddShoppingList: themeConfiguration.commerce.showShoppingLists,
+                        }) -}}
+                    </div>
+                </div>
+
+            {%- endset -%}
+
+            <div class="mff-product-info-affix">
+                <div class="mff-product-info-affix-inset">
+                    {{- productMacros.buyProductForm({
+                        content: contentBuyForm,
+                        class: 'product-info main-product-form',
+                        product: product,
+                    }) -}}
+
+                    <div class="mff-product-third-party-share a2a_kit a2a_kit_size_32" data-a2a-url="{{- route.canonical -}}" data-a2a-title="{{- product.language.name|striptags -}}">
+                        {{- productMacros.buttonProductContact({
+                            id: product.id,
+                            class: 'mff-product-share-link btn btn-secondary',
+                        }) -}}
+                        {{- productMacros.buttonRecommend({
+                            id: product.id,
+                            class: 'mff-product-share-link btn btn-secondary',
+                        }) -}}
+
+                        <a class="mff-product-share-link a2a_button_whatsapp" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': 'Whatsapp',}) -}}" style="--tb-hover-color: #12AF0A;">
+                            <svg class="icon"><use xlink:href="#icon-share-whatsapp"></use></svg>
+                        </a>
+                        <a class="mff-product-share-link a2a_button_pinterest"  aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': 'Pinterest',}) -}}"  style="--tb-hover-color: #BD081C;">
+                            <svg class="icon"><use xlink:href="#icon-share-pinterest"></use></svg>
+                        </a>
+                        <a class="mff-product-share-link a2a_button_twitter" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': 'Twitter',}) -}}" style="--tb-hover-color: #1D9BF0;">
+                            <svg class="icon"><use xlink:href="#icon-share-twitter"></use></svg>
+                        </a>
+                        <a class="mff-product-share-link a2a_dd" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': '...',}) -}}"  href="https://www.addtoany.com/share">
+                            <svg class="icon"><use xlink:href="#icon-plus"></use></svg>
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

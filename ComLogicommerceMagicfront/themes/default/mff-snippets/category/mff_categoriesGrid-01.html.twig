@@ -1,0 +1,36 @@
+{#- 
+    @version 2
+    @description Grid of categories only image + title
+
+    @param {Category[]} categories
+    @param {string} [containerClass = "container-md"]
+
+    @example 
+        {%- include version ~ '/snippets/modules/categories/grids/categoriesGrid01.html.twig' with {
+            categories: categories,
+        } -%}
+
+    @see SITE/assets/commerce/css/modules/categoriesGrid01.css
+    @see SITE/assets/commerce/css/lists/categoryList01.css
+    @see SITE/themes/default/Responsive/snippets/lists/categoryList01.html.twig
+-#}
+
+{%- if categories|length -%}
+    {%- if not containerClass is defined -%}
+        {%- set containerClass = "container-md" -%}
+    {%- endif -%}
+
+    <section class="module mff-module-categories-grid mff-module-categories-grid-01" data-module="categoriesGrid01">
+        <div class="{{- containerClass -}}">
+            <div class="mff-grid-items">
+                {%- for category in categories -%}
+                    <div class="mff-grid-item">
+                        {%- include 'mff-snippets/category/mff_categoryList-01.html.twig' with {
+                            category: category,
+                        } -%}
+                    </div>
+                {%- endfor -%}
+            </div>
+        </div>
+    </section>
+{%- endif -%}

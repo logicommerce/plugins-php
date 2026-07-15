@@ -1,0 +1,42 @@
+{#-
+    @version 2
+    @description Product page modal for new comments form
+
+    @param {Form} formProductComments
+
+    @example
+        {%- block modals -%}
+            ...
+            {%- include 'mff-snippets/product/mff_productComments.html.twig' with {
+                formProductComments: formProductComments,
+            } -%}
+            ...
+        {%- endblock modals -%}
+
+    @see SITE/assets/css/product/modules/modalProductComments.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+<div id="productComments" class="lcModal modal fade productComments" tabindex="-1" aria-hidden="true" aria-labelledby="productCommentsTitle" data-lc-modal-callback="productCommentsCallback">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="productCommentsTitle" class="mff-product-comments-title heading">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::MAKE_A_REVIEW')] -}}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="lcModalContainer">
+                    <div class="productCommentsForm styled-form">
+                        {{- productMacros.commentsForm({
+                            form: formProductComments,
+                            configuration: themeConfiguration.forms.comments,
+                        }) -}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

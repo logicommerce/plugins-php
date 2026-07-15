@@ -4,16 +4,14 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 
-use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
-
 /**
- * Static utilities related to the storefront/canvas request: detect whether
- * the page is rendered inside the editor's canvas iframe, and build the
- * plugin-route URL that storefront `<link>` / `<script>` tags point at.
+ * Static utilities related to the storefront/canvas request. Currently
+ * exposes a single detector: whether the page is rendered inside the
+ * editor's canvas iframe.
  *
  * Pulled out of MagicfrontTrait so the trait stays focused on controller
- * lifecycle hooks (init, batch, data) and the side concerns are reusable
- * and testable on their own.
+ * lifecycle hooks and the side concerns are reusable and testable on their
+ * own.
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Resources
  */
@@ -34,22 +32,5 @@ final class MagicfrontUtils {
             return false;
         }
         return strtolower((string) (REQUEST_HEADERS['SEC-FETCH-DEST'] ?? '')) === 'iframe';
-    }
-
-    /**
-     * Build the per-page CSS or JS plugin-route URL embedded in storefront
-     * `<link>` / `<script>` tags. `$type` is one of
-     * FunctionType::CUSTOMIZE_CSS / CUSTOMIZE_JS — the handler dispatches
-     * on that param.
-     */
-    public static function storefrontUrl(string $type, string $pageId, string $language): string {
-        return sprintf(
-            '/%s/resources/plugin_route/%s?type=%s&page=%s&language=%s',
-            INTERNAL_PREFIX,
-            ComLogicommerceMagicfrontController::PLUGIN_MODULE,
-            $type,
-            urlencode($pageId),
-            urlencode($language)
-        );
     }
 }

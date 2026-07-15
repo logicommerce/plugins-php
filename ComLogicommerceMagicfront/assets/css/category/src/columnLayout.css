@@ -1,0 +1,50 @@
+/* Two-column category layout (197): left filter sidebar + right content.
+   Ported from template-8 main.css. Built inside the content block (the store
+   layout has no such structure), so scoped to our own .mff-row-main-content. */
+.mff-col-layout-column {
+  display: none;
+}
+
+@media (min-width: 992px) {
+  .mff-row-main-content {
+    --gap: 0.75rem;
+    display: grid;
+    width: 100%;
+    grid-template-columns: 200px calc(100% - 200px - var(--gap));
+    gap: var(--gap);
+  }
+
+  .mff-col-layout-column {
+    display: flex;
+  }
+
+  .mff-col-layout-column .mff-col-inset-fixed {
+    width: 100%;
+  }
+
+  .mff-col-layout-column .mff-col-inset {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .mff-col-layout-column .mff-col-inset > .mff-module-column:first-child {
+    padding-top: 2rem;
+  }
+
+  .mff-row-main-content .mff-col-layout-content :where(.container, .container-md, .container-lg, .container-xl, .container-xxl) {
+    width: 100%;
+  }
+}
+
+@media (min-width: 1200px) {
+  .mff-row-main-content {
+    grid-template-columns: 270px calc(100% - 270px - var(--gap));
+  }
+}
+
+@media (min-width: 1400px) {
+  .mff-row-main-content {
+    --gap: 1.5rem;
+  }
+}

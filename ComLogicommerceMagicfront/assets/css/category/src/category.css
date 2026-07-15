@@ -1,0 +1,90 @@
+/* Css for productsListPage pages */
+
+.mff-category-header-image {
+  overflow: hidden;
+}
+
+.mff-category-header-image-inset {
+  max-height: 340px;
+}
+
+.mff-category-header-image-inset .bg {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 0;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+
+.mff-category-header-contents,
+.mff-category-long-description {
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+
+.mff-category-main-title {
+  margin-bottom: 0;
+}
+
+.mff-category-header-text {
+  margin-top: .75rem;
+}
+
+.mff-category-empty {
+  text-align: center;
+  padding-top: 30px;
+  padding-bottom: 45px;
+}
+
+.mff-category-pagination-container {
+  padding-top: 2.5rem;
+  padding-bottom: 2.5rem;
+}
+
+.mff-category-pagination-container .mff-module-pagination {
+  display: table;
+  margin: 0 auto;
+}
+
+.mff-category-header-text .search-criteria {
+  font-size: 14px;
+  color: var(--bs-gray-600);
+  margin-left: 10px;
+}
+
+.mff-category-header-contents .discount-date {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--bs-gray-600);
+  margin-top: 1rem;
+  display: flex;
+}
+
+@media (min-width: 768px) {
+  .mff-category-text {
+    font-size: 15px;
+  }
+
+  .mff-category-empty {
+    min-height: 150px;
+  }
+}
+
+@media (min-width: 992px) {
+
+  .mff-category-header-contents,
+  .mff-category-long-description {
+    padding-top: 30px;
+    padding-bottom: 30px;
+  }
+}
+
+@media (min-width: 1200px) {
+  .mff-category-text {
+    font-size: 16px;
+    line-height: 1.6;
+  }
+}

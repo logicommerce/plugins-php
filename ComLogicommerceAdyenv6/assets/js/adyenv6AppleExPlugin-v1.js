@@ -48,6 +48,7 @@
 
 			async render() {
 				LcAdyenApplePayExpress.installLcSubmitPatch();
+				this.tmpTotal = this.getProductTotal(this.tmpTotal, this.currencyCode);
 				const configuration = await this.getConfiguration();
 				const checkout = await this.getOrCreateCheckout(configuration);
 				const checkoutApple = new window.AdyenWeb.ApplePay(checkout, {

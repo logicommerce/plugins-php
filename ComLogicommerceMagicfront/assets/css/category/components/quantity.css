@@ -1,0 +1,119 @@
+/* Quantity ----------------------------- */
+.input-group-quantity {
+  --btn-h: var(--btns-size, var(--tb-basket-quantity-height, 1.875rem));
+  --btn-w: var(--btn-h);
+  --btn-icon-h: 0.875rem;
+  position: relative;
+}
+
+.input-group-quantity .input-number {
+  height: var(--btn-h);
+  min-height: var(--btn-h);
+  padding-left: 5px;
+  padding-right: 5px;
+  text-align: center;
+}
+
+.input-group-quantity .input-number.error {
+  z-index: 4;
+}
+
+.input-group-quantity .input-group-btn {
+  display: block;
+  position: relative;
+  height: var(--btn-h);
+  width: var(--btn-w);
+  max-width: 33%;
+}
+
+.input-group-quantity .btn.btn-number {
+  position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  width: 100%;
+  padding: 0;
+  --bs-btn-color: var(--bs-body-color);
+  --bs-btn-bg: var(--bs-gray-100);
+  --bs-btn-border-color: var(--bs-border-color);
+  --bs-btn-hover-color: var(--bs-body-color);
+  --bs-btn-hover-bg: var(--bs-gray-400);
+  --bs-btn-hover-border-color: var(--bs-gray-400);
+  --bs-btn-focus-shadow-rgb: transparent;
+  --bs-btn-active-color: var(--bs-body-color);
+  --bs-btn-active-bg: var(--bs-gray-500);
+  --bs-btn-active-border-color: var(--bs-gray-500);
+  --bs-btn-disabled-color: var(--bs-body-color);
+  --bs-btn-disabled-bg: var(--bs-gray-100);
+  --bs-btn-disabled-border-color: var(--bs-border-color);
+}
+
+
+.input-group-quantity .btn.btn-number .glyphicon {
+  position: static;
+  display: block;
+  font-weight: 400;
+  font-family: inherit;
+}
+
+.input-group-quantity .btn.btn-number .glyphicon::before {
+  content: "";
+  height: var(--btn-icon-h);
+  width: var(--btn-icon-h);
+  display: block;
+  background-size: var(--btn-icon-h);
+  background-repeat: no-repeat;
+  background-position: center;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: auto;
+}
+
+.input-group-quantity .btn.btn-number .glyphicon-minus::before {
+  background-image: url('/assets/commerce/img/quantity-minus.svg');
+}
+
+.input-group-quantity .btn.btn-number .glyphicon-plus::before {
+  background-image: url('/assets/commerce/img/quantity-plus.svg');
+}
+
+.input-group-quantity .input-group-btn~.input-group-btn>.btn.btn-number {
+  margin-left: 0;
+  border-left: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.input-group-quantity .input-group-btn:first-child>.btn.btn-number {
+  margin-right: 0;
+  border-right: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.buyFormQuantity~.form-error {
+  display: none;
+}
+
+.basketTextQuantity {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.buyFormQuantity:not(.form-select) {
+  height: var(--btns-size, var(--tb-basket-quantity-height, 1.875rem));
+  text-align: center;
+}
+
+.buyFormQuantity.form-select {
+  --tb-form-control-height: var(--btns-size, var(--tb-basket-quantity-height, 1.875rem));
+}
+
+/* Non initialized quantity */
+input.form-control.basketQuantity[data-lc-quantity="quantity"],
+input.buyFormQuantity:not(.form-control)[data-lc-quantity="quantity"] {
+  display: none;
+}

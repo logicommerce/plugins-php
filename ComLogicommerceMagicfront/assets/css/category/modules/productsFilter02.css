@@ -1,0 +1,189 @@
+.mff-module-products-filter-02 .mff-filter-by-row-container {
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+
+.mff-module-products-filter-02 .mff-filter-by-row-mobile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: .75rem;
+  border-bottom: 1px solid var(--bs-gray-200);
+}
+
+.mff-module-products-filter-02 .mff-filter-by-row-mobile .mff-total-products {
+  color: var(--bs-gray-600);
+}
+
+.mff-module-products-filter-02 .mff-filter-by-row-mobile .btn {
+  height: 2.25rem;
+}
+
+.mff-module-products-filter-02 .mff-filter-by-row-mobile .mff-filter-by-elements {
+  display: flex;
+  gap: .75rem;
+}
+
+.mff-module-products-filter-02 .btn-menu-filter-close {
+  width: 2.25rem;
+  padding: 0;
+}
+
+.mff-module-products-filter-02 .btn-menu-filter-close .icon,
+.mff-module-products-filter-02 .btn-menu-filter .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.mff-module-products-filter-02 .dropdown-menu .filterElementRange {
+  min-width: 300px;
+  padding: 1rem 1.75rem;
+}
+
+/* Offcanvas ---------------------------- */
+#menu-filter-02 .offcanvas-title {
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+#menu-filter-02 .offcanvas-body {
+  padding-left: 0;
+  padding-right: 0;
+}
+
+#menu-filter-02 .offcanvas-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  gap: 1rem;
+}
+
+#menu-filter-02 .offcanvas-footer .btn {
+  flex: 1;
+}
+
+#menu-filter-02 .filterSubmit {
+  display: none;
+}
+
+#menu-filter-02 .accordion-item {
+  border: 0;
+}
+
+#menu-filter-02 .mff-inset-filter-elements {
+  padding: 1.25rem 0.75rem;
+}
+
+#menu-filter-02 .filterElementRange {
+  position: relative;
+  width: calc(100% - 4rem);
+  margin-inline: auto;
+}
+
+#menu-filter-02 .btn-filter.accordion-button {
+  justify-content: space-between;
+  height: 4rem;
+  font-size: 16px;
+  border-radius: 0;
+  box-shadow: none;
+  gap: 0.5rem;
+  padding: 1rem 1.25rem;
+  --bs-btn-hover-border-color: transparent;
+  --bs-btn-hover-color: initial;
+  --bs-btn-hover-bg: initial;
+  --bs-btn-focus-border-color: transparent;
+  --bs-btn-focus-color: initial;
+  --bs-btn-focus-bg: initial;
+  --bs-btn-active-border-color: transparent;
+  --bs-btn-active-color: initial;
+  --bs-btn-active-bg: initial;
+}
+
+#menu-filter-02 .btn-filter.accordion-button .n-applied-filter {
+  margin-right: auto;
+}
+
+#menu-filter-02 .btn-filter.accordion-button .icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+#menu-filter-02 .btn-filter.accordion-button:not(.collapsed) {
+  color: var(var(--tb-primary-500));
+}
+
+@media(min-width: 992px) {
+
+  .mff-module-products-filter-02 .mff-order-by-row-container,
+  .mff-module-products-filter-02 .mff-filter-by-row-container {
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .mff-module-products-filter-02 .mff-filter-by-row-container {
+    background-color: var(--bs-gray-100);
+  }
+
+  .mff-module-products-filter-02 .mff-order-by-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mff-module-products-filter-02 .mff-filter-block-order-by {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .mff-module-products-filter-02 .mff-filter-by-row-desktop {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+  }
+
+  .mff-module-products-filter-02 .mff-filter-by-row-desktop form {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  .mff-module-products-filter-02 .mff-filter-by-label,
+  .mff-module-products-filter-02 .mff-order-by-label {
+    min-width: 80px;
+  }
+
+  .mff-module-products-filter-02 .mff-filter-by-row .dropdown-menu {
+    min-width: 200px;
+    white-space: nowrap;
+  }
+
+  .mff-module-products-filter-02 .clearFilterButton {
+    margin-left: auto;
+  }
+}
+/* Self-contained responsive visibility: this store has no Bootstrap d-* display
+   utilities, so drive the mobile/desktop row swap from our own media queries.
+   !important overrides any framework-level `.d-none { display:none!important }`. */
+.mff-module-products-filter-02 .mff-order-by-row-container,
+.mff-module-products-filter-02 .mff-filter-by-row-desktop,
+.mff-module-products-filter-02 .filter-module-pagination {
+  display: none !important;
+}
+.mff-module-products-filter-02 .mff-filter-by-row-mobile {
+  display: flex !important;
+}
+@media (min-width: 992px) {
+  .mff-module-products-filter-02 .mff-order-by-row-container,
+  .mff-module-products-filter-02 .mff-filter-by-row-desktop {
+    display: flex !important;
+  }
+  .mff-module-products-filter-02 .filter-module-pagination {
+    display: block !important;
+  }
+  .mff-module-products-filter-02 .mff-filter-by-row-mobile {
+    display: none !important;
+  }
+}

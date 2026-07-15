@@ -1,0 +1,16 @@
+{# Shared: category title + short description. Expects categoryTitleH1. #}
+{%- set category = controllerItem -%}
+<section class="section mff-category-header-contents">
+    <div class="container-md">
+        <div class="inset">
+            <h1 class="mff-category-main-title">{{ categoryTitleH1 }}</h1>
+            {%- if category.language.shortDescription|length -%}
+                <div class="mff-category-header-text mff-category-text">
+                    <div class="html-output">
+                        {{- category.language.shortDescription|responsiveIframe('16x9', true)|wordOutput -}}
+                    </div>
+                </div>
+            {%- endif -%}
+        </div>
+    </div>
+</section>

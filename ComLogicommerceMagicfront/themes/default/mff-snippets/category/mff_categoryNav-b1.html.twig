@@ -1,0 +1,142 @@
+{#- 
+    @version 2
+    @description Two levels accordion menu. With categories and pages
+
+    @param {ElementCollection<Category>} categoriesAreaCategories Source of var: SITE/src/ThemesConfigurations/TcDefaultResponsive.php
+    @param {ElementCollection<Page>} desktopMenuPages Global scope variable. Definition: SITE/src/Enums/TcModulePositions/DesktopMenuPositions.php, Source of var: SITE/src/ThemesConfigurations/TcDefaultResponsive.php
+    @param {bool} showViewAll Local configuration parameter.
+    @param {bool} showAccordion Local configuration parameter.
+
+    @example 
+        {%- include version ~ 'snippets/menu/desktopMenuB1.html.twig' -%}
+
+    @see SITE/assets/commerce/css/modules/desktopMenu.css
+    @see SITE/assets/commerce/css/modules/desktopMenuB1.css
+    @see SITE/assets/commerce/js/src/header.js
+    @see SITE/assets/commerce/js/src/header/desktopMenu.js
+-#}
+
+{#- Configuration -#}
+{%- set showViewAll = false -%}
+{%- set showAccordion = false -%}
+
+{%- macro accordionItem(item, itemType, showViewAll, showAccordion) -%}
+    {%- set subItems = [] -%}
+    {%- if itemType == 'category' and item.subcategories is defined -%}
+        {%- set subItems = item.subcategories -%}
+    {%- elseif itemType == 'page' and item.subpages is defined -%}
+        {%- set subItems = item.subpages -%}
+    {%- endif -%}
+
+    {%- set selected = false -%}
+    {%- for breadcrumbItem in route.breadcrumb -%}
+        {%- if ((itemType == 'page' and breadcrumbItem.itemType == 'PAGE') or (itemType == 'category' and breadcrumbItem.itemType == 'CATEGORY')) and breadcrumbItem.itemId == item.id -%}
+            {%- set selected = true -%}
+        {%- endif -%}
+    {%- endfor -%}
+
+    {%- if subItems|length -%}
+        <div class="accordion-item accordion-item-{{ itemType }}">
+            <div class="accordion-header" id="heading-{{ itemType }}-{{ item.id }}">
+                <a class="accordion-button collapsed static {% if selected and route.breadcrumb|filter(br => br.itemType == 'CATEGORY' and br.itemId == item.id)|length > 0 %} selected {% endif %}" href="{{- item.language.link -}}" target="{{- item.language.target -}}" {%- if not item.language.linkFollowing %} rel="nofollow" {%- endif %}>
+                    {{- item.language.name -}}
+                </a>
+                <button 
+                    class="{{ classes('accordion-button', { 'collapsed': selected == false } ) }}" 
+                    type="button"
+                    data-bs-toggle="collapse"
+                    data-bs-target="#collapse-{{ itemType }}-{{ item.id }}"
+                    aria-expanded="true"
+                    aria-controls="collapse-{{ itemType }}-{{ item.id }}"
+                    aria-label="{{- item.language.name -}}"
+                >
+                    <svg class="icon"><use xlink:href="#icon-angle-down"></use></svg>
+                </button>
+            </div>
+            <div 
+                id="collapse-{{ itemType }}-{{ item.id }}"
+                class="{{ classes('accordion-collapse collapse', { 'show': selected } ) }}"
+                aria-labelledby="heading-{{ itemType }}-{{ item.id }}"
+                {%- if showAccordion %} data-bs-parent="#accordion-menu-b1" {%- endif -%}
+            >
+                <div class="accordion-body">
+                    <ul class="mff-desktop-menu-list-lvl-2 list-unstyled">
+                        {%- for subItem in subItems -%}
+                            <li>
+                                {%- if itemType == 'category' and subItem.subcategories|length -%}
+                                    <div class="mff-desktop-menu-lvl-2-header">
+                                        <a class="accordion-button collapsed static {% if selected and route.breadcrumb|filter(br => br.itemType == 'CATEGORY' and br.itemId == subItem.id)|length > 0 %} selected {% endif %}" href="{{- subItem.language.link -}}" target="{{- subItem.language.target -}}" {%- if not subItem.language.linkFollowing %} rel="nofollow" {%- endif %} aria-label="{{- subItem.language.name -}}">
+                                            {{- subItem.language.name -}}
+                                        </a>
+                                        <button class="{{ classes('accordion-button mff-desktop-menu-lvl-2-btn', { 'collapsed': selected == false } ) }}" type="button" data-bs-toggle="collapse" data-bs-target="#desktopMenuLvl_2Collap-cat-{{ subItem.id }}" aria-expanded="false" aria-controls="desktopMenuLvl_2Collap-cat-{{ subItem.id }}">
+                                            <svg class="icon"><use xlink:href="#icon-angle-down"></use></svg>
+                                        </button>
+                                    </div>
+                                    <ul class="{{ classes('collapse', { 'show': selected } ) }}" id="desktopMenuLvl_2Collap-cat-{{ subItem.id }}">
+                                        {%- for subSubItemitem in subItem.subcategories -%}    
+                                            <li>
+                                                <a class="{% if selected and route.breadcrumb|filter(br => br.itemType == 'CATEGORY' and br.itemId == subSubItemitem.id)|length > 0 %} selected {% endif %}" href="{{- subSubItemitem.language.link -}}" target="{{- subSubItemitem.language.target -}}" {%- if not subSubItemitem.language.linkFollowing %} rel="nofollow" {%- endif %} aria-label="{{- subSubItemitem.language.name -}}">
+                                                    {{- subSubItemitem.language.name -}}
+                                                </a>
+                                            </li>
+                                        {%- endfor -%}
+                                    </ul>
+                                {%- elseif itemType == 'category' and subItem.subcategories|length == 0 -%}
+                                    <a class="{% if selected and route.breadcrumb|filter(br => br.itemType == 'CATEGORY' and br.itemId == subItem.id)|length > 0 %} selected {% endif %}" href="{{- subItem.language.link -}}" target="{{- subItem.language.target -}}" {%- if not subItem.language.linkFollowing %} rel="nofollow" {%- endif %} aria-label="{{- subItem.language.name -}}">
+                                        {{- subItem.language.name -}}
+                                    </a>
+                                {%- elseif itemType == 'page' -%}
+                                    <a class="{% if selected and route.breadcrumb|filter(br => br.itemType == 'CATEGORY' and br.itemId == subItem.id)|length > 0 %} selected {% endif %}" href="{{- subItem.language.link -}}" target="{{- subItem.language.target -}}" {%- if not subItem.language.linkFollowing %} rel="nofollow" {%- endif %} aria-label="{{- subItem.language.name -}}">
+                                        {{- subItem.language.name -}}
+                                    </a>
+                                {%- endif -%}
+                            </li>
+                        {%- endfor -%}
+                        {%- if showViewAll and itemType == 'category' -%}
+                            <li class="mff-desktop-menu-lvl-1-view-all">
+                                <a class="mff-view-all" href="{{- item.language.link -}}" target="{{- item.language.target -}}" {%- if not item.language.linkFollowing %} rel="nofollow" {%- endif -%} aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::VIEW_ALL')] -}}">
+                                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::VIEW_ALL')] -}}
+                                </a>
+                            </li>
+                        {%- endif -%}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    {%- else -%}
+        <div class="accordion-item static accordion-item-{{- itemType }}">
+            <div class="accordion-header">
+                <a class="accordion-button collapsed static {% if selected and route.breadcrumb|filter(br => br.itemType == 'CATEGORY' and br.itemId == item.id)|length > 0 %} selected {% endif %}" href="{{- item.language.link -}}" target="{{- item.language.target -}}" {%- if not item.language.linkFollowing %} rel="nofollow" {%- endif %} aria-label="{{- item.language.name -}}">
+                    {{- item.language.name -}}
+                </a>
+            </div>
+        </div>
+    {%- endif -%}
+{%- endmacro -%}
+
+{%- set categoriesSource = categoriesAreaCategories -%}
+{%- if (route.type == constant('FWK\\Enums\\RouteType::CATEGORY') or route.type == constant('FWK\\Enums\\RouteType::PRODUCT')) and rootCategory is defined -%}
+    {%- set categoriesSource = categoriesAreaCategories|filter(cat => cat.id == rootCategory.id)|first.subcategories -%}
+{%- endif -%}
+
+{%- if categoriesSource|length -%}
+    <aside id="desktop-menu-b1" class="mff-desktop-menu mff-menu-aside mff-module-column" data-module="desktopMenuB1">
+        <div class="mff-desktop-menu-wrap">
+            <div class="accordion accordion-flush" id="accordion-menu-b1">
+
+                {%- if rootCategory is defined -%}
+                    <div class="mff-desktop-menu-title">{{- rootCategory.language.name -}}</div>
+                {%- elseif controllerItem is defined and controllerItem.language.name is defined -%}
+                    <div class="mff-desktop-menu-title">{{- controllerItem.language.name -}}</div>
+                {%- endif -%}
+
+                {%- for category in categoriesSource -%}
+                    {{- _self.accordionItem(category, 'category', showViewAll, showAccordion) -}}
+                {%- endfor -%}
+                {# {%- for page in desktopMenuPages -%}
+                    {{- _self.accordionItem(page, 'page', showViewAll, showAccordion) -}}
+                {%- endfor -%} #}
+            </div>
+        </div>
+    </aside>
+{%- endif -%}

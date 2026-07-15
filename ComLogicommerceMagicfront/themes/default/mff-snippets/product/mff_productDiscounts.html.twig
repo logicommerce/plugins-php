@@ -1,0 +1,48 @@
+{#-
+    @version 2
+    @description Product modal that shows a list of discounts into product page
+
+    @param {ElementCollection} productDiscounts
+
+    @example
+        {%- block modals -%}
+            ...
+            {%- if themeConfiguration.commerce.showDiscounts and productDiscounts|length and controllerItem.definition.showDiscounts -%}
+                {%- include 'mff-snippets/product/mff_productDiscounts.html.twig' with {
+                    productDiscounts: productDiscounts,
+                } -%}
+            {%- endif -%}
+            ...
+        {%- endblock modals -%}
+
+    @see SITE/assets/css/product/modules/modalProductDiscounts.css
+-#}
+
+<div id="viewDiscountsModal" class="lcModal modal fade viewDiscountsModal" tabindex="-1" aria-hidden="true" aria-labelledby="viewDiscountsModalTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="viewDiscountsModalTitle" class="product-discounts-title heading">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::AVAILABLE_DISCOUNTS')] -}}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="lcModalContainer">
+                    <div class="discountsContainer">
+                        {%- if productDiscounts.items|length -%}
+                            {%- import macrosCore.product as productMacros -%}
+                            {{- productMacros.discounts({
+                                discounts: productDiscounts,
+                                showActivityLimit: true,
+                                showName: true,
+                                showSmallImage: true,
+                                showShortDescription: true,
+                            }) -}}
+                        {%- endif -%}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

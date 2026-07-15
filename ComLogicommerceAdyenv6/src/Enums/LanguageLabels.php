@@ -62,4 +62,5 @@ class LanguageLabels extends Enum {
 
     public const COM_LOGICOMMERCE_ADYENV6_ERROR_APPLE_PAY = 'ComLogicommerceAdyenV6ErrorApplePay';
 
+    public const COM_LOGICOMMERCE_ADYENV6_ERROR_SELECT_OPTIONS = 'ComLogicommerceAdyenV6ErrorSelectOptions';
 }

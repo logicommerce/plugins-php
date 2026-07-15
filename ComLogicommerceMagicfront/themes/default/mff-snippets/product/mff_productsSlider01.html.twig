@@ -1,0 +1,112 @@
+{#-
+    @version 2
+    @description Full width carrousel of x4 products in desktop, x1 in small mobile
+                 Used to show vinculateds with productList04 into checkouts.
+
+    @param {Product[]} products
+    @param {string} [containerClass = "container-md"]
+    @param {string} [titleNode = "div"] Module title HTML node type.
+    @param {string} [titleClass = "h3"] Module title additional class.
+    @param {string} [titleText = null] Module title content.
+    @param {int} [linkedsSectionId = 0] Linkeds section id (vinculados), 0 is like undefined value
+    @param {int} [discountSelectableGiftId = 0] Discount selectable gift id, 0 is like undefined value
+
+    @example
+        {%- include version ~ '/snippets/modules/products/sliders/productsSlider01.html.twig' with {
+            products: products,
+            titleNode: "div",
+            titleClass: "h3",
+            titleText: languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCTS')],
+        } -%}
+
+    @see SITE/assets/commerce/js/modules/productsSlider01.js
+    @see SITE/assets/commerce/css/modules/productsSlider01.css
+-#}
+
+{%- if products|length -%}
+    {%- if not containerClass is defined -%}
+        {%- set containerClass = "container-md" -%}
+    {%- endif -%}
+    {%- if not titleNode is defined or not titleNode|length -%}
+        {%- set titleNode = "div" -%}
+    {%- endif -%}
+    {%- if not titleClass is defined or not titleClass|length -%}
+        {%- set titleClass = "heading" -%}
+    {%- endif -%}
+    {%- if not linkedsSectionId is defined -%}
+        {%- set linkedsSectionId = 0 -%}
+    {%- endif -%}
+    {%- if not discountSelectableGiftId is defined -%}
+        {%- set discountSelectableGiftId = 0 -%}
+    {%- endif -%}
+
+    {#- Avoid the product page to show the same product on the slider -#}
+    {%- if route.type is constant('SDK\\Enums\\RouteType::PRODUCT') -%}
+        {%- set products = products|filter(product => product.id != controllerItem.id) -%}
+    {%- endif -%}
+
+    {%- if products|length -%}
+        <section class="module mff-module-products-slider mff-module-products-slider-01" data-module="productsSlider01" {%- if id is defined -%} id="{{- id -}}" {%- endif -%}>
+            <div class="{{- containerClass -}}">
+                <div class="mff-header-slider">
+                    {%- if titleText is defined and titleText|length -%}
+                        <div class="mff-module-title-wrap">
+                            <{{- titleNode }} class="mff-module-title {{ titleClass -}}">
+                                {{- titleText -}}
+                            </{{- titleNode -}}>
+                        </div>
+                    {%- endif -%}
+                </div>
+            </div>
+
+            <div class="mff-swiper-relative">
+                <div class="swiper-button-prev mff-swiper-control">
+                    <svg class="icon"><use xlink:href="#icon-angle-left"></use></svg>
+                </div>
+                <div class="swiper-button-next mff-swiper-control">
+                    <svg class="icon"><use xlink:href="#icon-angle-right"></use></svg>
+                </div>
+
+                <div class="{{- containerClass -}}">
+                    <div class="swiper">
+                        <div class="swiper-wrapper">
+            {#- Default card config for the linked/gift (checkout vinculados) branches,
+                which run outside the design system and therefore carry no `pl`. -#}
+            {%- set linkedsPl = {
+                version: '04',
+                hoverImage: false, optionsLink: true, buyOptions: true,
+                buyPanel: { enabled: true, reveal: 'hover' },
+                orderBox: { enabled: true, quantity: false, style: 'plus-minus' },
+                ribbons: { offer: { enabled: true, style: 'text' }, featured: { enabled: true, style: 'text' }, discounts: { enabled: true, style: 'image' } },
+                flags: { shoppingList: true, comparison: false, stockAlert: true },
+            } -%}
+                            {%- for product in products -%}
+                                <div class="swiper-slide">
+                                    {%- if linkedsSectionId > 0 -%}
+                                        {%- include 'mff-snippets/category/mff_productList.html.twig' with {
+                                            product: product,
+                                            pl: linkedsPl,
+                                            linkedsSectionId: linkedsSectionId,
+                                        } -%}
+                                    {%- elseif discountSelectableGiftId > 0 -%}
+                                        {%- include 'mff-snippets/category/mff_productList.html.twig' with {
+                                            product: product,
+                                            pl: linkedsPl,
+                                            discountSelectableGiftId: discountSelectableGiftId,
+                                        } -%}
+                                    {%- else -%}
+                                        {%- include (pl.snippet|default('mff-snippets/category/mff_productList.html.twig')) with {
+                                            product: product,
+                                            pl: pl|default(linkedsPl),
+                                        } -%}
+                                    {%- endif -%}
+                                </div>
+                            {%- endfor -%}
+                        </div>
+                        {# <div class="swiper-pagination"></div> #}
+                    </div>
+                </div>
+            </div>
+        </section>
+    {%- endif -%}
+{%- endif -%}

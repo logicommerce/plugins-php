@@ -441,6 +441,23 @@
 					return total.toFixed(2);
 				}
 			}
+
+			getProductTotal(total, productId) {
+				if (total === 'NaN' || total === 'undefined') {
+					let productPrice = $(".buyProductForm" + productId)
+						.find('.product-price .price .integerPrice');
+					total = Number(productPrice ? productPrice.attr("content") : 0);
+				}
+				if (total === 'NaN' || total === 'undefined') {
+					let productPrice = $("#buyForm" + productId)
+						.find('.product-price .price .integerPrice');
+					total = Number(productPrice ? productPrice.attr("content") : 0);
+				}
+				if (total === 'NaN' || total === 'undefined') {
+					total = 0;
+				}
+				return total;
+			}
 		}
 
 		global.LcAdyenApplePayBaseExpress = LcAdyenApplePayBaseExpress;

@@ -1,0 +1,359 @@
+{#-
+    @version 2
+    @description Desktop view: col left main image + vertical gallery & col right product info
+
+    @param {Product} product
+    @param {Pages[]} productTopPages
+
+    @example
+        {%- include 'mff-snippets/product/mff_productPageTop02.html.twig' with {
+            product: product,
+            productTopPages: productTopPages,
+        } -%}
+
+    @see assets/js/product/productPageTop02.js
+    @see assets/css/product/modules/productPageTop02.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+{%- set productOptionImages = 0 -%}
+{%- for option in product.options -%}
+    {%- for value in option.values -%}
+        {%- if value.images.largeImage|length -%}{%- set productOptionImages = productOptionImages + 1 -%}{%- endif -%}
+    {%- endfor -%}
+{%- endfor -%}
+
+{%- if product.language.altImageKeywords|length -%}
+    {%- set imageGalleryAlt = product.language.altImageKeywords -%}
+{%- else -%}
+    {%- set imageGalleryAlt = product.language.name|striptags -%}
+{%- endif -%}
+
+<section class="module module-product-page-top mff-module-product-page-top-02" data-module="productPageTop02">
+    <div class="container-md product-page-container">
+        <div class="row product-page-row">
+            <div class="col-product-left col-12 col-sm-12 col-lg-6 col-xl-8">
+                <div class="row">
+                    {#- Small gallery ---------------------- -#}
+                    {%- if product.additionalImages|length > 0 or productOptionImages > 0 -%}
+                        <div class="mff-col-product-vertical-gallery">
+                            <div class="product-additional-gallery d-none d-lg-block" id="swiper-additional-gallery-02">
+                                <div class="swiper-control swiper-button-prev">
+                                    <svg class="icon"><use xlink:href="#icon-angle-up"></use></svg>
+                                </div>
+                                <div class="swiper mff-swiper-additional-gallery">
+                                    <div class="swiper-wrapper">
+                                        {#- First image - small img -#}
+                                        {%- if product.mainImages.largeImage|length -%}
+                                            <div class="swiper-slide item-gallery">
+                                                <div class="item-img-wrap ratio ratio-1x1">
+                                                    <img src="{{- product.mainImages.largeImage|default(notFoundImage) -}}" class="img-fluid" alt="{{- imageGalleryAlt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                                                </div>
+                                            </div>
+                                        {%- endif -%}
+                                        {%- for image in product.additionalImages -%}
+                                            {%- if image.largeImage|length -%}
+                                                <div class="swiper-slide item-gallery">
+                                                    <div class="item-img-wrap ratio ratio-1x1">
+                                                        <img src="{{- image.largeImage -}}" class="img-fluid" alt="{{- image.alt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                                                    </div>
+                                                </div>
+                                            {%- endif -%}
+                                        {%- endfor -%}
+                                        {#- Extra option images -#}
+                                        {%- for option in product.options -%}
+                                            {%- for value in option.values -%}
+                                                {%- if value.images.largeImage|length -%}
+                                                    <div class="swiper-slide item-gallery">
+                                                        <div class="item-img-wrap ratio ratio-1x1">
+                                                            <img src="{{- value.images.largeImage -}}" class="img-fluid" alt="{{- value.language.value|striptags -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;" loading="lazy">
+                                                        </div>
+                                                    </div>
+                                                {%- endif -%}
+                                            {%- endfor -%}
+                                        {%- endfor -%}
+                                    </div>
+                                </div>
+                                <div class="swiper-control swiper-button-next">
+                                    <svg class="icon"><use xlink:href="#icon-angle-down"></use></svg>
+                                </div>
+                            </div>
+                        </div>
+                    {%- endif -%}
+                    {#- End small gallery ------------------ -#}
+
+                    <div class="mff-col-product-main-gallery {% if product.additionalImages|length == 0 and productOptionImages == 0 %} col-sm-12 {% endif %}">
+                        {#- Big gallery ---------------------- -#}
+                        <div class="mff-product-main-gallery" id="swiper-main-gallery-02">
+                            {%- set offer = product.definition.offer and offerImage|length -%}
+                            {%- set featured = product.definition.featured and featuredImage|length -%}
+                            {%- set discounts = product.definition.showDiscounts and themeConfiguration.commerce.showDiscounts and mainProductDiscounts|length and discountsImage|length -%}
+                            {%- if offer or featured or discounts -%}
+                                <div class="product-ribbons">
+                                    {%- if offer -%}
+                                        <img src="{{- offerImage -}}" class="product-list-ribbon sale-ribbon img-fluid" loading="lazy" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::OFFER_IMAGE_ALT')] -}}">
+                                    {%- endif -%}
+                                    {%- if featured -%}
+                                        <img src="{{- featuredImage -}}" class="product-list-ribbon featured-ribbon img-fluid" loading="lazy" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FEATURED_IMAGE_ALT')] -}}">
+                                    {%- endif -%}
+                                    {%- if discounts -%}
+                                        <img src="{{- discountsImage -}}" class="product-list-ribbon discounts-ribbon img-fluid" alt="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::DISCOUNTS_IMAGE_ALT')] -}}">
+                                    {%- endif -%}
+                                </div>
+                            {%- endif -%}
+                            <div class="swiper swiper-main-gallery">
+                                <div class="swiper-wrapper">
+                                    {#- First image - large img -#}
+                                    <div class="swiper-slide">
+                                        <div class="item-img-wrap">
+                                            <img src="{% if product.mainImages.largeImage|length %}{{ product.mainImages.largeImage }}{% else %}{{- notFoundImage -}}{% endif %}" class="{% if product.mainImages.largeImage|length %} zoom-gallery-img {% endif %} img-fluid" alt="{{- imageGalleryAlt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;">
+                                        </div>
+                                    </div>
+                                    {%- for image in product.additionalImages -%}
+                                        {%- if image.largeImage|length -%}
+                                            <div class="swiper-slide">
+                                                <div class="item-img-wrap">
+                                                    <img src="{{- image.largeImage -}}" class="zoom-gallery-img img-fluid" alt="{{- image.alt -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;">
+                                                </div>
+                                            </div>
+                                        {%- endif -%}
+                                    {%- endfor -%}
+                                    {#- Extra option images -#}
+                                    {%- for option in product.options -%}
+                                        {%- for value in option.values -%}
+                                            {%- if value.images.largeImage|length -%}
+                                                <div class="swiper-slide">
+                                                    <div class="item-img-wrap">
+                                                        <img src="{{- value.images.largeImage -}}" class="zoom-gallery-img img-fluid" alt="{{- value.language.value|striptags -}}" onError="this.src='{{- notFoundImage -}}'; this.onerror=null;">
+                                                    </div>
+                                                </div>
+                                            {%- endif -%}
+                                        {%- endfor -%}
+                                    {%- endfor -%}
+                                </div>
+                            </div>
+                            <div class="swiper-pagination d-lg-none"></div>
+                        </div>
+                        {#- End big gallery ------------------ -#}
+                    </div>
+                </div>
+            </div>
+            <div class="col-product-right col-12 col-sm-12 col-lg-6 col-xl-4">
+                {%- set contentBuyForm -%}
+                    <div class="mff-product-top-info">
+                        {#- brand -#}
+                        {%- if product.brand.language.name|length -%}
+                            <div class="mff-product-brand">
+                                {%- if product.brand.language.urlSeo|length -%}
+                                    <a href="{{- product.brand.language.urlSeo -}}" {% if not product.brand.language.linkFollowing %} rel="nofollow" {% endif %}>
+                                {%- endif -%}
+                                    <span class="name">{{ product.brand.language.name }}</span>
+                                {%- if product.brand.language.urlSeo|length -%}
+                                    </a>
+                                {%- endif -%}
+                            </div>
+                        {%- endif -%}
+
+                        {#- stars -#}
+                        <div class="mff-product-stars-cont">
+                            <div class="mff-product-stars small-stars">
+                                {{- outputHtmlRating(productComments.rating) -}}
+                            </div>
+                            {%- if productComments.pagination.totalItems -%}
+                                <div class="mff-rate-count">({{ productComments.pagination.totalItems }})</div>
+                            {%- endif -%}
+                        </div>
+
+                        <h1 class="product-main-title">{{ product.language.name }}</h1>
+
+                        {#- Static sku -#}
+                        {%- if product.codes.sku|length -%}
+                            <div class="mff-product-info-sku">
+                                <span>{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::BEFORE_SKU')] -}}:</span>
+                                <span>{{- product.codes.sku -}}</span>
+                            </div>
+                        {%- endif -%}
+                    </div>
+
+                    <div class="row mff-product-row-info-middle">
+                        <div class="col-shopping-list col-7 col-sm-7">
+                            {{- productMacros.buttonShoppingList({
+                                item: product,
+                                showLabel: true,
+                                class: 'btn btn-wishlist-text',
+                                showShoppingLists: false,
+                                allowAddShoppingList: false,
+                            }) -}}
+                        </div>
+                        <div class="mff-col-stock col-5 col-sm-5">
+                            {{- productMacros.property({
+                                product: product,
+                                property: 'stock',
+                                showStock: false,
+                                showAvailabilityName: true,
+                                showStockText: false,
+                                showAvailabilityImage: true,
+                            }) -}}
+                        </div>
+                        {%- if settings.catalogSettings.productComparisonActive and themeConfiguration.commerce.showProductComparison -%}
+                            <div class="col-comparison col-12">
+                                {{- productMacros.buttonProductComparison({
+                                    product: product,
+                                    showLabel: true,
+                                    class: 'btn btn-link'
+                                }) -}}
+                            </div>
+                        {%- endif -%}
+                    </div>
+                    {{- productMacros.buyFormOptions({
+                        product: product,
+                        showShortDescription: true,
+                        showUnavailableLabel: true,
+                        selectDefaults: true,
+                        showImageOptions: true,
+                    }) -}}
+
+                    <div class="mff-product-actions">
+                        <div class="product-prices">
+                            {{- productMacros.property({ product: product, property: 'price' }) -}}
+                            {{- productMacros.property({ product: product, property: 'basePrice' }) -}}
+                        </div>
+
+                        {%- if themeConfiguration.commerce.showStockAlert and formProductStockAlert is defined -%}
+                            <div class="mff-product-stock-alert">
+                                {{- productMacros.property({
+                                    product: product,
+                                    property: 'stock',
+                                    stockAlertButton: true,
+                                }) -}}
+                            </div>
+                        {%- endif -%}
+
+                        <div class="row">
+                            <div class="mff-col-quantity col-auto">
+                                {{- productMacros.buyFormQuantity({ product: product, quantityPlugin: true, class: 'form-control' }) -}}
+                            </div>
+                            <div class="mff-col-buy col-auto">
+                                {{- productMacros.buyFormSubmit({
+                                    id: product.id,
+                                    showOrderBox: product.definition.showOrderBox,
+                                    class: 'btn btn-primary',
+                                }) -}}
+                            </div>
+                        </div>
+                    </div>
+
+                    {%- if themeConfiguration.commerce.showRewardPoints and productRewardPoints is defined -%}
+                        <div class="product-reward-points">
+                            {{- productMacros.rewardPoints({
+                                rewardPoints: productRewardPoints,
+                                showHeader: true,
+                                showRulesHeader: true,
+                                showRulesCondition: true,
+                            }) -}}
+                        </div>
+                    {%- endif -%}
+
+                    {%- if themeConfiguration.commerce.showDiscounts and mainProductDiscounts|length and product.definition.showDiscounts -%}
+                        <div class="product-discounts">
+                            {{- productMacros.buttonDiscounts({
+                                discounts: mainProductDiscounts,
+                            }) -}}
+                        </div>
+                    {%- endif -%}
+
+                    {%- if (productTopPages is defined and productTopPages|length) or product.language.shortDescription|length -%}
+                        <div class="product-info-page-list">
+                            <div class="accordion" id="product-top-02-accordion">
+                                {%- if product.language.shortDescription|length -%}
+                                    <div class="accordion-item">
+                                        <div class="accordion-header" id="heading-short-desc">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-short-desc" aria-expanded="false" aria-controls="collapse-short-desc">
+                                                <span class="text">
+                                                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_DESCRIPTION')] -}}
+                                                </span>
+                                                {%- include 'mff-snippets/product/mff_iconPlus.html.twig' -%}
+                                            </button>
+                                        </div>
+                                        <div id="collapse-short-desc" class="accordion-collapse collapse" aria-labelledby="heading-short-desc" data-bs-parent="#product-top-02-accordion">
+                                            <div class="accordion-body">
+                                                <div class="product-description-text product-short-description-text">
+                                                    <div class="mff-inset-content">
+                                                        <div class="html-output">{{ product.language.shortDescription }}</div>
+                                                        {%- if product.language.longDescription|length -%}
+                                                            <a class="mff-item-link scroll-to-product-long-description" href="#product-long-description" role="button">
+                                                                {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::MORE_DETAILS')] -}}:
+                                                            </a>
+                                                        {%- endif -%}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {%- endif -%}
+
+                                {%- for page in productTopPages -%}
+                                    <div class="accordion-item">
+                                        <div class="accordion-header" id="heading-page-{{ page.id }}">
+                                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-page-{{ page.id }}" aria-expanded="false" aria-controls="collapse-page-{{ page.id }}">
+                                                <span class="text">{{ page.language.name }}</span>
+                                                {%- include 'mff-snippets/product/mff_iconPlus.html.twig' -%}
+                                            </button>
+                                        </div>
+                                        <div id="collapse-page-{{ page.id }}" class="accordion-collapse collapse" aria-labelledby="heading-page-{{ page.id }}" data-bs-parent="#product-top-02-accordion">
+                                            <div class="accordion-body">
+                                                <div class="product-description-text product-short-description-text">
+                                                    <div class="html-output">{{ page.language.pageContent }}</div>
+                                                    {%- set additionalLinkText = page.customTagValues|filter(customTag => customTag.position == 1) -%}
+                                                    {%- if page.language.destinationUrl|length and additionalLinkText|length -%}
+                                                        {%- set additionalLinkText = additionalLinkText|first -%}
+                                                        {%- if additionalLinkText.value|length -%}
+                                                            <a class="mff-item-link" href="{{- page.language.destinationUrl -}}" target="{{- page.language.target -}}" {%- if not page.language.linkFollowing %} rel="nofollow" {%- endif -%}>
+                                                                {{- additionalLinkText.value -}}
+                                                            </a>
+                                                        {%- endif -%}
+                                                    {%- endif -%}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {%- endfor -%}
+                            </div>
+                        </div>
+                    {%- endif -%}
+
+                    <div class="mff-product-third-party-share a2a_kit a2a_kit_size_32" data-a2a-url="{{- route.canonical -}}" data-a2a-title="{{- product.language.name|striptags -}}">
+                        {{- productMacros.buttonProductContact({
+                            id: product.id,
+                            class: 'mff-product-share-link btn btn-secondary',
+                        }) -}}
+                        {{- productMacros.buttonRecommend({
+                            id: product.id,
+                            class: 'mff-product-share-link btn btn-secondary',
+                        }) -}}
+
+                        <a class="mff-product-share-link a2a_button_whatsapp" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': 'Whatsapp',}) -}}" style="--tb-hover-color: #12AF0A;">
+                            <svg class="icon"><use xlink:href="#icon-share-whatsapp"></use></svg>
+                        </a>
+                        <a class="mff-product-share-link a2a_button_pinterest"  aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': 'Pinterest',}) -}}"  style="--tb-hover-color: #BD081C;">
+                            <svg class="icon"><use xlink:href="#icon-share-pinterest"></use></svg>
+                        </a>
+                        <a class="mff-product-share-link a2a_button_twitter" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': 'Twitter',}) -}}" style="--tb-hover-color: #1D9BF0;">
+                            <svg class="icon"><use xlink:href="#icon-share-twitter"></use></svg>
+                        </a>
+                        <a class="mff-product-share-link a2a_dd" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ARIA_LABEL_PRODUCT_SHARE')]|replace({'{{social}}': '...',}) -}}"  href="https://www.addtoany.com/share">
+                            <svg class="icon"><use xlink:href="#icon-plus"></use></svg>
+                        </a>
+                    </div>
+                {%- endset -%}
+
+                {{- productMacros.buyProductForm({
+                    content: contentBuyForm,
+                    class: 'main-product-form',
+                    product: product,
+                }) -}}
+            </div>
+        </div>
+    </div>
+</section>

@@ -233,7 +233,12 @@ trait CssGeneratorTrait {
         $widgetId       = $widget->getId();
         $parentId       = $widget->getParentId();
         $type           = $widget->getType();
-        $isSlotTemplate = $type === '' || WidgetTypeCollector::isChildStructureUuid($type);
+        // A slot-template here means "no own .mff-widget wrapper" — either
+        // the API left type empty, or the widget is a childStructure pseudo
+        // (auto-generated, no typed slot; rendered inline by the parent).
+        // Typed-slot children carry a slotId and render their own wrapper,
+        // so isChildStructurePseudo() correctly excludes them.
+        $isSlotTemplate = $type === '' || $widget->isChildStructurePseudo();
         $hasParent      = $parentId !== null && $parentId !== '';
 
         $scopeId    = ($isSlotTemplate && $hasParent) ? $parentId : $widgetId;

@@ -1,0 +1,17 @@
+{# Shared: large category header image. #}
+{%- set category = controllerItem -%}
+{%- if category.language.largeTitleImage|length -%}
+    <section class="section mff-category-header-image block-full-width">
+        <div class="container-fluid">
+            <div class="row">
+                {{- printCssTag(
+                    ".mff-bg-cat-" ~ category.id,
+                    "background-image: url('" ~ category.language.largeTitleImage ~ "');",
+                ) -}}
+                <div class="mff-category-header-image-inset ratio ratio-4x1">
+                    <div class="bg mff-bg-cat-{{ category.id }}"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+{%- endif -%}

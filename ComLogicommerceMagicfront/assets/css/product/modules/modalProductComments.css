@@ -1,0 +1,47 @@
+#productComments .mff-product-comments-title {
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 500;
+}
+
+#productComments #valorationValue {
+  color: var(--bs-gray-600);
+}
+
+#productComments #valorationValue::before {
+  content: " ";
+}
+
+#productComments .lcRating.editable .starIcon {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+#productComments .productRateCommentFormStars {
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#productComments .productRateCommentFormStars label {
+  margin-bottom: .75rem;
+  width: 100%;
+}
+
+#productComments .productRateValorationContainer {
+  margin-right: .75rem;
+}
+
+#productComments .productRateCommentFormNick {
+  clear: both;
+  margin-top: 2rem;
+}
+
+#productComments #productCommentFormSubmit {
+  width: 100%;
+}
+
+#productComments textarea {
+  min-height: 100px;
+}

@@ -1,0 +1,39 @@
+{#-
+    @version 2
+    @description Product modal for contact about the product to ecommerce
+
+    @param {Form} formProductContact
+
+    @example
+        {%- block modals -%}
+            ...
+            {%- include 'mff-snippets/product/mff_productContact.html.twig' with {
+                formProductContact: formProductContact,
+            } -%}
+            ...
+        {%- endblock modals -%}
+
+    @see SITE/assets/css/product/modules/modalProductContact.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+<div id="productContact" class="lcModal modal fade productContact mff-product-contact-modal" tabindex="-1" aria-hidden="true" aria-labelledby="productContactTitle" data-lc-modal-callback="productContactCallback">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="productContactTitle" class="mff-product-contact-title heading">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_CONTACT')] -}}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="lcModalContainer">
+                    <div class="productContactForm styled-form">
+                        {{- productMacros.contactForm({ form: formProductContact }) -}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

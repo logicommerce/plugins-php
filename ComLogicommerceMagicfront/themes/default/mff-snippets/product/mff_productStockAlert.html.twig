@@ -1,0 +1,68 @@
+{#-
+    @version 2
+    @description Product stock alert modal. When is fired COMMERCE.general.stockAlertModal() fills .title and .options with the product info.
+                 This modal trigger shows by productMacros.property macro.
+
+    @param {Form} formProductStockAlert
+
+    @example
+        {%- if themeConfiguration.commerce.showStockAlert and formProductStockAlert is defined -%}
+            <div class="product-stock-alert">
+                {{- productMacros.property({
+                    product: product,
+                    property: 'stock',
+                    stockAlertButton: true,
+                }) -}}
+            </div>
+        {%- endif -%}
+
+    @example
+        {%- block modals -%}
+            ...
+            {%- if themeConfiguration.commerce.showStockAlert and formProductStockAlert is defined -%}
+                {%- include 'mff-snippets/product/mff_productStockAlert.html.twig' with {
+                    formProductStockAlert: formProductStockAlert,
+                } -%}
+            {%- endif -%}
+            ...
+        {%- endblock modals -%}
+
+    @see SITE/assets/css/product/modules/modalProductStockAlert.css
+-#}
+
+{%- import macrosCore.product as productMacros -%}
+
+<div id="stockAlert" class="lcModal modal fade stockAlertModal" tabindex="-1" aria-hidden="true" aria-labelledby="stockAlertFormTitle">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div id="stockAlertFormTitle" class="stockAlertFormTitle">
+                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_STOCK_ALERT_TITLE')] -}}
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="lcModalContainer">
+                    {%- if isSessionLoggedIn() -%}
+                        <div class="product">
+                            <div class="content">
+                                <div class="title" data-load-name></div>
+                                <ul class="options" data-load-options></ul>
+                            </div>
+                        </div>
+                        <div class="stockAlertForm styled-form">
+                            {{- productMacros.stockAlertForm({
+                                form: formProductStockAlert,
+                            }) -}}
+                        </div>
+                    {%- else -%}
+                        <div class="mff-login-required-message">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::STOCK_ALERTS_LOGIN_REQUIRED')] -}}</div>
+                        <a class="btn btn-primary mff-stock-alert-login" href="{{- routePaths.getPath(constant('FWK\\Enums\\RouteType::USER')) -}}" rel="nofollow" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::SIGN_UP')] -}}">
+                            {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::SIGN_UP')] -}}
+                        </a>
+                    {%- endif -%}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

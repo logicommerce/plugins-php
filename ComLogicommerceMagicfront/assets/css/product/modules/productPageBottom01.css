@@ -1,0 +1,120 @@
+.mff-module-product-page-bottom-01 .mff-product-bottom-tabs .mff-inset-bottom-tab {
+  border-top: 1px solid #ddd;
+  padding: 2rem 1.5rem;
+}
+
+.mff-module-product-page-bottom-01 .mff-product-bottom-tabs .tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.mff-module-product-page-bottom-01 .mff-product-bottom-tabs .tab-content .tab-pane {
+  border: 1px solid #ddd;
+  border-radius: var(--bs-border-radius-lg);
+}
+
+.mff-module-product-page-bottom-01 .btn.btn-bottom-collapse {
+  font-size: 15px;
+  text-transform: none;
+  width: 100%;
+  border-width: 0;
+  position: relative;
+  color: var(--tb-primary-500);
+  background-color: #fff;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  text-align: left;
+}
+
+.mff-module-product-page-bottom-01 .btn.btn-bottom-collapse.collapsed {
+  color: var(--bs-gray-700);
+  background-color: var(--bs-gray-100);
+}
+
+.mff-module-product-page-bottom-01 .btn.btn-bottom-collapse .icon-plus {
+  width: .75rem;
+  height: .75rem;
+  flex: 0 0 .75rem;
+}
+
+.mff-module-product-page-bottom-01 .btn.btn-bottom-collapse.collapsed::after,
+.mff-module-product-page-bottom-01 .btn.btn-bottom-collapse .y-bar {
+  display: none;
+}
+
+.mff-module-product-page-bottom-01 .btn.btn-bottom-collapse.collapsed .y-bar {
+  display: block;
+}
+
+.mff-module-product-page-bottom-01 .productCommentsContainer {
+  padding-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
+  gap: 3rem 4rem;
+}
+
+.mff-module-product-page-bottom-01 .mff-product-new-review .text {
+  text-align: center;
+  display: block;
+  color: var(--bs-gray-600);
+  margin-bottom: 1rem;
+}
+
+.mff-module-product-page-bottom-01 .mff-product-new-review .btn {
+  display: flex;
+  margin: 0 auto;
+  background-color: #4f4f4f;
+  border-color: #4f4f4f;
+  min-width: var(--tb-default-btn-min-width);
+}
+
+.mff-module-product-page-bottom-01 .mff-product-new-review .btn:hover,
+.mff-module-product-page-bottom-01 .mff-product-new-review .btn:active {
+  background-color: #000;
+  border-color: #000;
+}
+
+.mff-module-product-page-bottom-01 .mff-product-bottom-tabs .nav-tabs>li>a {
+  border-radius: 0;
+  padding: 1rem 2rem;
+}
+
+.mff-module-product-page-bottom-01 .mff-product-bottom-tabs .nav-tabs>li>a.active {
+  color: var(--tb-primary-500);
+  position: relative;
+}
+
+@media (max-width: 991px) {
+  .mff-module-product-page-bottom-01 .mff-product-bottom-tabs .tab-content>.tab-pane {
+    display: block !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (min-width: 992px) {
+  .mff-module-product-page-bottom-01 .mff-product-new-review {
+    padding-top: 1rem;
+  }
+
+  .mff-module-product-page-bottom-01 .mff-product-bottom-tab-content.collapse {
+    display: block !important;
+    height: auto !important;
+  }
+
+  .mff-module-product-page-bottom-01 .mff-product-bottom-tabs .tab-content .tab-pane {
+    border-top: 0;
+    border-radius: 0;
+  }
+
+  .mff-module-product-page-bottom-01 .mff-product-bottom-tabs .mff-inset-bottom-tab {
+    border-top: 0;
+  }
+}
+
+@media (min-width: 1200px) {
+  .mff-module-product-page-bottom-01 .productCommentsContainer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding-top: 3rem;
+  }
+}

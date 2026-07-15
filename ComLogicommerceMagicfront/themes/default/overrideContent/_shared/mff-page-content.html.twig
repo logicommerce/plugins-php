@@ -1,0 +1,32 @@
+{# Shared page-content template for routes the plugin owns (Home, Page).
+   Extends the runtime `layout` global → magicfront overlay. #}
+{%- extends layout -%}
+
+{% import macrosCore.widget as widgetMacros %}
+
+{%- block headContent -%}
+    {{ parent() }}
+    {%- if mffShowAssets|default(false) and mffCustomCss|default('')|length -%}
+        <style id="mff-custom-css">{{ mffCustomCss|raw }}</style>
+    {%- endif -%}
+{%- endblock headContent -%}
+
+{%- block content -%}
+    <div id="mff-page-content">
+        {{ widgetMacros.widgets({
+            pages: pages|default(null),
+            version: version,
+            widgetTemplateList: widgetTemplateList|default([])
+        }) }}
+    </div>
+{%- endblock content -%} 
+
+{%- block jsAssets -%}
+    {{ parent() }}
+    {%- if mffShowAssets|default(false) and mffCustomJs|default('')|length -%}
+        <script id="mff-custom-js">{{ mffCustomJs|raw }}</script>
+    {%- endif -%}
+    {%- if mffCanvasMode|default(false) and not mffPreviewMode|default(false) -%}
+        <script type="module" src="{{ mffAssetsUrl }}"></script>
+    {%- endif -%}
+{%- endblock jsAssets -%}

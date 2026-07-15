@@ -1,0 +1,10 @@
+{# Shared bottom pagination. Shown when paginationPos is 'bottom' or 'both'. #}
+{%- if cfg.paginationPos|default('both') in ['bottom', 'both']
+    and products.pagination.totalItems > 0 and products.pagination.totalItems > products.pagination.perPage -%}
+    <section class="section mff-category-pagination-container">
+        {%- include cfg.pagination with {
+            pagination: products.pagination,
+            pagerParameters: themeConfiguration.category.productList.pagination,
+        } -%}
+    </section>
+{%- endif -%}

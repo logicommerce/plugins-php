@@ -1,0 +1,59 @@
+.mff-module-pagination-03 .paginationContainer > ul.list-inline > li.arrow .icon {
+  width: 10px;
+  height: 10px;
+  margin-inline: 4px;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li > a,
+.mff-module-pagination-03 .paginationContainer ul > li > span {
+  border: 0;
+  background-color: transparent;
+  display: block;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li {
+  position: relative;
+  display: block;
+  float: left;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li + li:before {
+  content: "";
+  display: block;
+  height: 14px;
+  width: 1px;
+  position: absolute;
+  background-color: #666;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li > span:focus,
+.mff-module-pagination-03 .paginationContainer ul > li > span:hover {
+  color: #666;
+  background-color: transparent;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li > a:focus,
+.mff-module-pagination-03 .paginationContainer ul > li > a:hover {
+  background-color: transparent;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li.pagination-middle-count {
+  padding: 0 12px;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li {
+  margin: 0;
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li.first .itemLink {
+  margin-right: 0.5rem;
+  color: var(--color-primary);
+}
+
+.mff-module-pagination-03 .paginationContainer ul > li.last .itemLink {
+  margin-left: 0.5rem;
+  color: var(--color-primary);
+}

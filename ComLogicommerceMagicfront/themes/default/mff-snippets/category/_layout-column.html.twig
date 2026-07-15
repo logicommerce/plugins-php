@@ -1,0 +1,62 @@
+{# Two-column layout (design 197): left sidebar (category menu + column filter)
+   + right content. Breadcrumb sits at the top, inside the page container.
+   Expects cfg + categoryTitleH1. #}
+{%- set category = controllerItem -%}
+
+{%- if cfg.categoryColor -%}
+    {# Dynamic category color from customTag position 2. #}
+    {%- set categoryColor = category.customTagValues|filter(customTag => customTag.position == 2) -%}
+    {%- if categoryColor|length and categoryColor|first.value|length -%}
+        <style>:root { --category-color: {{ categoryColor|first.value }}; }</style>
+    {%- endif -%}
+{%- endif -%}
+
+{# Grid-view toggle icons (commerce sprite lacks them); used by the column filter's template switch. #}
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+    <symbol id="icon-grid-2x2" viewBox="0 0 16 16"><path d="M1 2.5A1.5 1.5 0 0 1 2.5 1h3A1.5 1.5 0 0 1 7 2.5v3A1.5 1.5 0 0 1 5.5 7h-3A1.5 1.5 0 0 1 1 5.5zm8 0A1.5 1.5 0 0 1 10.5 1h3A1.5 1.5 0 0 1 15 2.5v3A1.5 1.5 0 0 1 13.5 7h-3A1.5 1.5 0 0 1 9 5.5zm-8 8A1.5 1.5 0 0 1 2.5 9h3A1.5 1.5 0 0 1 7 10.5v3A1.5 1.5 0 0 1 5.5 15h-3A1.5 1.5 0 0 1 1 13.5zm8 0A1.5 1.5 0 0 1 10.5 9h3a1.5 1.5 0 0 1 1.5 1.5v3a1.5 1.5 0 0 1-1.5 1.5h-3A1.5 1.5 0 0 1 9 13.5z"/></symbol>
+    <symbol id="icon-grid-3x3" viewBox="0 0 16 16"><path d="M1 2a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1zM1 12a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm5 0a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1z"/></symbol>
+</svg>
+
+{%- include 'mff-snippets/category/_categoryHeaderImage.html.twig' -%}
+
+<div class="container-md">
+    {%- if cfg.breadcrumb -%}
+        {%- include cfg.breadcrumb with { containerClass: "" } -%}
+    {%- endif -%}
+
+    <div class="mff-row-main-content">
+        <div class="mff-col-layout-column">
+            <div class="mff-col-inset-fixed">
+                <div class="mff-col-inset">
+                    {%- if cfg.categoryNav -%}
+                        {%- include cfg.categoryNav -%}
+                    {%- endif -%}
+                    {%- if cfg.filterColumn -%}
+                        {%- include cfg.filterColumn with {
+                            products: products,
+                            filtering: filtering,
+                        } -%}
+                    {%- endif -%}
+                </div>
+            </div>
+        </div>
+
+        <div class="mff-col-layout-content">
+            {%- include 'mff-snippets/category/_categoryTitle.html.twig' with { categoryTitleH1: categoryTitleH1 } -%}
+
+            {%- if cfg.filterContent -%}
+                {%- include cfg.filterContent with {
+                    containerClass: "",
+                    products: products,
+                    filtering: filtering,
+                    paginationSnippet: cfg.pagination,
+                    paginationPos: cfg.paginationPos|default('both'),
+                } -%}
+            {%- endif -%}
+
+            {%- include 'mff-snippets/category/_categoryProducts.html.twig' with { cfg: cfg, gridContainerClass: "" } -%}
+            {%- include 'mff-snippets/category/_categoryPagination.html.twig' with { cfg: cfg } -%}
+            {%- include 'mff-snippets/category/_categoryLongDescription.html.twig' -%}
+        </div>
+    </div>
+</div>

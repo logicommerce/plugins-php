@@ -5,12 +5,22 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Controllers;
 
 use FWK\Controllers\HomeController as FWKHomeController;
+use FWK\Core\Controllers\Controller;
+use FWK\Core\Resources\Loader;
+use FWK\Enums\Services;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
+use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
+use SDK\Dtos\Catalog\Page\Page;
 use SDK\Dtos\Common\Route;
+use SDK\Services\Parameters\Groups\PageParametersGroup;
 
 /**
- * This is the HomeController controller class, it is an extension of the framework class \FWK\Controllers\HomeController, see this class.
+ * Plugin override for the storefront home route (RouteType::HOME). FWK's
+ * HomeController extends BaseHtmlController and never populates `controllerItem`,
+ * so MagicfrontTrait::loadStorefrontData has nothing to read. We resolve the
+ * backing LC page by its stable pId ('mff_HOME') — set once at plugin install —
+ * and promote it into `controllerItem` before setMagicfrontData runs.
  *
  * @see FWKHomeController
  *
@@ -19,31 +29,41 @@ use SDK\Dtos\Common\Route;
 class HomeController extends FWKHomeController {
     use MagicfrontTrait;
 
+    private const HOME_PAGE_PID = 'mff_HOME';
+
+    private const HOME_LOOKUP_KEY = 'mffHomeLookup';
+
     public function __construct(Route $route) {
         parent::__construct($route);
         $this->magicfrontInit($route);
     }
 
-    /**
-     * This method is the one in charge of defining all the data batch requests that
-     * are needed for the controller and adding them to the BatchRequests given by parameter.
-     *
-     * @return void
-     */
     protected function setBatchData(BatchRequests $requests): void {
         parent::setBatchData($requests);
+        $this->addHomePageLookup($requests);
         $this->setMagicfrontBatchData($requests);
     }
 
-    /**
-     * This method runs after the batch requests (defined in the setBatchData methods) are resolved,
-     * so here you can work with the response of the batch requests and calculate and set more needed data.
-     *
-     * @param array $additionalData Set additional data to the controller data.
-     * @return void
-     */
     protected function setData(array $additionalData = []): void {
         parent::setData($additionalData);
+        $this->promoteHomePageToControllerItem();
         $this->setMagicfrontData();
+    }
+
+    private function addHomePageLookup(BatchRequests $requests): void {
+        $params = new PageParametersGroup();
+        $params->setPId(self::HOME_PAGE_PID);
+        Loader::service(Services::PAGE)->addGetPages($requests, self::HOME_LOOKUP_KEY, $params);
+    }
+
+    private function promoteHomePageToControllerItem(): void {
+        $collection = $this->getControllerData(self::HOME_LOOKUP_KEY);
+        if ($collection instanceof ElementCollection) {
+            $first = $collection->getItems()[0] ?? null;
+            if ($first instanceof Page) {
+                $this->setDataValue(Controller::CONTROLLER_ITEM, $first);
+            }
+        }
+        $this->deleteControllerData(self::HOME_LOOKUP_KEY);
     }
 }

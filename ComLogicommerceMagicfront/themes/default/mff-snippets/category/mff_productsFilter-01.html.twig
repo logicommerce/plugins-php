@@ -1,0 +1,218 @@
+{#- 
+    @version 2
+    @description Two rows on desktop, orderby + pagination, and filters bar in individual dropdowns.
+
+    @param {ElementCollection<Product>} products
+    @param {bool} filtering
+
+    @param {array} productsFilter Global scope variable. Source of var: FWK/src/Core/Controllers/FiltrableProductListTrait.php
+    @param {Pagination} paginationData Global scope variable. Source of var: SITE/src/Core/Controllers/Traits/ProductsFilterModuleDataProviderTrait.php
+    @param {ItemList} itemListData Global scope variable. Source of var: SITE/src/Core/Controllers/Traits/ProductsFilterModuleDataProviderTrait.php
+
+    @example 
+        {%- include version ~ '/snippets/productsFilter/productsFilter02.html.twig' -%}
+
+    @see SITE/assets/commerce/css/modules/productsFilter02.css
+    @see SITE/assets/commerce/js/modules/productsFilter02.js
+-#}
+
+{%- if products is defined -%}
+    {%- import macrosCore.product as productMacros -%}
+    {%- import macrosCore.util as utilMacros -%}
+
+    {%- set showFiltersBlock = true -%}
+    {%- set showOrderByBlock = true -%}
+    {%- set moduleRowsCount = 2 -%}
+
+    {%- if not filtering and paginationData.totalItems < 2 -%}
+        {%- set showFiltersBlock = false -%}
+        {%- set moduleRowsCount = moduleRowsCount - 1 -%}
+    {%- endif -%}
+
+    {%- if paginationData.totalItems < 2 -%}
+        {%- set showOrderByBlock = false -%}
+        {%- set moduleRowsCount = moduleRowsCount - 1 -%}
+    {%- endif -%}
+
+    {%- set autoSubmitFilterForm = true -%}
+
+    {%- if showFiltersBlock or showOrderByBlock -%}
+        <section class="{{ classes('module module-no-space mff-module-products-filter mff-module-products-filter-02', 'mff-block-rows-' ~ moduleRowsCount, { 'filtering': filtering }) }}" data-module="productsFilter02">
+            <div class="wrap-container mff-module-products-filter-content">
+                {%- if showOrderByBlock -%}
+                    {%- set activeOrderByClasses = productsFilter.sort|replace({ '.': '-' })|lower -%}
+                    <div class="mff-order-by-row-container d-none d-lg-flex">
+                        <div class="mff-order-by-row container-md">
+                            <div class="mff-filter-block-order-by">
+                                <div class="mff-order-by-label">
+                                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ORDER_BY')] -}}
+                                </div>
+                                <div class="order-by-dropdown">
+                                    <div class="dropdown">
+                                        <button class="btn btn-filter btn-secondary dropdown-toggle" type="button" id="dOrderBy" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <span class="name">
+                                                {%- set activeOrderByClass = activeOrderByClasses|split(',')|first -%}
+                                                {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ORDER_BY_' ~ activeOrderByClass|replace({ '-': '_' })|upper)] -}}
+                                            </span>
+                                            <svg class="icon">
+                                                <use xlink:href="#icon-angle-down"></use>
+                                            </svg>
+                                        </button>
+                                        <div class="dropdown-menu" aria-labelledby="dOrderBy">
+                                            {{- utilMacros.viewSection({
+                                                itemList: itemListData,
+                                                showElementsList: 'sort',
+                                            }) -}}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {%- if paginationPos|default('both') in ['top', 'both'] -%}
+                            <div class="filter-module-pagination d-none d-lg-block">
+                                {%- if paginationData.totalItems > 0 and paginationData.totalItems > paginationData.perPage -%}
+                                    {%- include (paginationSnippet|default('mff-snippets/category/mff_pagination-01.html.twig')) with {
+                                        pagination: paginationData,
+                                        pagerParameters: itemListData.pagination,
+                                    } -%}
+                                {%- endif -%}
+                            </div>
+                            {%- endif -%}
+                        </div>
+                    </div>
+                {%- endif -%}
+
+                {%- if showFiltersBlock -%}
+                    <div class="mff-filter-by-row-container">
+                        <div class="mff-filter-by-row container-md">
+                            <div class="mff-filter-by-row-mobile d-lg-none">
+                                <span class="mff-total-products">
+                                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::PRODUCT_RESULTS')]|replace({
+                                        '{{items}}': paginationData.totalItems,
+                                    }) -}}
+                                </span>
+                                <div class="mff-filter-by-elements">
+                                    <button class="btn btn-secondary btn-menu-filter" type="button" data-bs-toggle="offcanvas" data-bs-target="#menu-filter-02" aria-controls="menu-filter-02">
+                                        <svg class="icon"><use xlink:href="#icon-filter"></use></svg>
+                                        {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FILTER')] -}}
+                                        <span class="n-total-applied-filter n-0"></span>
+                                    </button>
+                                    {%- set buttonClearProductsFilter -%}
+                                        {{- productMacros.buttonClearProductsFilter({
+                                            class: 'btn btn-danger btn-menu-filter-close',
+                                            show: constant('FWK\\ViewHelpers\\Product\\Macro\\ButtonClearProductsFilter::SHOW_FITLERING'),
+                                            applicableFilters: applicableFiltersData,
+                                            appliedFilters: productsFilter,
+                                            productItems: paginationData.totalItems,
+                                        }) -}}
+                                    {%- endset -%}
+                                    {{- buttonClearProductsFilter|preg_replace('/(<a[^>]*>)(.+?)(<\\/a>)/', '$1<svg class="icon"><use xlink:href="#icon-close"></use></svg>$3') -}}
+                                </div>
+                            </div>
+                            <div class="mff-filter-by-row-desktop d-none d-lg-flex">
+                                <div class="mff-filter-by-label">
+                                    {{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FILTER_BY')] -}}
+                                </div>
+
+                                <div class="content-filters-place-desktop">
+                                    <div class="accordion-dropdown accordion content-filters-to-move" data-switch="992" data-accordion='{ "id": "__accordionId__" }'>
+                                        {%- set filterItemTemplate -%}
+                                            {%- set nameWildcard = '{{nameWildcard}}' -%}
+                                            {%- set badgeAppliedFiltersWildcard = '{{badgeAppliedFiltersWildcard}}' -%}
+                                            {%- set elementsWildcard = '{{elementsWildcard}}' -%}
+                                            {%- set dataAttributesWildcard = '{{dataAttributesWildcard}}' -%}
+
+                                            <div 
+                                                data-accordion='{{ outputJsonHtmlString({ class: "accordion-item {{blockClassWildcard}}" }) }}' 
+                                                data-dropdown='{{ outputJsonHtmlString({ class: "dropdown {{blockClassWildcard}}" }) }}' 
+                                                {{ dataAttributesWildcard -}}
+                                            >
+                                                <button 
+                                                    data-accordion='{{ outputJsonHtmlString({ id: "heading-{{uidWildcard}}", "data-bs-toggle": "collapse", "data-bs-target": "#collapse-{{uidWildcard}}", "aria-expanded": false, "aria-controls": "collapse-{{uidWildcard}}", type: "button", class: "btn btn-filter btn-secondary accordion-button collapsed" }) }}' 
+                                                    data-dropdown='{{ outputJsonHtmlString({ id: "dropdown-label-{{uidWildcard}}", class: "btn btn-filter btn-secondary dropdown-toggle", type: "button", "data-bs-toggle": "dropdown", "aria-expanded": false, "data-bs-auto-close": "outside" }) }}'
+                                                >
+                                                    <span class="name">{{ nameWildcard }}</span>
+                                                    {{- badgeAppliedFiltersWildcard -}}
+                                                    <svg class="icon"><use xlink:href="#icon-angle-down"></use></svg>
+                                                </button>
+
+                                                <div 
+                                                    data-accordion='{{ outputJsonHtmlString({ id: "collapse-{{uidWildcard}}", class: "accordion-collapse collapse", role: "tabpanel", "aria-labelledby": "heading-{{uidWildcard}}", "data-bs-parent": "#__accordionId__" }) }}' 
+                                                    data-dropdown='{{ outputJsonHtmlString({ class: "dropdown-menu", "aria-labelledby": "dropdown-label-{{uidWildcard}}" }) }}'
+                                                >
+                                                    <div class="mff-inset-filter-elements">
+                                                        {{- elementsWildcard -}}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {%- endset -%}
+                                        {{- productMacros.filterForm({
+                                            filters: products.filter,
+                                            applicableFilters: applicableFiltersData,
+                                            appliedFilters: productsFilter,
+                                            defaultParametersValues: defaultParametersValuesData,
+                                            autosubmit: autoSubmitFilterForm,
+                                            filterItemTemplate: filterItemTemplate,
+                                        }) -}}
+                                    </div>
+                                </div>
+
+                                {{- productMacros.buttonClearProductsFilter({
+                                    class: 'btn btn-link icon-clear-filter-button',
+                                    show: constant('FWK\\ViewHelpers\\Product\\Macro\\ButtonClearProductsFilter::SHOW_FITLERING'),
+                                    applicableFilters: applicableFiltersData,
+                                    appliedFilters: productsFilter,
+                                    productItems: paginationData.totalItems,
+                                }) -}}
+                            </div>
+                        </div>
+                    </div>
+                {%- endif -%}
+            </div>
+        </section>
+    {%- endif -%}
+
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="menu-filter-02" aria-labelledby="menu-filter-02-label">
+        <div class="offcanvas-header">
+            <div class="offcanvas-title" id="menu-filter-02-label">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::FILTER_MENU_TITLE')] -}}</div>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::CLOSE')] -}}"></button>
+        </div>
+        <div class="offcanvas-body mff-module-products-filter-content">
+            <div class="accordion-item">
+                <button id="heading-orderBy" data-bs-toggle="collapse" data-bs-target="#collapse-orderBy" aria-expanded="false" aria-controls="collapse-orderBy" type="button" class="btn-filter accordion-button collapsed">
+                    <span class="name">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::ORDER_BY')] -}}</span>
+                    <svg class="icon"><use xlink:href="#icon-angle-down"></use></svg>
+                </button>
+
+                <div id="collapse-orderBy" class="accordion-collapse collapse" role="tabpanel" aria-labelledby="heading-orderBy" data-bs-parent="#__accordionId__">
+                    <div class="mff-inset-filter-elements">
+                        {{- utilMacros.viewSection({
+                            itemList: itemListData,
+                            showElementsList: 'sort',
+                        }) -}}
+                    </div>
+                </div>
+            </div>
+            <div class="content-filters-place-mobile">
+                {#- Filters move inside this div by module JS -#}
+            </div>
+        </div>
+        {%- if (autoSubmitFilterForm and filtering) or not autoSubmitFilterForm -%}
+            <div class="offcanvas-footer">
+                {%- set buttonClearProductsFilter -%}
+                    {{- productMacros.buttonClearProductsFilter({
+                        class: 'btn btn-secondary',
+                        show: constant('FWK\\ViewHelpers\\Product\\Macro\\ButtonClearProductsFilter::SHOW_FITLERING'),
+                        applicableFilters: applicableFiltersData,
+                        appliedFilters: productsFilter,
+                        productItems: paginationData.totalItems,
+                    }) -}}
+                {%- endset -%}
+                {%- set label = languageSheet[constant('SITE\\Enums\\LanguageLabels::CLEAR_FILTER_SHORT')] -%}
+                {{- buttonClearProductsFilter|preg_replace('/(<a[^>]*>)(.+?)(<\\/a>)/', '$1' ~ label ~ '$3') -}}
+                {%- if not autoSubmitFilterForm -%}
+                    <button class="btn btn-primary filter-form-submit-custom" type="button">{{- languageSheet[constant('SITE\\Enums\\LanguageLabels::APPLY_FILTERS')] -}}</button>
+                {%- endif -%}
+            </div>
+        {%- endif -%}
+    </div>
+{%- endif -%}

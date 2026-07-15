@@ -1,0 +1,18 @@
+.mff-product-contact-modal .productContactFormText {
+  margin-bottom: 1.25rem;
+  color: var(--bs-gray-600);
+}
+
+.mff-product-contact-modal #productContactSubmit {
+  width: 100%;
+}
+
+.mff-product-contact-modal #productContactSubmitContainer {
+  margin: 0;
+}
+
+.mff-product-contact-modal .mff-product-contact-title {
+  font-size: 20px;
+  line-height: 1.1;
+  font-weight: 500;
+}

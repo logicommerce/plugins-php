@@ -1,0 +1,12 @@
+.mff-module-breadcrumb-01 {
+  padding-top: .75rem;
+  padding-bottom: .75rem;
+}
+
+.mff-module-breadcrumb-01 .breadcrumb>li>a {
+  color: var(--bs-gray-600);
+}
+
+.mff-module-breadcrumb-01 .breadcrumb>li>a:hover {
+  color: #333;
+}
