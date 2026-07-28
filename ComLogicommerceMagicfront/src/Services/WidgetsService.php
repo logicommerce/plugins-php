@@ -157,15 +157,23 @@ class WidgetsService extends Service {
      * Returns the Magic Front page ID for the given route ID (0 = home page).
      */
     public function getPageId(string $routeId): string {
+        return $this->getPageIdByType((int) $routeId === 0 ? 'HOME' : 'LANDING');
+    }
+
+    /**
+     * Resolves the singleton page id for a dcsapi pageType (HOME, LANDING,
+     * BLOG_CATEGORY, BLOG_POST, ...). Empty string when no page of that type exists.
+     */
+    public function getPageIdByType(string $pageType): string {
         // Raw call (no DTO hydration): the plugin Page inherits SDK's `int $id`,
         // but Java pages use string UUIDs, so hydrating as Page would TypeError.
         $data = $this->call(
             (new RequestBuilder())
                 ->path(Resource::GET_PAGES)
-                ->urlParams(['pageType' => (int) $routeId === 0 ? 'HOME' : 'LANDING'])
+                ->urlParams(['pageType' => $pageType])
                 ->build()
         );
-        return (string) $data['items'][0]['id'];
+        return (string) ($data['items'][0]['id'] ?? '');
     }
 
     /**

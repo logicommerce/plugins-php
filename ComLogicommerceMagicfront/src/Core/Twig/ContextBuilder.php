@@ -8,6 +8,8 @@ use FWK\Core\Resources\Loader;
 use FWK\Core\Resources\Session;
 use FWK\Core\Resources\Session\SessionGeneralSettings;
 use FWK\Enums\Services;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use SDK\Application;
 use SDK\Dtos\Catalog\CategoryTree;
@@ -76,7 +78,10 @@ final class ContextBuilder {
     public static function fromSession(): self {
         $settings = Session::getInstance()->getGeneralSettings();
         return new self(
-            previewMode: false,
+            // Editor/preview signal (canvas iframe or mfToken URL param) — same test as
+            // MagicfrontTrait::editorMode / TwigInitializer::isEditorRequest. Exposed to widgets as
+            // the `previewMode` Twig global so they can render mock data only inside the editor.
+            previewMode: MagicfrontUtils::isCanvasMode() || !empty($_GET[MagicfrontToken::MF_TOKEN]),
             coreMode: self::DEFAULT_CORE_MODE,
             locale: $settings->getLocale(),
             language: $settings->getLanguage(),

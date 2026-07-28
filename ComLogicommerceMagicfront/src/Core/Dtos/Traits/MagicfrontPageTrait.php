@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Dtos\Traits;
 
 use FWK\Dtos\DragAndDrop\Widget;
+use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Dtos\Catalog\Product\Product;
 
 /**
  * Mixes Magicfront-specific fields (moduleSettings, draftId, slotId, slot
@@ -20,8 +22,81 @@ trait MagicfrontPageTrait {
 
     protected ?ElementCollection $products = null;
 
+    /**
+     * The single product of a product-detail (ficha) route, attached to EVERY
+     * widget page on that route so the product-detail widgets read it as
+     * `page.product` (the raw SDK Product DTO) — the singular analogue of
+     * `products` (category/related LISTS). Null on non-product routes and in
+     * the editor/docker preview → widgets render their inline mock.
+     */
+    protected ?Product $product = null;
+
     protected ?ElementCollection $categories = null;
 
+    /** Labels/constants the productBundles widget needs for option selectors (Sí/No, upload, date pattern). */
+    protected array $bundleLabels = [];
+
+    /** Full product JSON (FWK ProductJsonData shape) for the productAddToCart widget's buyForm data-product. */
+    protected array $productJson = [];
+
+    /** Login-aware wishlist state for the productAddToCart button ({isLogged, ids, labelAdd, labelDelete}). */
+    protected array $wishlist = [];
+
+    /** Native comment-form wiring for the productComments widget ({action, canComment}). */
+    protected array $commentForm = [];
+
+    /** The routed product's approved comments (SDK Comment[]) for the productComments widget list. */
+    protected array $comments = [];
+
+    /**
+     * The product-detail route's bundle definitions (the singular analogue of `product`), attached
+     * to EVERY widget page so the productBundles widget reads it as `page.productBundles`. Null off
+     * a product route / in the editor preview → the widget renders its inline mock.
+     */
+    protected ?BundleDefinitionsWithGroupings $productBundles = null;
+
+    /** Related-products lists keyed by an opaque group id (LC uses the position as key), read by the
+     *  productList widget as `page.productRelated[<id>]`. Lets several productList instances on one
+     *  page each render a different related group by setting a different id. */
+    protected array $productRelated = [];
+
+    /** Single route item — the current blog post / blog category (page.post / page.blogCategory). */
+    protected mixed $post = null;
+
+    protected mixed $blogCategory = null;
+
+    /** Single route item — the current blog tag (page.blogTag, BLOG_TAG route). */
+    protected mixed $blogTag = null;
+
+    /** Single route item — the current blogger/author (page.blogger, BLOG_BLOGGER route). */
+    protected mixed $blogger = null;
+
+    /** Commerce blog settings (page.blogSettings — commentsMode / maxIpComments / …). */
+    protected mixed $blogSettings = null;
+
+    /** True when the storefront session is a logged user (page.userLogged; gates registered-only comment forms). */
+    protected ?bool $userLogged = null;
+
+    /** Blog collections consumed by blog widgets (page.blogPosts / page.blogCategories / page.blogRecentPosts / page.blogTags). */
+    protected ?ElementCollection $blogPosts = null;
+
+    protected ?ElementCollection $blogCategories = null;
+
+    protected ?ElementCollection $blogRecentPosts = null;
+
+    protected ?ElementCollection $blogTags = null;
+
+    protected ?ElementCollection $blogComments = null;
+
+    /**
+     * Single category exposed as page.category: the raw SDK Category on a catalog category-detail
+     * route, or the blog category on a blog route (entityName-bound headings). Null off both / in
+     * the editor preview → widgets render their inline mock. Its product LIST goes to page.products.
+     */
+    protected mixed $category = null;
+
+    /** Ordered breadcrumb crumbs exposed as page.breadcrumb ([{label,url}]; catalog adds `current`). */
+    protected array $breadcrumb = [];
     protected string $draftId = "";
 
     protected ?string $slotId = null;
@@ -84,12 +159,188 @@ trait MagicfrontPageTrait {
         $this->products = $products;
     }
 
+    /** The route's product-detail product (raw SDK Product), or null off a product route. */
+    public function getProduct(): ?Product {
+        return $this->product;
+    }
+
+    public function setProduct(?Product $product): void {
+        $this->product = $product;
+    }
+
+    /** The route's breadcrumb trail exposed as page.breadcrumb, or [] off any route. */
+    public function getBreadcrumb(): array {
+        return $this->breadcrumb;
+    }
+
+    public function setBreadcrumb(array $breadcrumb): void {
+        $this->breadcrumb = $breadcrumb;
+    }
+
+    /** Labels/constants for the productBundles option selectors, or [] off a product route. */
+    public function getBundleLabels(): array {
+        return $this->bundleLabels;
+    }
+
+    public function setBundleLabels(array $bundleLabels): void {
+        $this->bundleLabels = $bundleLabels;
+    }
+
+    /** Full product JSON for the productAddToCart buyForm, or [] off a product route. */
+    public function getProductJson(): array {
+        return $this->productJson;
+    }
+
+    public function setProductJson(array $productJson): void {
+        $this->productJson = $productJson;
+    }
+
+    /** Login-aware wishlist state for the productAddToCart button, or [] off a product route. */
+    public function getWishlist(): array {
+        return $this->wishlist;
+    }
+
+    public function setWishlist(array $wishlist): void {
+        $this->wishlist = $wishlist;
+    }
+
+    /** Native comment-form wiring for the productComments widget, or [] off a product route. */
+    public function getCommentForm(): array {
+        return $this->commentForm;
+    }
+
+    public function setCommentForm(array $commentForm): void {
+        $this->commentForm = $commentForm;
+    }
+
+    /** The routed product's approved comments for the productComments widget, or [] off a product route. */
+    public function getComments(): array {
+        return $this->comments;
+    }
+
+    public function setComments(array $comments): void {
+        $this->comments = $comments;
+    }
+
+    /** The route's product bundle definitions, or null off a product route. */
+    public function getProductBundles(): ?BundleDefinitionsWithGroupings {
+        return $this->productBundles;
+    }
+
+    public function setProductBundles(?BundleDefinitionsWithGroupings $productBundles): void {
+        $this->productBundles = $productBundles;
+    }
+
+    public function getProductRelated(): array {
+        return $this->productRelated;
+    }
+
+    public function setProductRelated(array $productRelated): void {
+        $this->productRelated = $productRelated;
+    }
+
     public function getCategories(): ?ElementCollection {
         return $this->categories;
     }
 
     public function setCategories(?ElementCollection $categories): void {
         $this->categories = $categories;
+    }
+
+    public function getPost(): mixed {
+        return $this->post;
+    }
+
+    public function setPost(mixed $post): void {
+        $this->post = $post;
+    }
+
+    public function getBlogCategory(): mixed {
+        return $this->blogCategory;
+    }
+
+    public function setBlogCategory(mixed $blogCategory): void {
+        $this->blogCategory = $blogCategory;
+    }
+
+    public function getBlogTag(): mixed {
+        return $this->blogTag;
+    }
+
+    public function setBlogTag(mixed $blogTag): void {
+        $this->blogTag = $blogTag;
+    }
+
+    public function getBlogger(): mixed {
+        return $this->blogger;
+    }
+
+    public function setBlogger(mixed $blogger): void {
+        $this->blogger = $blogger;
+    }
+
+    public function getBlogSettings(): mixed {
+        return $this->blogSettings;
+    }
+
+    public function setBlogSettings(mixed $blogSettings): void {
+        $this->blogSettings = $blogSettings;
+    }
+
+    public function getUserLogged(): ?bool {
+        return $this->userLogged;
+    }
+
+    public function setUserLogged(?bool $userLogged): void {
+        $this->userLogged = $userLogged;
+    }
+
+    public function getBlogPosts(): ?ElementCollection {
+        return $this->blogPosts;
+    }
+
+    public function setBlogPosts(?ElementCollection $blogPosts): void {
+        $this->blogPosts = $blogPosts;
+    }
+
+    public function getBlogCategories(): ?ElementCollection {
+        return $this->blogCategories;
+    }
+
+    public function setBlogCategories(?ElementCollection $blogCategories): void {
+        $this->blogCategories = $blogCategories;
+    }
+
+    public function getBlogRecentPosts(): ?ElementCollection {
+        return $this->blogRecentPosts;
+    }
+
+    public function setBlogRecentPosts(?ElementCollection $blogRecentPosts): void {
+        $this->blogRecentPosts = $blogRecentPosts;
+    }
+
+    public function getBlogTags(): ?ElementCollection {
+        return $this->blogTags;
+    }
+
+    public function setBlogTags(?ElementCollection $blogTags): void {
+        $this->blogTags = $blogTags;
+    }
+
+    public function getBlogComments(): ?ElementCollection {
+        return $this->blogComments;
+    }
+
+    public function setBlogComments(?ElementCollection $blogComments): void {
+        $this->blogComments = $blogComments;
+    }
+
+    public function getCategory(): mixed {
+        return $this->category;
+    }
+
+    public function setCategory(mixed $category): void {
+        $this->category = $category;
     }
 
     public function setFWKSubpages(array $subpages): void {

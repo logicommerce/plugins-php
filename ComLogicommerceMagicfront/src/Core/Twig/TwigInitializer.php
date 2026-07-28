@@ -36,13 +36,36 @@ final class TwigInitializer implements PluginTwigInitializer {
 
     private const PLUGIN_MODULE = 'com.logicommerce.magicfront';
 
+    /** Twig global: true in canvas preview → the layout renders both chrome variants per region. */
+    private const CANVAS_CHROME_GLOBAL = 'mffCanvasChrome';
+
+    /** Twig globals: which chrome starts live per region in canvas preview ('1' = ours, '0' = store). */
+    private const HEADER_MFF_GLOBAL = 'mffHeader';
+
+    private const FOOTER_MFF_GLOBAL = 'mffFooter';
+
+    /** Standalone-preview URL params carrying the toolbar toggle choice per region ('1' = our
+     *  chrome, '0' = the store's own). Named with the `mf` prefix to sit alongside `mfToken` —
+     *  only honoured when that token is present. */
+    private const PREVIEW_HEADER_PARAM = 'mfHeader';
+
+    private const PREVIEW_FOOTER_PARAM = 'mfFooter';
+
     /** pId of the LC page carrying the published chrome blob — see {@see ChromeDocument}. */
     private const CHROME_PAGE_PID = 'mff_CHROME';
+
+    /** pId of the LC page carrying the published account/basket panel blob. */
+    private const PANELS_PAGE_PID = 'mff_PANELS';
 
     /** Memoized generic mff_CHROME document (fetched at most once per request via genericChrome()). */
     private ?ChromeDocument $genericChromeCache = null;
 
     private bool $genericChromeLoaded = false;
+
+    /** Memoized mff_PANELS document (fetched at most once per request via storefrontPanels()). */
+    private ?ChromeDocument $panelsCache = null;
+
+    private bool $panelsLoaded = false;
 
     public function apply(
         Environment $main,
@@ -55,8 +78,23 @@ final class TwigInitializer implements PluginTwigInitializer {
         PluginTwigBootstrap::applyLazyFunctions($core, $ctx);
 
         $properties = self::pluginProperties();
-        $headerOn = $properties !== null && $properties->isHeaderOverlayEnabled();
-        $footerOn = $properties !== null && $properties->isFooterOverlayEnabled();
+        // Canvas preview renders BOTH chrome variants per region (our widgets + the store's own) so
+        // the editor toolbar can swap them in place with no reload — see magicfront.html.twig. In
+        // canvas we prepare our chrome for both regions regardless of the BO toggle; production
+        // (real visitors) stays gated by the BO toggle alone and only ever renders one variant.
+        $canvasChrome = MagicfrontUtils::isCanvasMode() && MagicfrontToken::getToken() !== null;
+        $boHeader = $properties !== null && $properties->isHeaderOverlayEnabled();
+        $boFooter = $properties !== null && $properties->isFooterOverlayEnabled();
+        // Canvas swaps both variants live via the bridge; the standalone preview tab (token but not
+        // an iframe) has no toolbar/bridge, so it honours the toggle choice carried as ?mffHeader/
+        // ?mffFooter. Production (no token) ignores the params → BO toggle alone.
+        $headerOn = $canvasChrome || (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader);
+        $footerOn = $canvasChrome || (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter);
+        $main->addGlobal(self::CANVAS_CHROME_GLOBAL, $canvasChrome);
+        // Which variant starts LIVE in canvas per region — '1' = our chrome, '0' = the store's own.
+        // Our chrome when the BO toggle is on (an active plugin defaults MagicFront to our chrome).
+        $main->addGlobal(self::HEADER_MFF_GLOBAL, $boHeader ? '1' : '0');
+        $main->addGlobal(self::FOOTER_MFF_GLOBAL, $boFooter ? '1' : '0');
 
         $main->addGlobal(MagicfrontControllerData::OVERRIDE_HEADER, $headerOn);
         $main->addGlobal(MagicfrontControllerData::OVERRIDE_FOOTER, $footerOn);
@@ -90,6 +128,19 @@ final class TwigInitializer implements PluginTwigInitializer {
                 ? $this->chromeFromApi($kind, $language, $pageChrome[$kind->value] ?? null)
                 : $this->chromeFromBlob($kind, $this->resolveChromeBlob($kind, $pageChromeBlob));
             $this->emit($main, $kind, $assets);
+        }
+
+        // Login / basket panels: the self-contained MFF panels (published mff_PANELS blob) replace
+        // the commerce login/basket offcanvas so our header's triggers open them; LC JS binds to
+        // their re-injected ids + data-lc hooks. Emitted wherever our header can show — including the
+        // editor canvas (fetched via the LC FOB, works with the preview token). Without this the
+        // account/cart icons do nothing in the canvas.
+        if ($headerOn) {
+            $panels = $this->storefrontPanels();
+            foreach ([ChromeKind::AccountPanel, ChromeKind::BasketPanel] as $kind) {
+                $doc = ($panels !== null && $panels->hasKind($kind)) ? $panels : null;
+                $this->emit($main, $kind, self::reinjectLcIds($this->chromeFromBlob($kind, $doc)));
+            }
         }
 
         // Overlay layout — blocks fall back to merchant's parent() when a region is empty.
@@ -136,6 +187,20 @@ final class TwigInitializer implements PluginTwigInitializer {
     }
 
     /**
+     * Storefront publish step for panels: re-inject the real element ids the theme trigger and LC
+     * JS key off (the panel markup ships only data-lc-id so harvested id-scoped CSS never out-
+     * specifies the editable instance CSS). e.g. data-lc-id="smallLoginOffcanvas" also gets
+     * id="smallLoginOffcanvas" so #smallLoginOffcanvas opens the offcanvas.
+     */
+    private static function reinjectLcIds(ChromeAssets $assets): ChromeAssets {
+        $templateList = [];
+        foreach ($assets->templateList as $type => $html) {
+            $templateList[$type] = preg_replace('/data-lc-id="([^"]+)"/', 'id="$1" data-lc-id="$1"', $html);
+        }
+        return new ChromeAssets($assets->pages, $templateList, $assets->css, $assets->js);
+    }
+
+    /**
      * Picks the storefront chrome document for one kind: the page's own embedded chrome when it
      * carries that kind, else the generic mff_CHROME (fetched lazily, once).
      */
@@ -176,17 +241,30 @@ final class TwigInitializer implements PluginTwigInitializer {
     }
 
     private function loadStorefrontChrome(): ?ChromeDocument {
+        return $this->loadBlobPage(self::CHROME_PAGE_PID);
+    }
+
+    /** The mff_PANELS document, fetched lazily and once via the LC FOB (same as the chrome page). */
+    private function storefrontPanels(): ?ChromeDocument {
+        if (!$this->panelsLoaded) {
+            $this->panelsLoaded = true;
+            $this->panelsCache = $this->loadBlobPage(self::PANELS_PAGE_PID);
+        }
+        return $this->panelsCache;
+    }
+
+    private function loadBlobPage(string $pId): ?ChromeDocument {
         $params = new PageParametersGroup();
-        $params->setPId(self::CHROME_PAGE_PID);
+        $params->setPId($pId);
         $collection = Loader::service(Services::PAGE)->getPages($params);
         if (!$collection instanceof ElementCollection) {
             return null;
         }
-        $chromePage = $collection->getItems()[0] ?? null;
-        if (!$chromePage instanceof Page) {
+        $page = $collection->getItems()[0] ?? null;
+        if (!$page instanceof Page) {
             return null;
         }
-        return ChromeDocument::fromJson($chromePage->getLanguage()?->getPageContent());
+        return ChromeDocument::fromJson($page->getLanguage()?->getPageContent());
     }
 
     /**
@@ -195,6 +273,18 @@ final class TwigInitializer implements PluginTwigInitializer {
      */
     private static function isEditorRequest(): bool {
         return MagicfrontUtils::isCanvasMode() || !empty($_GET[MagicfrontToken::MF_TOKEN]);
+    }
+
+    /**
+     * Standalone-preview per-region override from the toolbar's "open preview" URL. Returns true
+     * when `$param` is 'mff', false when 'store', null when absent. Gated on the preview token so a
+     * real visitor's request (no token) can never toggle chrome via the query string.
+     */
+    private static function previewChromeOverride(string $param): ?bool {
+        if (MagicfrontToken::getToken() === null || !isset($_GET[$param])) {
+            return null;
+        }
+        return $_GET[$param] === '1';
     }
 
     private static function pluginProperties(): ?PluginProperties {

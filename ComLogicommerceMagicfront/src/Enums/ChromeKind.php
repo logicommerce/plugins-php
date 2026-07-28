@@ -14,11 +14,15 @@ enum ChromeKind: string {
 
     case Header = 'header';
     case Footer = 'footer';
+    case AccountPanel = 'accountPanel';
+    case BasketPanel = 'basketPanel';
 
     public function pagesGlobalKey(): string {
         return match ($this) {
             self::Header => MagicfrontControllerData::HEADER_PAGES,
             self::Footer => MagicfrontControllerData::FOOTER_PAGES,
+            self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_PAGES,
+            self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_PAGES,
         };
     }
 
@@ -26,6 +30,8 @@ enum ChromeKind: string {
         return match ($this) {
             self::Header => MagicfrontControllerData::HEADER_TEMPLATE_LIST,
             self::Footer => MagicfrontControllerData::FOOTER_TEMPLATE_LIST,
+            self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_TEMPLATE_LIST,
+            self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_TEMPLATE_LIST,
         };
     }
 
@@ -33,6 +39,8 @@ enum ChromeKind: string {
         return match ($this) {
             self::Header => MagicfrontControllerData::HEADER_CSS,
             self::Footer => MagicfrontControllerData::FOOTER_CSS,
+            self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_CSS,
+            self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_CSS,
         };
     }
 
@@ -40,6 +48,8 @@ enum ChromeKind: string {
         return match ($this) {
             self::Header => MagicfrontControllerData::HEADER_JS,
             self::Footer => MagicfrontControllerData::FOOTER_JS,
+            self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_JS,
+            self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_JS,
         };
     }
 }

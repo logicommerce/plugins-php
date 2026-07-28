@@ -25,7 +25,13 @@ class MagicfrontToken {
 
     public static function getToken(): ?string {
         $value = Cookie::get(self::MF_TOKEN);
-        return is_string($value) && $value !== '' ? $value : null;
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+        // Fallback to the URL param: the cookie is only persisted inside the canvas iframe, so a
+        // standalone preview request (top document) authenticates itself from its own query token.
+        $param = $_GET[self::MF_TOKEN] ?? null;
+        return is_string($param) && $param !== '' ? $param : null;
     }
 
     /**

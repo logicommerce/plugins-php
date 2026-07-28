@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Twig\Functions;
 
+use FWK\Core\Resources\Session;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
 use Twig\Environment;
 use Twig\Markup;
@@ -44,8 +45,47 @@ final class MagicfrontTwigFunctions {
             self::mffGetMoney($ctx),
             self::mffGetCategories($ctx),
             self::mffWidgetSlot(),
+            self::mffGetAccount(),
+            self::mffPreviewMode($ctx),
         ];
     }
+
+    /** `mff_previewMode()` → true inside the editor canvas iframe / mfToken preview. Exposed as a
+     *  FUNCTION (not a global) because fwk's `$coreTwig` — the env that renders widgets — is locked
+     *  by the time hooks fire and cannot take globals; functions bind lazily. Widgets use it to
+     *  render mock/demo data only in preview, never on the live storefront. */
+    private static function mffPreviewMode(ContextBuilder $ctx): TwigFunction {
+        return new TwigFunction(
+            'mff_previewMode',
+            static fn(): bool => $ctx->previewMode,
+        );
+    }
+
+    /** `mff_getAccount()` → the storefront session account for the accountPanel logged state.
+     *  Anonymous (isLogged false) when no registered session. */
+    private static function mffGetAccount(): TwigFunction {
+        return new TwigFunction(
+            'mff_getAccount',
+            static function (): array {
+                $anonymous = ['isLogged' => false, 'nick' => '', 'name' => '', 'image' => ''];
+                if (!class_exists(Session::class)) {
+                    return $anonymous;
+                }
+                $session = Session::getInstance();
+                if (!$session->isLogged()) {
+                    return $anonymous;
+                }
+                $user = $session->getUser();
+                return [
+                    'isLogged' => true,
+                    'nick' => $user->getNick(),
+                    'name' => $user->getNick(),
+                    'image' => $user->getImage(),
+                ];
+            },
+        );
+    }
+
 
     /** `mff_getCategories()` → ContextBuilder's top-categories tree (each with one level of
      *  subcategories). Consumer: the header categoryMenu widget. Empty array when unresolvable

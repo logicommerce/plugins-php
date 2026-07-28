@@ -1,52 +1,5 @@
-{%- extends layout -%}
-
-{%- block headContent -%}
-    {{ parent() }}
-    {%- if mffDesignCssUrl is defined and mffDesignCssUrl|length -%}
-        <link rel="stylesheet" href="{{ mffDesignCssUrl }}">
-    {%- endif -%}
-{%- endblock -%}
-
-{%- block jsAssets -%}
-    {{ parent() }}
-    {%- if mffDesignJsUrl is defined and mffDesignJsUrl|length -%}
-        <script src="{{ mffDesignJsUrl }}" defer></script>
-    {%- endif -%}
-{%- endblock -%}
-
-{%- block richSnippets -%}
-    {%- import macrosCore.category as categoryMacros -%}
-    {%- if categoryRichSnippets is defined and categoryRichSnippets|length -%}
-        {{- categoryMacros.richSnippets({
-            richSnippets: categoryRichSnippets,
-        }) -}}
-    {%- endif -%}
-{%- endblock -%}
-
-{%- block content -%}
-    {# Config-driven assembly. mffDesignConfig is the resolved design config
-       (layout + per-component snippet paths) set by RendersDesignAssetsTrait. #}
-    {%- set cfg = mffDesignConfig -%}
-    {%- set category = controllerItem -%}
-
-    {%- set categoryTitleH1 = category.language.name -%}
-    {%- set titleCustomTags = category.customTagValues|filter(customTag => customTag.position == 1) -%}
-    {%- if titleCustomTags|length -%}
-        {%- set titleCustomTags = titleCustomTags|first -%}
-        {%- if titleCustomTags.value|length -%}
-            {%- set categoryTitleH1 = titleCustomTags.value -%}
-        {%- endif -%}
-    {%- endif -%}
-
-    {%- if cfg.layout == 'column' -%}
-        {%- include 'mff-snippets/category/_layout-column.html.twig' with {
-            cfg: cfg,
-            categoryTitleH1: categoryTitleH1,
-        } -%}
-    {%- else -%}
-        {%- include 'mff-snippets/category/_layout-single.html.twig' with {
-            cfg: cfg,
-            categoryTitleH1: categoryTitleH1,
-        } -%}
-    {%- endif -%}
-{%- endblock content -%}
+{#- Category route — MagicFront flow (Motor A): the 'mff_CATEGORY' singleton template
+    is painted for every category via the shared widget-blob content template, exactly
+    like Home and Product. The native LC category design-assets engine (Motor B) is NOT
+    used here. -#}
+{%- extends 'overrideContent/_shared/mff-page-content.html.twig' -%}

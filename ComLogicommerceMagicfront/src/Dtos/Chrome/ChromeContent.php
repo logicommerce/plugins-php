@@ -26,6 +26,10 @@ class ChromeContent extends Element {
 
     protected ?WidgetInstanceCollection $footer = null;
 
+    protected ?WidgetInstanceCollection $accountPanel = null;
+
+    protected ?WidgetInstanceCollection $basketPanel = null;
+
     protected function setHeader(array $header): void {
         $this->header = new WidgetInstanceCollection(['items' => $header]);
     }
@@ -34,10 +38,20 @@ class ChromeContent extends Element {
         $this->footer = new WidgetInstanceCollection(['items' => $footer]);
     }
 
+    protected function setAccountPanel(array $accountPanel): void {
+        $this->accountPanel = new WidgetInstanceCollection(['items' => $accountPanel]);
+    }
+
+    protected function setBasketPanel(array $basketPanel): void {
+        $this->basketPanel = new WidgetInstanceCollection(['items' => $basketPanel]);
+    }
+
     public function widgetsFor(ChromeKind $kind): ?WidgetInstanceCollection {
         return match ($kind) {
             ChromeKind::Header => $this->header,
             ChromeKind::Footer => $this->footer,
+            ChromeKind::AccountPanel => $this->accountPanel,
+            ChromeKind::BasketPanel => $this->basketPanel,
         };
     }
 }

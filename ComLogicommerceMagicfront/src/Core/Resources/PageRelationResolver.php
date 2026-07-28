@@ -7,11 +7,14 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 use FWK\Core\Dtos\ElementCollection as DtosElementCollection;
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
+use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Services\BatchService;
 use SDK\Core\Services\Parameters\Groups\ParametersGroup;
+use SDK\Dtos\Catalog\Category;
+use SDK\Dtos\Catalog\Product\Product;
 use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
 
 /**
@@ -39,6 +42,224 @@ class PageRelationResolver {
         $batchResults = BatchService::getInstance()->send($batchRequests);
         self::applyBatchResultsRecursive($batchResults, $pages);
         return $pages;
+    }
+
+    /**
+     * Attach the route's product-detail product to EVERY widget page (recursively into
+     * subpages/slots) so product-detail widgets read the raw SDK Product as `page.product` —
+     * the singular analogue of the category-driven `page.products` LIST. No-op when there is
+     * no product (non-product route, or editor/docker preview → widgets show their mock).
+     *
+     * Run AFTER {@see setData()} so the tree is already normalised to plugin {@see Page} DTOs.
+     */
+    public static function attachProduct(?ElementCollection $pages, ?Product $product): void {
+        if ($pages === null || $product === null) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setProduct($product);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProduct(new ElementCollection(['items' => $subItems]), $product);
+            }
+        }
+    }
+
+    /**
+     * Attach the route's category (raw SDK Category) to EVERY widget page as `page.category`
+     * (the singular analogue of `page.categories` subcategory lists), and the category's product
+     * LIST to `page.products` — but ONLY on widgets that do NOT declare their own `categoryId`
+     * (those keep the list {@see setData} already resolved for them, e.g. featured*). No-op when
+     * there is no category (non-category route / editor preview → widgets show their mock).
+     *
+     * Run AFTER {@see setData()} so the tree is already normalised to plugin {@see Page} DTOs.
+     */
+    public static function attachCategory(?ElementCollection $pages, ?Category $category, ?ElementCollection $subcategories = null): void {
+        if ($pages === null || $category === null) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setCategory($category);
+            if ($subcategories !== null) {
+                $ownCategoryId = $page->getModuleSettings()['categoryId'] ?? null;
+                $hasOwnCategoryId = $ownCategoryId !== null && $ownCategoryId !== '' && (int) $ownCategoryId !== 0;
+                if (!$hasOwnCategoryId) {
+                    $page->setCategories($subcategories);
+                }
+            }
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachCategory(new ElementCollection(['items' => $subItems]), $category, $subcategories);
+            }
+        }
+    }
+
+    /**
+     * Attach a flat product LIST to every widget page as `page.products` (skipping widgets that
+     * declare their own `categoryId`, which get their list via the batch mechanism). This is the
+     * unified source for the productList widget: category routes pass the category listing, product
+     * routes pass the related-products list, so the widget reads one variable regardless of route.
+     */
+    public static function attachProducts(?ElementCollection $pages, ?ElementCollection $products): void {
+        if ($pages === null || $products === null) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $ownCategoryId = $page->getModuleSettings()['categoryId'] ?? null;
+            $hasOwnCategoryId = $ownCategoryId !== null && $ownCategoryId !== '' && (int) $ownCategoryId !== 0;
+            if (!$hasOwnCategoryId) {
+                $page->setProducts($products);
+            }
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProducts(new ElementCollection(['items' => $subItems]), $products);
+            }
+        }
+    }
+
+    public static function attachBreadcrumb(?ElementCollection $pages, array $breadcrumb): void {
+        if ($pages === null || empty($breadcrumb)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setBreadcrumb($breadcrumb);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachBreadcrumb(new ElementCollection(['items' => $subItems]), $breadcrumb);
+            }
+        }
+    }
+
+    public static function attachBundleLabels(?ElementCollection $pages, array $bundleLabels): void {
+        if ($pages === null || empty($bundleLabels)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setBundleLabels($bundleLabels);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachBundleLabels(new ElementCollection(['items' => $subItems]), $bundleLabels);
+            }
+        }
+    }
+
+    public static function attachProductJson(?ElementCollection $pages, array $productJson): void {
+        if ($pages === null || empty($productJson)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setProductJson($productJson);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProductJson(new ElementCollection(['items' => $subItems]), $productJson);
+            }
+        }
+    }
+
+    public static function attachWishlist(?ElementCollection $pages, array $wishlist): void {
+        if ($pages === null || empty($wishlist)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setWishlist($wishlist);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachWishlist(new ElementCollection(['items' => $subItems]), $wishlist);
+            }
+        }
+    }
+
+    public static function attachCommentForm(?ElementCollection $pages, array $commentForm): void {
+        if ($pages === null || empty($commentForm)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setCommentForm($commentForm);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachCommentForm(new ElementCollection(['items' => $subItems]), $commentForm);
+            }
+        }
+    }
+
+    public static function attachComments(?ElementCollection $pages, array $comments): void {
+        if ($pages === null || empty($comments)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setComments($comments);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachComments(new ElementCollection(['items' => $subItems]), $comments);
+            }
+        }
+    }
+
+    /**
+     * Attach the product-related lists keyed by their (platform-opaque) pId as `page.productRelated`.
+     * The controller owns the keys because the API response carries no pId — it fetches each related
+     * block by pId (LogiCommerce: positionList name) and keys the map by that pId. Lets several
+     * productList instances on one page each render a different block via their `relatedId` setting.
+     *
+     * @param array<string, mixed> $productRelated
+     */
+    public static function attachProductRelated(?ElementCollection $pages, array $productRelated): void {
+        if ($pages === null || $productRelated === []) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setProductRelated($productRelated);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProductRelated(new ElementCollection(['items' => $subItems]), $productRelated);
+            }
+        }
+    }
+
+    public static function attachProductBundles(?ElementCollection $pages, ?BundleDefinitionsWithGroupings $productBundles): void {
+        if ($pages === null || $productBundles === null) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setProductBundles($productBundles);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProductBundles(new ElementCollection(['items' => $subItems]), $productBundles);
+            }
+        }
     }
 
     protected static function prepareBatchRequestsRecursive(ElementCollection &$pages, BatchRequests $batchRequests): void {
@@ -129,9 +350,11 @@ class PageRelationResolver {
         }
         $settings = [
             'categoryId'           => $categoryId,
-            'perPage'              => $moduleSettings['productCount'] ?? 1,
             'includeSubcategories' => true,
         ];
+        if (isset($moduleSettings['productCount']) && (int) $moduleSettings['productCount'] > 0) {
+            $settings['perPage'] = (int) $moduleSettings['productCount'];
+        }
         $productService = Loader::service(Services::PRODUCT);
         self::addBatchRequest(
             new ProductsParametersGroup(),

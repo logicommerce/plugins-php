@@ -46,6 +46,15 @@ abstract class MagicfrontControllerData {
     public const FOOTER_CSS           = 'mffFooterCss';
     public const FOOTER_JS            = 'mffFooterJs';
 
+    public const ACCOUNT_PANEL_PAGES         = 'mffAccountPanelPages';
+    public const ACCOUNT_PANEL_TEMPLATE_LIST = 'mffAccountPanelTemplateList';
+    public const ACCOUNT_PANEL_CSS           = 'mffAccountPanelCss';
+    public const ACCOUNT_PANEL_JS            = 'mffAccountPanelJs';
+    public const BASKET_PANEL_PAGES          = 'mffBasketPanelPages';
+    public const BASKET_PANEL_TEMPLATE_LIST  = 'mffBasketPanelTemplateList';
+    public const BASKET_PANEL_CSS            = 'mffBasketPanelCss';
+    public const BASKET_PANEL_JS             = 'mffBasketPanelJs';
+
     /** Globals emitted by {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder::toGlobals()}. */
     public const CONTEXT_PREVIEW_MODE = 'previewMode';
     public const CONTEXT_CORE_MODE    = 'coreMode';
