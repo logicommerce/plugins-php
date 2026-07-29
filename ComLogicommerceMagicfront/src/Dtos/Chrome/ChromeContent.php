@@ -30,6 +30,8 @@ class ChromeContent extends Element {
 
     protected ?WidgetInstanceCollection $basketPanel = null;
 
+    protected ?WidgetInstanceCollection $mobileMenuPanel = null;
+
     protected function setHeader(array $header): void {
         $this->header = new WidgetInstanceCollection(['items' => $header]);
     }
@@ -46,12 +48,17 @@ class ChromeContent extends Element {
         $this->basketPanel = new WidgetInstanceCollection(['items' => $basketPanel]);
     }
 
+    protected function setMobileMenuPanel(array $mobileMenuPanel): void {
+        $this->mobileMenuPanel = new WidgetInstanceCollection(['items' => $mobileMenuPanel]);
+    }
+
     public function widgetsFor(ChromeKind $kind): ?WidgetInstanceCollection {
         return match ($kind) {
             ChromeKind::Header => $this->header,
             ChromeKind::Footer => $this->footer,
             ChromeKind::AccountPanel => $this->accountPanel,
             ChromeKind::BasketPanel => $this->basketPanel,
+            ChromeKind::MobileMenuPanel => $this->mobileMenuPanel,
         };
     }
 }

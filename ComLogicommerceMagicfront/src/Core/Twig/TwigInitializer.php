@@ -130,14 +130,14 @@ final class TwigInitializer implements PluginTwigInitializer {
             $this->emit($main, $kind, $assets);
         }
 
-        // Login / basket panels: the self-contained MFF panels (published mff_PANELS blob) replace
-        // the commerce login/basket offcanvas so our header's triggers open them; LC JS binds to
-        // their re-injected ids + data-lc hooks. Emitted wherever our header can show — including the
-        // editor canvas (fetched via the LC FOB, works with the preview token). Without this the
-        // account/cart icons do nothing in the canvas.
+        // Login / basket / mobile-menu panels: the self-contained MFF panels (published mff_PANELS
+        // blob) replace the commerce login/basket offcanvas and the theme's own mobile-menu nav so our
+        // header's triggers open them; LC JS binds to their re-injected ids + data-lc hooks. Emitted
+        // wherever our header can show — including the editor canvas (fetched via the LC FOB, works
+        // with the preview token). Without this the account/cart/hamburger triggers do nothing.
         if ($headerOn) {
             $panels = $this->storefrontPanels();
-            foreach ([ChromeKind::AccountPanel, ChromeKind::BasketPanel] as $kind) {
+            foreach ([ChromeKind::AccountPanel, ChromeKind::BasketPanel, ChromeKind::MobileMenuPanel] as $kind) {
                 $doc = ($panels !== null && $panels->hasKind($kind)) ? $panels : null;
                 $this->emit($main, $kind, self::reinjectLcIds($this->chromeFromBlob($kind, $doc)));
             }

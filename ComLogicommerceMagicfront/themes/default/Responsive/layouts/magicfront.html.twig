@@ -18,6 +18,9 @@
     {%- if mffBasketPanelCss|default('')|length -%}
         <style id="mff-basket-panel-css">{{ mffBasketPanelCss|raw }}</style>
     {%- endif -%}
+    {%- if mffMobileMenuPanelCss|default('')|length -%}
+        <style id="mff-mobile-menu-panel-css">{{ mffMobileMenuPanelCss|raw }}</style>
+    {%- endif -%}
     {# Per-design page CSS, set by RendersDesignAssetsTrait on designable pages. #}
     {%- if mffDesignCssUrl|default('')|length -%}
         <link rel="stylesheet" href="{{ mffDesignCssUrl }}">
@@ -26,11 +29,15 @@
 
 {%- block header -%}
     {%- if mffOverrideHeader|default(false) -%}
-        {# Mobile menu + self-contained login/basket panels our header's triggers open. Rendered once
-           whether we emit one variant (storefront/preview) or both (canvas swap). #}
-        {%- include version ~ '/snippets/includes/mobileMenu.html.twig' -%}
-        {# MFF owns the chrome, so our self-contained panels render whenever we HAVE panel content
+        {# Self-contained mobile-menu / login / basket panels our header's triggers open. Rendered once
+           whether we emit one variant (storefront/preview) or both (canvas swap). The store theme's own
+           mobileMenu snippet is deliberately NOT included: mobileMenuPanel IS our mobile menu, so the
+           hamburger targets a panel we own and nothing depends on the theme's module contract.
+           MFF owns the chrome, so our self-contained panels render whenever we HAVE panel content
            (the merchant designed one) — not gated by the store theme's own offcanvas config. #}
+        {%- if mffMobileMenuPanelPages|default(null) -%}
+            {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList }) }}
+        {%- endif -%}
         {%- if mffBasketPanelPages|default(null) -%}
             {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList }) }}
         {%- endif -%}
@@ -99,6 +106,9 @@
     {%- endif -%}
     {%- if mffBasketPanelJs|default('')|length -%}
         <script id="mff-basket-panel-js">{{ mffBasketPanelJs|raw }}</script>
+    {%- endif -%}
+    {%- if mffMobileMenuPanelJs|default('')|length -%}
+        <script id="mff-mobile-menu-panel-js">{{ mffMobileMenuPanelJs|raw }}</script>
     {%- endif -%}
     {# Per-design page JS, set by RendersDesignAssetsTrait on designable pages.
        Deferred so it runs after the store's deferred commerce 'core' bundle. #}

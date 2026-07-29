@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
 /**
- * The two chrome regions a page renders around its content. The backing value is the blob
+ * The chrome regions a page renders around its content (the two page regions + the three side panels). The backing value is the blob
  * content key (`content.header` / `content.footer`) and the dcsapi kind token, so callers use
  * $kind->value everywhere a raw string is needed. Each case also maps to its Twig global keys,
  * keeping that wiring in one place instead of threading four string arguments through the render.
@@ -16,6 +16,7 @@ enum ChromeKind: string {
     case Footer = 'footer';
     case AccountPanel = 'accountPanel';
     case BasketPanel = 'basketPanel';
+    case MobileMenuPanel = 'mobileMenuPanel';
 
     public function pagesGlobalKey(): string {
         return match ($this) {
@@ -23,6 +24,7 @@ enum ChromeKind: string {
             self::Footer => MagicfrontControllerData::FOOTER_PAGES,
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_PAGES,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_PAGES,
+            self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_PAGES,
         };
     }
 
@@ -32,6 +34,7 @@ enum ChromeKind: string {
             self::Footer => MagicfrontControllerData::FOOTER_TEMPLATE_LIST,
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_TEMPLATE_LIST,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_TEMPLATE_LIST,
+            self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_TEMPLATE_LIST,
         };
     }
 
@@ -41,6 +44,7 @@ enum ChromeKind: string {
             self::Footer => MagicfrontControllerData::FOOTER_CSS,
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_CSS,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_CSS,
+            self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_CSS,
         };
     }
 
@@ -50,6 +54,7 @@ enum ChromeKind: string {
             self::Footer => MagicfrontControllerData::FOOTER_JS,
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_JS,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_JS,
+            self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_JS,
         };
     }
 }

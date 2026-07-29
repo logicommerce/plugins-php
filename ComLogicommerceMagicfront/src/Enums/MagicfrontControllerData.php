@@ -54,6 +54,10 @@ abstract class MagicfrontControllerData {
     public const BASKET_PANEL_TEMPLATE_LIST  = 'mffBasketPanelTemplateList';
     public const BASKET_PANEL_CSS            = 'mffBasketPanelCss';
     public const BASKET_PANEL_JS             = 'mffBasketPanelJs';
+    public const MOBILE_MENU_PANEL_PAGES         = 'mffMobileMenuPanelPages';
+    public const MOBILE_MENU_PANEL_TEMPLATE_LIST = 'mffMobileMenuPanelTemplateList';
+    public const MOBILE_MENU_PANEL_CSS           = 'mffMobileMenuPanelCss';
+    public const MOBILE_MENU_PANEL_JS            = 'mffMobileMenuPanelJs';
 
     /** Globals emitted by {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder::toGlobals()}. */
     public const CONTEXT_PREVIEW_MODE = 'previewMode';
