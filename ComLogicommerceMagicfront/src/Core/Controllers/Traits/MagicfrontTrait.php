@@ -246,7 +246,7 @@ trait MagicfrontTrait {
         // Unified product LIST → `page.products` for the productList widget, regardless of route:
         // category routes supply the category listing, product routes the related-products list.
         PageRelationResolver::attachProducts($this->pages, $this->routeProducts());
-        PageRelationResolver::attachBreadcrumb($this->pages, BreadcrumbResolver::build($this->getRoute()));
+        PageRelationResolver::attachBreadcrumb($this->pages, BreadcrumbResolver::build($this->getRoute(), $this->magicfrontPage()));
         // Product-detail routes attach the bundle definitions → page.productBundles. No-op elsewhere.
         PageRelationResolver::attachProductBundles($this->pages, $this->routeProductBundles());
         // Product-detail routes attach related-items groups → page.relatedItems. No-op elsewhere.

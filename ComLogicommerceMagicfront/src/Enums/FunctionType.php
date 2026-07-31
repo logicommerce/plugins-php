@@ -22,4 +22,6 @@ abstract class FunctionType extends Enum {
     public const GET_WIDGET = 'getWidget';
 
     public const CUSTOMIZE_CSS_JS = 'customizeCssJs';
+
+    public const SUBPAGE_CONTENT = 'subpageContent';
 }

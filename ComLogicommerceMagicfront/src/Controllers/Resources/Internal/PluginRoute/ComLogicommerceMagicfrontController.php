@@ -14,6 +14,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssJsHa
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignStyleHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignScriptHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\SubpageContentHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
 use SDK\Core\Dtos\Element;
 use SDK\Core\Resources\BatchRequests;
@@ -47,6 +48,7 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             new CustomizeDesignStyleHandler(),
             new CustomizeDesignScriptHandler(),
             new CustomizeCssJsHandler(),
+            new SubpageContentHandler(),
             new GetWidgetHandler(),
         ];
     }
