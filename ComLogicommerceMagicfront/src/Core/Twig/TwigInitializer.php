@@ -16,6 +16,7 @@ use Plugins\ComLogicommerceMagicfront\Dtos\Chrome\ChromeDocument;
 use Plugins\ComLogicommerceMagicfront\Dtos\Common\PluginProperties;
 use Plugins\ComLogicommerceMagicfront\Enums\ChromeKind;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
+use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Dtos\Catalog\Page\Page;
@@ -51,12 +52,6 @@ final class TwigInitializer implements PluginTwigInitializer {
 
     private const PREVIEW_FOOTER_PARAM = 'mfFooter';
 
-    /** pId of the LC page carrying the published chrome blob — see {@see ChromeDocument}. */
-    private const CHROME_PAGE_PID = 'mff_CHROME';
-
-    /** pId of the LC page carrying the published account/basket panel blob. */
-    private const PANELS_PAGE_PID = 'mff_PANELS';
-
     /** Memoized generic mff_CHROME document (fetched at most once per request via genericChrome()). */
     private ?ChromeDocument $genericChromeCache = null;
 
@@ -88,8 +83,12 @@ final class TwigInitializer implements PluginTwigInitializer {
         // Canvas swaps both variants live via the bridge; the standalone preview tab (token but not
         // an iframe) has no toolbar/bridge, so it honours the toggle choice carried as ?mffHeader/
         // ?mffFooter. Production (no token) ignores the params → BO toggle alone.
-        $headerOn = $canvasChrome || (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader);
-        $footerOn = $canvasChrome || (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter);
+        // Production gate: our chrome overrides only when the mff_CHROME page is published; until then
+        // producción keeps the commerce's own header/footer. The editor (canvasChrome / preview token)
+        // is never gated so chrome can be authored before publish.
+        $chromePublished = $canvasChrome || ($properties !== null && $properties->pageExists(SpecialPagePId::CHROME));
+        $headerOn = $canvasChrome || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader));
+        $footerOn = $canvasChrome || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter));
         $main->addGlobal(self::CANVAS_CHROME_GLOBAL, $canvasChrome);
         // Which variant starts LIVE in canvas per region — '1' = our chrome, '0' = the store's own.
         // Our chrome when the BO toggle is on (an active plugin defaults MagicFront to our chrome).
@@ -135,7 +134,8 @@ final class TwigInitializer implements PluginTwigInitializer {
         // header's triggers open them; LC JS binds to their re-injected ids + data-lc hooks. Emitted
         // wherever our header can show — including the editor canvas (fetched via the LC FOB, works
         // with the preview token). Without this the account/cart/hamburger triggers do nothing.
-        if ($headerOn) {
+        $panelsPublished = $editor || ($properties !== null && $properties->pageExists(SpecialPagePId::PANELS));
+        if ($headerOn && $panelsPublished) {
             $panels = $this->storefrontPanels();
             foreach ([ChromeKind::AccountPanel, ChromeKind::BasketPanel, ChromeKind::MobileMenuPanel] as $kind) {
                 $doc = ($panels !== null && $panels->hasKind($kind)) ? $panels : null;
@@ -241,14 +241,14 @@ final class TwigInitializer implements PluginTwigInitializer {
     }
 
     private function loadStorefrontChrome(): ?ChromeDocument {
-        return $this->loadBlobPage(self::CHROME_PAGE_PID);
+        return $this->loadBlobPage(SpecialPagePId::CHROME);
     }
 
     /** The mff_PANELS document, fetched lazily and once via the LC FOB (same as the chrome page). */
     private function storefrontPanels(): ?ChromeDocument {
         if (!$this->panelsLoaded) {
             $this->panelsLoaded = true;
-            $this->panelsCache = $this->loadBlobPage(self::PANELS_PAGE_PID);
+            $this->panelsCache = $this->loadBlobPage(SpecialPagePId::PANELS);
         }
         return $this->panelsCache;
     }

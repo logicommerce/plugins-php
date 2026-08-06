@@ -18,7 +18,6 @@ use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Catalog\Category;
 use SDK\Dtos\Catalog\Page\Page;
 use SDK\Dtos\Common\Route;
-use SDK\Services\Parameters\Groups\PageParametersGroup;
 use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
 
 /**
@@ -34,8 +33,11 @@ use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
  *      {@see routeSubcategories()} and its product list via {@see routeProducts()} — MagicfrontTrait
  *      attaches them (PageRelationResolver::attachCategory / attachProducts) so category widgets read
  *      `page.category` (raw SDK Category), `page.categories` (subcategories) and `page.products`
- *      (raw SDK Product list). NO custom Twig function, NO contract shape;
- *   3. promote the 'mff_CATEGORY' template page into `controllerItem` so the trait renders the blob.
+ *      (raw SDK Product list). NO custom Twig function, NO contract shape.
+ *
+ * The 'mff_CATEGORY' template page whose blob is rendered is resolved generically by
+ * {@see MagicfrontTrait::magicfrontPage()} (memoized, so setBatchData reuses it to size `perPage`);
+ * `controllerItem` stays the route Category (FWK view helpers need it).
  *
  * Deliberately does NOT use FiltrableProductListTrait (its getFilterParams() collides with
  * MagicfrontTrait's) nor RendersDesignAssetsTrait (Motor B). Product filters / sort / pagination
@@ -51,13 +53,8 @@ use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
 class CategoryController extends FWKCategoryController {
     use MagicfrontTrait;
 
-    private const CATEGORY_PAGE_PID = 'mff_CATEGORY';
-
     /** Data key holding the FWK-resolved route Category, read back by routeCategory(). */
     private const MFF_CATEGORY = 'mffCategory';
-
-    /** Data key holding the mff_CATEGORY template Page whose blob the trait renders. */
-    private const MFF_TEMPLATE = 'mffCategoryTemplate';
 
     private const KEY_PRODUCTS = 'mffCategoryProducts';
 
@@ -78,10 +75,7 @@ class CategoryController extends FWKCategoryController {
     }
 
     protected function setBatchData(BatchRequests $requests): void {
-        $templatePage = $this->fetchCategoryTemplate();
-        if ($templatePage instanceof Page) {
-            $this->setDataValue(self::MFF_TEMPLATE, $templatePage);
-        }
+        $templatePage = $this->magicfrontPage();
         $this->categoryService->addGetCategoriesByParentId($requests, self::KEY_SUBCATS, $this->categoryId);
         $productParams = new ProductsParametersGroup();
         $productParams->setCategoryId($this->categoryId);
@@ -191,12 +185,6 @@ class CategoryController extends FWKCategoryController {
         $this->setMagicfrontData();
     }
 
-    /** controllerItem stays the route Category (FWK view helpers need it); the trait renders this template instead. */
-    protected function magicfrontPage(): ?Page {
-        $page = $this->getControllerData(self::MFF_TEMPLATE);
-        return $page instanceof Page ? $page : null;
-    }
-
     /** The route's category (raw SDK Category), attached to every widget page as `page.category`. */
     protected function routeCategory(): ?Category {
         $category = $this->getControllerData(self::MFF_CATEGORY);
@@ -221,18 +209,5 @@ class CategoryController extends FWKCategoryController {
      *  {@see MagicfrontTrait::buildProductRelated()} (pId-based block filtering temporarily disabled). */
     protected function routeProductRelated(): array {
         return $this->buildProductRelated($this->getRoute()->getId(), Loader::service(Services::CATEGORY), true);
-    }
-
-    /** Synchronously loads the mff_CATEGORY template page BEFORE the products batch, so its
-     *  productList `productCount` can drive the category fetch `perPage` (and thus pagination). */
-    private function fetchCategoryTemplate(): ?Page {
-        $params = new PageParametersGroup();
-        $params->setPId(self::CATEGORY_PAGE_PID);
-        $collection = Loader::service(Services::PAGE)->getPages($params);
-        if ($collection instanceof ElementCollection) {
-            $first = $collection->getItems()[0] ?? null;
-            return $first instanceof Page ? $first : null;
-        }
-        return null;
     }
 }

@@ -19,10 +19,8 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BundleOptionsResolver;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
-use SDK\Dtos\Catalog\Page\Page;
 use SDK\Dtos\Catalog\Product\Product;
 use SDK\Dtos\Common\Route;
-use SDK\Services\Parameters\Groups\PageParametersGroup;
 
 /**
  * Plugin override for the storefront product route (RouteType::PRODUCT).
@@ -30,10 +28,10 @@ use SDK\Services\Parameters\Groups\PageParametersGroup;
  * MagicFront flow (Motor A): the product detail page is a SINGLETON MagicFront page
  * (pId 'mff_PRODUCT') whose widget blob is the template painted for EVERY product.
  * FWK's base ProductController keeps the real Product in `controllerItem` (so its SEO,
- * ViewHelper and product macros stay intact); the 'mff_PRODUCT' template page is stashed
- * separately and exposed to MagicfrontTrait via {@see magicfrontPage()} to render the blob.
- * The route Product is exposed via {@see routeProduct()} so MagicfrontTrait attaches it to
- * every widget page (PageRelationResolver::attachProduct) as `page.product`.
+ * ViewHelper and product macros stay intact); the 'mff_PRODUCT' template page whose blob is
+ * rendered is resolved generically by {@see MagicfrontTrait::magicfrontPage()}. The route Product
+ * is exposed via {@see routeProduct()} so MagicfrontTrait attaches it to every widget page
+ * (PageRelationResolver::attachProduct) as `page.product`.
  *
  * When no 'mff_PRODUCT' page exists magicfrontPage() is null and the trait renders nothing
  * (the plugin only owns this route when PRODUCT is in `availablepages`, or in preview via mfToken).
@@ -44,12 +42,6 @@ use SDK\Services\Parameters\Groups\PageParametersGroup;
  */
 class ProductController extends FWKProductController {
     use MagicfrontTrait;
-
-    private const PRODUCT_PAGE_PID = 'mff_PRODUCT';
-
-    private const PRODUCT_LOOKUP_KEY = 'mffProductLookup';
-
-    private const MFF_PRODUCT_TEMPLATE = 'mffProductTemplate';
 
     private const BUNDLE_DEFINITIONS_KEY = 'mffProductBundleDefinitions';
 
@@ -63,7 +55,6 @@ class ProductController extends FWKProductController {
 
     protected function setBatchData(BatchRequests $requests): void {
         parent::setBatchData($requests);
-        $this->addProductPageLookup($requests);
         $this->addBundleDefinitions($requests);
         $this->addComments($requests);
         $this->setMagicfrontBatchData($requests);
@@ -83,18 +74,12 @@ class ProductController extends FWKProductController {
 
     protected function setData(array $additionalData = []): void {
         parent::setData($additionalData);
-        $this->stashProductTemplate();
         $this->setMagicfrontData();
     }
 
     protected function routeProduct(): ?Product {
         $product = $this->getControllerData(Controller::CONTROLLER_ITEM);
         return $product instanceof Product ? $product : null;
-    }
-
-    protected function magicfrontPage(): ?Page {
-        $page = $this->getControllerData(self::MFF_PRODUCT_TEMPLATE);
-        return $page instanceof Page ? $page : null;
     }
 
     protected function routeProductBundles(): ?BundleDefinitionsWithGroupings {
@@ -161,20 +146,4 @@ class ProductController extends FWKProductController {
         ];
     }
 
-    private function addProductPageLookup(BatchRequests $requests): void {
-        $params = new PageParametersGroup();
-        $params->setPId(self::PRODUCT_PAGE_PID);
-        Loader::service(Services::PAGE)->addGetPages($requests, self::PRODUCT_LOOKUP_KEY, $params);
-    }
-
-    private function stashProductTemplate(): void {
-        $collection = $this->getControllerData(self::PRODUCT_LOOKUP_KEY);
-        if ($collection instanceof ElementCollection) {
-            $first = $collection->getItems()[0] ?? null;
-            if ($first instanceof Page) {
-                $this->setDataValue(self::MFF_PRODUCT_TEMPLATE, $first);
-            }
-        }
-        $this->deleteControllerData(self::PRODUCT_LOOKUP_KEY);
-    }
 }

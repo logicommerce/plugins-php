@@ -17,11 +17,13 @@ use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetAssetsBuilder;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
+use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Services\Parameters\Groups\PageParametersGroup;
 use SDK\Services\Parameters\Groups\RelatedItemsParametersGroup;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Resources\Environment;
@@ -81,6 +83,10 @@ trait MagicfrontTrait {
      * @var array{header?: string, footer?: string}
      */
     protected array $pageChrome = [];
+
+    private bool $magicfrontPageResolved = false;
+
+    private ?Page $magicfrontPageCache = null;
 
     // ─── FWK lifecycle ─────────────────────────────────────────────────────
 
@@ -162,19 +168,15 @@ trait MagicfrontTrait {
     // ─── Storefront path ───────────────────────────────────────────────────
 
     /**
-     * Blog routes fetch their widget tree from dcsapi (see loadBlogData). Every
-     * other route reads the published blob already loaded by FWK (controllerItem),
-     * whose pageContent carries both widgets and templates.
+     * Reads the published blob of the route's magicfront page (via {@see magicfrontPage()}, the generic
+     * mff_* resolver keyed by route type), whose pageContent carries both widgets and templates. NO
+     * dcsapi — customers are unauthenticated for that API.
      *
      * Side-effects: sets $this->widgets / $this->pages / $this->pageId.
      *
      * @return array<string, WidgetTemplate>
      */
     private function loadStorefrontData(): array {
-        $pageType = $this->blogPageType();
-        if ($pageType !== null) {
-            return $this->loadBlogData($pageType);
-        }
         $pageDto = $this->magicfrontPage();
         if (!$pageDto instanceof Page) {
             return [];
@@ -187,46 +189,6 @@ trait MagicfrontTrait {
         $this->pages   = $document->toPages();
         $this->pageId  = (string) $pageDto->getId();
         return $document->templatesById();
-    }
-
-    /**
-     * Blog routes carry no LC FOB published blob; their widget tree lives in dcsapi
-     * as a singleton page addressed by pageType. Maps the FWK route type to the
-     * dcsapi pageType (note the naming divergence BLOG_TAG -> BLOG_TAGS and
-     * BLOG_BLOGGER -> BLOG_AUTHOR), or null for non-blog routes.
-     */
-    private function blogPageType(): ?string {
-        return match ($this->route?->getType()) {
-            RouteType::BLOG_CATEGORY => 'BLOG_CATEGORY',
-            RouteType::BLOG_POST     => 'BLOG_POST',
-            RouteType::BLOG_HOME     => 'BLOG_HOME',
-            RouteType::BLOG_TAG      => 'BLOG_TAGS',
-            RouteType::BLOG_BLOGGER  => 'BLOG_AUTHOR',
-            default                  => null,
-        };
-    }
-
-    /**
-     * Fetches the blog page widget tree + templates from dcsapi, mirroring the
-     * editor path. Sets $this->widgets / $this->pages / $this->pageId.
-     *
-     * @return array<string, WidgetTemplate>
-     */
-    private function loadBlogData(string $pageType): array {
-        $service = WidgetsService::getInstance();
-        $pageId  = $service->getPageIdByType($pageType);
-        if ($pageId === '') {
-            return [];
-        }
-        $instances = $service->getPageWidgetInstances($pageId, $this->route->getLanguage());
-        if ($instances === []) {
-            return [];
-        }
-        $this->widgets = WidgetTypeCollector::flatten($instances);
-        $this->pages   = WidgetToPageTransformer::transform(new ElementCollection(['items' => $instances]));
-        $this->pageId  = $pageId;
-        $types = WidgetTypeCollector::fromWidgets($this->widgets);
-        return $types !== [] ? $service->getWidgetTemplatesForTypes($types) : [];
     }
 
 
@@ -300,9 +262,39 @@ trait MagicfrontTrait {
         return $this->editorMode;
     }
 
+    /**
+     * The magicfront render source for the current route, resolved once. Routes backed by a singleton
+     * mff_* page ({@see SpecialPagePId::forRouteType}: home / category / product / blog) read it via the
+     * LC FOB blob by pId (NO dcsapi — customers are unauthenticated for it); controllers keep their own
+     * CONTROLLER_ITEM (real product/category/post) untouched. Routes with no singleton page (PAGE /
+     * pageModules) carry their own per-page blob, so the route's CONTROLLER_ITEM is the source. Null when
+     * neither yields a Page → the trait renders nothing.
+     */
     protected function magicfrontPage(): ?Page {
-        $item = $this->getControllerData(Controller::CONTROLLER_ITEM);
-        return $item instanceof Page ? $item : null;
+        if (!$this->magicfrontPageResolved) {
+            $this->magicfrontPageResolved = true;
+            $pId = SpecialPagePId::forRouteType((string) $this->getRoute()?->getType());
+            $page = $pId !== null
+                ? $this->loadPageByPId($pId)
+                : $this->getControllerData(Controller::CONTROLLER_ITEM);
+            $this->magicfrontPageCache = $page instanceof Page ? $page : null;
+        }
+        return $this->magicfrontPageCache;
+    }
+
+    /**
+     * Reads a single published page by its stable pId via the LC FOB. Uses getPages()->getItems()[0]
+     * (not PageService::getPageByPId, whose ?Page return type mismatches its ?ElementCollection body).
+     */
+    private function loadPageByPId(string $pId): ?Page {
+        $params = new PageParametersGroup();
+        $params->setPId($pId);
+        $collection = Loader::service(Services::PAGE)->getPages($params);
+        if (!$collection instanceof ElementCollection) {
+            return null;
+        }
+        $page = $collection->getItems()[0] ?? null;
+        return $page instanceof Page ? $page : null;
     }
 
     /**
