@@ -1,0 +1,7 @@
+{# MagicFront content-only layout. Selected by TwigInitializer when the request carries
+   X-MFF-Content-Only: 1 (userPanel tab swap). Outputs ONLY the page widget body — no <html>
+   shell, no chrome header/footer, no category nav — so an AJAX tab render costs one widget
+   subtree instead of a whole storefront page. The content block is supplied by
+   overrideContent/_shared/mff-page-content.html.twig; widget CSS/JS is already in the document
+   from the initial full load, so nothing else is emitted here. #}
+{%- block content -%}{%- endblock content -%}

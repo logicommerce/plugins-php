@@ -13,6 +13,8 @@ use SDK\Core\Dtos\Traits\ElementTrait;
  * hydrated by ElementTrait. Any other content keys (`languages`) are simply ignored.
  *
  * @see PageDocument
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Content
  */
 class PageContent extends Element {
     use ElementTrait;

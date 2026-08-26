@@ -30,4 +30,8 @@ class LanguageLabels extends Enum {
 
     public const COM_LOGICOMMERCE_OMNIWALLET_CARD_NUMBER = 'ComLogicommerceOmniwalletCardNumber';
 
+    public const COM_LOGICOMMERCE_MAX_POINTS_TO_REDEEM = 'ComLogicommerceOmniwalletMaxPointsToRedeem';
+
+    public const COM_LOGICOMMERCE_MIN_IMPORT_PURCHASE = 'ComLogicommerceOmniwalletMinImportPurchase';
+
 }

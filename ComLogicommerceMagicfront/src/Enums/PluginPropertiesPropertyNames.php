@@ -7,6 +7,9 @@ namespace Plugins\ComLogicommerceMagicfront\Enums;
 use SDK\Core\Enums\Enum;
 
 /** BO plugin property names. */
+/**
+ * @package Plugins\ComLogicommerceMagicfront\Enums
+ */
 abstract class PluginPropertiesPropertyNames extends Enum {
 
     public const AVAILABLEPAGES = 'availablepages';

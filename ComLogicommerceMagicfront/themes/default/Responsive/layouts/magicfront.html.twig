@@ -4,6 +4,12 @@
 
 {% import macrosCore.widget as widgetMacros %}
 
+{#- Trackers (consent / newsletter popups) block the canvas, so they are cleared there. The
+    standalone preview tab is a real storefront render and keeps them. -#}
+{%- if mff_isCanvasMode() -%}
+    {%- set trackers = { 'items': [] } -%}
+{%- endif -%}
+
 {%- block headContent -%}
     {{ parent() }}
     {%- if mffOverrideHeader|default(false) and mffHeaderCss|default('')|length -%}
@@ -49,9 +55,9 @@
            stays in jsAssets, deferred after the commerce core bundle. #}
         {%- set ourHeader -%}
             {{ widgetMacros.widgets({ pages: mffHeaderPages, version: version, widgetTemplateList: mffHeaderTemplateList }) }}
-            {%- if mffCanvasChrome|default(false) and mffHeaderJs|default('')|length -%}<script>{{ mffHeaderJs|raw }}</script>{%- endif -%}
+            {%- if mff_isCanvasMode() and mffHeaderJs|default('')|length -%}<script>{{ mffHeaderJs|raw }}</script>{%- endif -%}
         {%- endset -%}
-        {%- if mffCanvasChrome|default(false) -%}
+        {%- if mff_isCanvasMode() -%}
             {# Canvas: both variants — active live in the slot, the other stashed in a <template> — so
                the toolbar swaps them with no reload. #}
             {%- set headerMff = mffHeader|default('0') -%}
@@ -73,9 +79,9 @@
     {%- if mffOverrideFooter|default(false) -%}
         {%- set ourFooter -%}
             {{ widgetMacros.widgets({ pages: mffFooterPages, version: version, widgetTemplateList: mffFooterTemplateList }) }}
-            {%- if mffCanvasChrome|default(false) and mffFooterJs|default('')|length -%}<script>{{ mffFooterJs|raw }}</script>{%- endif -%}
+            {%- if mff_isCanvasMode() and mffFooterJs|default('')|length -%}<script>{{ mffFooterJs|raw }}</script>{%- endif -%}
         {%- endset -%}
-        {%- if mffCanvasChrome|default(false) -%}
+        {%- if mff_isCanvasMode() -%}
             {%- set footerMff = mffFooter|default('0') -%}
             <div data-mff-chrome-slot="footer" data-mff-active="{{ footerMff }}">
                 {%- if footerMff == '1' -%}{{ ourFooter|raw }}{%- else -%}{{- parent() -}}{%- endif -%}
@@ -92,13 +98,21 @@
 {%- endblock footer -%}
 
 {%- block jsAssets -%}
-    {{ parent() }}
+    {%- if mff_isCanvasMode() -%}
+        {{- includeJsAssets([
+            TOOLS_CORE_PATH ~ '/jquery-3.7.0.min.js', 
+            TOOLS_CORE_PATH ~ '/bootstrap/5.3.1/bootstrap.bundle.min.js',
+        ]) -}}
+        {{- includeJsAssets(ASSETS_ENVIRONMENT_COMMERCE, 'default') -}} 
+    {%- else -%}
+        {{ parent() }}
+    {%- endif -%}
     {# In canvas preview the region JS ships INSIDE the <template> so runScripts re-runs it on
        swap-in; emitting it here too would run it at load against the not-yet-live DOM. #}
-    {%- if mffOverrideHeader|default(false) and mffHeaderJs|default('')|length and not mffCanvasChrome|default(false) -%}
+    {%- if mffOverrideHeader|default(false) and mffHeaderJs|default('')|length and not mff_isCanvasMode() -%}
         <script id="mff-chrome-header-js">{{ mffHeaderJs|raw }}</script>
     {%- endif -%}
-    {%- if mffOverrideFooter|default(false) and mffFooterJs|default('')|length and not mffCanvasChrome|default(false) -%}
+    {%- if mffOverrideFooter|default(false) and mffFooterJs|default('')|length and not mff_isCanvasMode() -%}
         <script id="mff-chrome-footer-js">{{ mffFooterJs|raw }}</script>
     {%- endif -%}
     {%- if mffAccountPanelJs|default('')|length -%}

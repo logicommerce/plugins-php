@@ -65,7 +65,7 @@ trait BlogControllerTrait {
      * nameable item so no leaf crumb is added). Call from a blog controller's
      * setData() after parent::setData().
      *
-     * @param array<string, mixed> $extra Route-specific bindings (e.g. post / blogCategory); keys win over the shared set.
+     * @param array $extra Route-specific bindings (e.g. post / blogCategory); keys win over the shared set.
      */
     protected function bindBlogPage(array $extra = []): void {
         $this->setMagicfrontData();
@@ -87,7 +87,7 @@ trait BlogControllerTrait {
      * and urls from RoutePaths; the trailing crumbs are resolved from API data. Each
      * crumb is ['label', 'url'] — the field names the breadcrumb widget reads (crumb.label).
      *
-     * @return array<int, array{label: string, url: string}>
+     * @return array
      */
     protected function mffBlogCrumbs(mixed $leafItem): array {
         $sheet = $this->getLanguageSheet();
@@ -121,7 +121,7 @@ trait BlogControllerTrait {
      * it as page.post / page.blogPosts / page.breadcrumb / ... Delegates the tree walk
      * to {@see BlogPageBinder}.
      *
-     * @param array<string, mixed> $data
+     * @param array $data
      */
     protected function bindBlogData(array $data): void {
         (new BlogPageBinder($data))->applyTo($this->pages);

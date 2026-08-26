@@ -8,6 +8,9 @@ use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
 use SDK\Core\Dtos\Element;
 
+/**
+ * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
+ */
 abstract class AbstractPluginRouteHandler implements PluginRouteHandlerInterface {
 
     public function handle(ComLogicommerceMagicfrontController $controller): ?Element {

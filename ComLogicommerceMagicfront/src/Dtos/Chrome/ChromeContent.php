@@ -18,6 +18,8 @@ use SDK\Core\Dtos\Traits\ElementTrait;
  * embedded chrome.
  *
  * @see ChromeDocument
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Chrome
  */
 class ChromeContent extends Element {
     use ElementTrait;

@@ -18,6 +18,8 @@ use SDK\Services\Parameters\Groups\Blog\BlogPostParametersGroup;
  * sidebar collections onto the widget Page DTOs.
  *
  * @see FWKBlogTagController
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers\Blog
  */
 class TagController extends FWKBlogTagController {
     use MagicfrontTrait;

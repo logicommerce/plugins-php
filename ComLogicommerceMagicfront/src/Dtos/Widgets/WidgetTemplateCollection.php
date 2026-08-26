@@ -11,6 +11,8 @@ use SDK\Core\Dtos\ElementCollection;
  * arrays via ElementTrait, so the shared chrome schema is a typed object, not a bare array.
  *
  * @method WidgetTemplate[] getItems()
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Widgets
  */
 class WidgetTemplateCollection extends ElementCollection {
 
@@ -18,7 +20,7 @@ class WidgetTemplateCollection extends ElementCollection {
         $this->items = $this->setArrayField($items, WidgetTemplate::class);
     }
 
-    /** @return array<string, WidgetTemplate> keyed by template id (== widget type) */
+    /** @return array keyed by template id (== widget type) */
     public function byId(): array {
         $byId = [];
         foreach ($this->getItems() as $template) {

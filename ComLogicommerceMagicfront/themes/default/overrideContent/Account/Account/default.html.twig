@@ -1,0 +1,9 @@
+{#- Account route (RouteType::ACCOUNT, usedAccountPath=true) — MagicFront flow: render the
+    mff_USER_AREA widget blob via the shared page-content template, like Home/Product/Category.
+    Its presence is what makes TwigLoader use the MagicFront body instead of the native
+    Content/Account/Account default. getPath('ACCOUNT') = 'Account\Account'.
+
+    Passthrough only: block content is inherited from mff-page-content (widgetMacros.widgets). All
+    account output is produced THROUGH widgets, each self-contained (own templateCss). No render
+    logic and no extra stylesheet here. -#}
+{%- extends 'overrideContent/_shared/mff-page-content.html.twig' -%}

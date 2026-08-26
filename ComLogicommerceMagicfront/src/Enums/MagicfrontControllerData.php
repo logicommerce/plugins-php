@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
+use SDK\Core\Enums\Enum;
+
 /**
  * Twig data keys MagicFront exposes to templates.
  *
@@ -13,8 +15,10 @@ namespace Plugins\ComLogicommerceMagicfront\Enums;
  *
  * Naming follows fwk's `FWK\Enums\ControllerData` pattern: PascalCase constant,
  * camelCase value.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Enums
  */
-abstract class MagicfrontControllerData {
+abstract class MagicfrontControllerData extends Enum {
 
     public const PAGE                 = 'page';
 
@@ -26,7 +30,12 @@ abstract class MagicfrontControllerData {
     public const PAGE_CHROME          = 'pageChrome';
 
     public const WIDGET_TEMPLATE_LIST = 'widgetTemplateList';
+
     public const WIDGET_TYPES         = 'widgetTypes';
+
+    /** Page-level shared-data container passed to every widget as `shared` (data FWK globals lack:
+     *  countries/countryNames/locationData/companyRoles/customTags). Assembled by the providers. */
+    public const SHARED               = 'mffShared';
 
     public const ASSETS_URL      = 'mffAssetsUrl';
     public const CANVAS_MODE     = 'mffCanvasMode';
@@ -60,6 +69,7 @@ abstract class MagicfrontControllerData {
     public const MOBILE_MENU_PANEL_JS            = 'mffMobileMenuPanelJs';
 
     /** Globals emitted by {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder::toGlobals()}. */
+    public const CONTEXT_CANVAS_MODE  = 'canvasMode';
     public const CONTEXT_PREVIEW_MODE = 'previewMode';
     public const CONTEXT_CORE_MODE    = 'coreMode';
 }

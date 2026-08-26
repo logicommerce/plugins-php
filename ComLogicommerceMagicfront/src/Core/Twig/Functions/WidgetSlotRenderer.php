@@ -11,8 +11,10 @@ use Twig\Environment;
  * Render-time helper behind `mff_widget_slot()`. Two shapes:
  *  - renderSlotContainer(): bare/columns — sortable drop zone.
  *  - renderAsWidget(): parametric/fixed-slot — single widget block.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Twig\Functions
  */
-final class WidgetSlotRenderer {
+class WidgetSlotRenderer {
 
     /** Placeholder rendered for empty slots in preview mode (docker / AI tooling). */
     private const EMPTY_PREVIEW_HTML = '<div style="padding:16px;border:1px dashed #bbb;color:#999;font:12px/1 monospace;text-align:center;background:#f9f9f9;min-height:80px;display:flex;align-items:center;justify-content:center">slot content</div>';
@@ -78,11 +80,12 @@ final class WidgetSlotRenderer {
     private static function renderViaMacro(Environment $env, array $context, array $pages): string {
         return $env->createTemplate(
             "{% import 'macros/widget.twig' as __mffSlotMacros %}"
-            . '{{ __mffSlotMacros.widgets({pages: pages, version: version, widgetTemplateList: widgetTemplateList, permission: permission}) }}'
+            . '{{ __mffSlotMacros.widgets({pages: pages, version: version, widgetTemplateList: widgetTemplateList, shared: shared, permission: permission}) }}'
         )->render([
             'pages'              => $pages,
             'version'            => $context['version'] ?? '',
             MagicfrontControllerData::WIDGET_TEMPLATE_LIST => $context[MagicfrontControllerData::WIDGET_TEMPLATE_LIST] ?? [],
+            'shared'             => $context['shared'] ?? [],
             'permission'         => $context['permission'] ?? null,
         ]);
     }

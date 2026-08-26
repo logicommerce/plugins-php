@@ -13,6 +13,7 @@ use FWK\Enums\Services;
 use FWK\Services\CategoryService;
 use FWK\Services\ProductService;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Catalog\Category;
@@ -49,6 +50,8 @@ use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
  * @see FWKCategoryController
  * @see \Plugins\ComLogicommerceMagicfront\Controllers\Product\ProductController
  * @see \Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver::attachCategory()
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers
  */
 class CategoryController extends FWKCategoryController {
     use MagicfrontTrait;
@@ -85,7 +88,7 @@ class CategoryController extends FWKCategoryController {
         if ($perPage !== null) {
             $productParams->setPerPage($perPage);
         }
-        if (!$this->editorMode) {
+        if (!RenderMode::isPreviewMode()) {
             $this->applyFilterParams($productParams);
         }
         $this->productService->addGetProducts($requests, self::KEY_PRODUCTS, $productParams);

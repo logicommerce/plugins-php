@@ -14,6 +14,8 @@ use SDK\Core\Dtos\Element;
  * listed in DesignConfig for that pair are emitted.
  *
  * URL: .../plugin_route/com.logicommerce.magicfront?type=customizeDesignCSS&page=category&design=design189
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
  */
 class CustomizeDesignStyleHandler implements PluginRouteHandlerInterface {
 

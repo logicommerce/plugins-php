@@ -9,6 +9,8 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Twig\Transformers;
  * element inside `{% for ... in page.subpages %}` loops, so the canvas can
  * pinpoint which child the user clicked. The id expression covers both
  * plugin (FWK Page: draftId) and preview (raw array: id) shapes.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Twig\Transformers
  */
 class ChildIndexInjector {
 

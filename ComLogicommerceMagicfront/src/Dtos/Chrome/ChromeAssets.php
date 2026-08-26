@@ -19,11 +19,13 @@ use SDK\Core\Dtos\ElementCollection;
  * list → assets), shared by both sources: the dcsapi editor path and the LC FOB blob path.
  *
  * Runtime-only (uses SDK + FWK-adjacent services); never referenced by the docker PHAR renderer.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Chrome
  */
-final class ChromeAssets {
+class ChromeAssets {
 
     /**
-     * @param array<string, string> $templateList type => templateHtml
+     * @param array $templateList type => templateHtml
      */
     public function __construct(
         public readonly ?ElementCollection $pages,
@@ -42,7 +44,7 @@ final class ChromeAssets {
      * them (the shared schema, or a dcsapi type→template map). Only templates for types actually
      * present are kept.
      *
-     * @param array<string, WidgetTemplate> $templates
+     * @param array $templates
      */
     public static function fromWidgets(?ElementCollection $widgets, array $templates): self {
         $widgetRoots = $widgets?->getItems() ?? [];
@@ -54,9 +56,10 @@ final class ChromeAssets {
         $flatWidgets = WidgetTypeCollector::flatten($widgetRoots);
 
         $templateList = [];
-        foreach (WidgetTypeCollector::fromWidgets($flatWidgets) as $type) {
-            if (isset($templates[$type])) {
-                $templateList[$type] = $templates[$type]->getTemplateHtml();
+        foreach (WidgetTypeCollector::templateKeysFromWidgets($flatWidgets) as $type) {
+            $template = WidgetTypeCollector::resolveByKey($templates, $type);
+            if ($template !== null) {
+                $templateList[$type] = $template->getTemplateHtml();
             }
         }
 

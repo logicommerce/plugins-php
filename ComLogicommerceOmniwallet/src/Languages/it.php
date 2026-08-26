@@ -13,5 +13,7 @@ return [
     LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_ACCOUNT_DATA => "Omniwallet - Dati del conto",
     LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_NAME => "Nome: ",
     LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_EMAIL => "Email: ",
-    LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_CARD_NUMBER => "NNumero di carta: "
+    LanguageLabels::COM_LOGICOMMERCE_OMNIWALLET_CARD_NUMBER => "Numero di carta: ",
+    LanguageLabels::COM_LOGICOMMERCE_MAX_POINTS_TO_REDEEM => "Il massimo di {{CURRENCY}} utilizzabile in un acquisto è: {{MAX_REDEEM}} {{CURRENCY_ABBREVIATION}}.",
+    LanguageLabels::COM_LOGICOMMERCE_MIN_IMPORT_PURCHASE => "Importo minimo d'acquisto {{MIN_IMPORT_PURCHASE}}."
 ];

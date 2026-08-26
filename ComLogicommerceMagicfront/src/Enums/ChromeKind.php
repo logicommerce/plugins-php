@@ -9,6 +9,8 @@ namespace Plugins\ComLogicommerceMagicfront\Enums;
  * content key (`content.header` / `content.footer`) and the dcsapi kind token, so callers use
  * $kind->value everywhere a raw string is needed. Each case also maps to its Twig global keys,
  * keeping that wiring in one place instead of threading four string arguments through the render.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Enums
  */
 enum ChromeKind: string {
 

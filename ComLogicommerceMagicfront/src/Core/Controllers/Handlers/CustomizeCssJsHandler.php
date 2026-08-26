@@ -26,6 +26,8 @@ use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
  * No server-side caching: every request runs the full pipeline (dcsapi
  * fetch + generators). Emits `Cache-Control: no-store` so the canvas always
  * sees the just-edited state.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
  */
 class CustomizeCssJsHandler extends AbstractCustomizeHandler {
 
@@ -61,7 +63,7 @@ class CustomizeCssJsHandler extends AbstractCustomizeHandler {
     }
 
     /**
-     * @return array{css: string, js: string}
+     * @return array
      */
     private function buildOutput(string $pageId, string $language): array {
         $widgets     = $this->getPageWidgets($pageId, $language);
@@ -77,7 +79,7 @@ class CustomizeCssJsHandler extends AbstractCustomizeHandler {
     }
 
     /**
-     * @return array{css: string, js: string}
+     * @return array
      */
     private function emptyData(): array {
         return [

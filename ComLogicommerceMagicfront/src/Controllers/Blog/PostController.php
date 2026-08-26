@@ -21,6 +21,8 @@ use SDK\Dtos\Common\Route;
  * page.blogComments.
  *
  * @see FWKBlogPostController
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers\Blog
  */
 class PostController extends FWKBlogPostController {
     use MagicfrontTrait;

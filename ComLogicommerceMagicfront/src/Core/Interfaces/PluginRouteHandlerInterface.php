@@ -7,6 +7,9 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Interfaces;
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use SDK\Core\Dtos\Element;
 
+/**
+ * @package Plugins\ComLogicommerceMagicfront\Core\Interfaces
+ */
 interface PluginRouteHandlerInterface {
 
     public function supports(string $type): bool;

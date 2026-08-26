@@ -16,7 +16,8 @@
         {{ widgetMacros.widgets({
             pages: pages|default(null),
             version: version,
-            widgetTemplateList: widgetTemplateList|default([])
+            widgetTemplateList: widgetTemplateList|default([]),
+            shared: mffShared|default({})
         }) }}
     </div>
 {%- endblock content -%} 

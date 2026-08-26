@@ -142,6 +142,22 @@ class PageRelationResolver {
         }
     }
 
+    public static function attachAccount(?ElementCollection $pages, array $account): void {
+        if ($pages === null || empty($account)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setAccount($account);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachAccount(new ElementCollection(['items' => $subItems]), $account);
+            }
+        }
+    }
+
     public static function attachBundleLabels(?ElementCollection $pages, array $bundleLabels): void {
         if ($pages === null || empty($bundleLabels)) {
             return;
@@ -206,6 +222,32 @@ class PageRelationResolver {
         }
     }
 
+    /**
+     * Attach account-widget data onto EVERY widget page (recursively into subpages) by calling the given
+     * Page setters. The single generic path behind every account data widget — {@see DataWidgetRegistry}
+     * builds the `setterName => value` map per widget type (e.g. orders → setOrders + setOrdersPagination),
+     * so the full-page render and the `widgetContent` AJAX endpoint share one recursion.
+     *
+     * @param array $assignments setterName => value to apply on each page
+     */
+    public static function attachWidgetData(?ElementCollection $pages, array $assignments): void {
+        if ($pages === null) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            foreach ($assignments as $setter => $value) {
+                $page->$setter($value);
+            }
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachWidgetData(new ElementCollection(['items' => $subItems]), $assignments);
+            }
+        }
+    }
+
     public static function attachComments(?ElementCollection $pages, array $comments): void {
         if ($pages === null || empty($comments)) {
             return;
@@ -228,7 +270,7 @@ class PageRelationResolver {
      * block by pId (LogiCommerce: positionList name) and keys the map by that pId. Lets several
      * productList instances on one page each render a different block via their `relatedId` setting.
      *
-     * @param array<string, mixed> $productRelated
+     * @param array $productRelated
      */
     public static function attachProductRelated(?ElementCollection $pages, array $productRelated): void {
         if ($pages === null || $productRelated === []) {

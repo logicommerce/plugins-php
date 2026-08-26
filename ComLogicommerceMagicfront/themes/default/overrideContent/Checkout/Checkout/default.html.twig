@@ -1,0 +1,10 @@
+{#- Checkout route (RouteType::CHECKOUT) — MagicFront flow: render the mff_CHECKOUT widget blob
+    (the onePageCheckout template) via the shared page-content template, like Home/Product/Account.
+    Its presence is what makes TwigLoader use the MagicFront body instead of the native
+    Content/Checkout/Checkout default. getPath('CHECKOUT') = 'Checkout\Checkout'.
+
+    Passthrough only: block content is inherited from mff-page-content (widgetMacros.widgets). The
+    onePageCheckout widget is a store-faithful replica whose runtime regions are rewritten back into
+    the platform's OSC hooks by CheckoutController::transformWidgetTemplates on the storefront, so
+    lc.oneStepCheckout.js drives it. No render logic and no extra stylesheet here. -#}
+{%- extends 'overrideContent/_shared/mff-page-content.html.twig' -%}

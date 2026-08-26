@@ -23,6 +23,8 @@ use SDK\Core\Dtos\Traits\ElementTrait;
  *
  * Blob shape: { "content": { "header": [...], "footer": [...] }, "schema": [ ... ] }.
  * Runtime-only (SDK DTOs); never referenced by the docker PHAR renderer.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Chrome
  */
 class ChromeDocument extends Element {
     use ElementTrait;
@@ -68,7 +70,7 @@ class ChromeDocument extends Element {
         return $this->content?->widgetsFor($kind);
     }
 
-    /** @return array<string, WidgetTemplate> keyed by template id (== widget type) */
+    /** @return array keyed by template id (== widget type) */
     public function templatesById(): array {
         return $this->schema?->byId() ?? [];
     }

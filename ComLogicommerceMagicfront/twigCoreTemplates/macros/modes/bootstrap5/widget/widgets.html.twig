@@ -14,6 +14,7 @@
   {% if args.pages is defined %}
     {% for page in args.pages %}
       {% set type = page.customType|default('') %}
+      {% set lookupKey = page.templateKey|default(type) %}
       {# draftId for plugin Page, pId for SDK Page (subpages) #}
       {% set widgetDraftId = page.draftId|default(page.pId)|default('') %}
       {% set widgetInstanceId = (page.id == 0 ? widgetDraftId : page.id) %}
@@ -28,7 +29,7 @@
         slotId: slotId
       } %}
 
-      {% set twigCode = args.widgetTemplateList[type] %}
+      {% set twigCode = args.widgetTemplateList[lookupKey]|default(args.widgetTemplateList[type]) %}
       {% if twigCode is not empty %}
         <div class="mff-widget" data-widget-id="{{ widgetInstanceId }}"
           {%- if slotId %} data-mff-widget-root="1" data-mff-slot-id="{{ slotId }}"{% endif %}
@@ -46,6 +47,7 @@
               widgetId: widgetInstanceId,
               version: args.version,
               widgetTemplateList: args.widgetTemplateList|default({}),
+              shared: args.shared|default({}),
               permission: permission,
           } %}
           <!-- MFF_WIDGET_END -->

@@ -17,6 +17,8 @@ use SDK\Services\Parameters\Groups\Blog\BlogPostParametersGroup;
  * sidebar collections onto the widget Page DTOs.
  *
  * @see FWKBlogHomeController
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers\Blog
  */
 class HomeController extends FWKBlogHomeController {
     use MagicfrontTrait;

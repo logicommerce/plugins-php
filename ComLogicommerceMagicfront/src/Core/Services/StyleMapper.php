@@ -15,6 +15,8 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Services;
  * unit and combines the multi-part SHADOW.* group into a single box-shadow
  * declaration. Legacy SPACING.* / BORDER.* prefixes are intentionally not
  * handled — no widget in the catalog uses them.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Services
  */
 class StyleMapper {
 
@@ -25,7 +27,7 @@ class StyleMapper {
      *
      * @param  array                    $styleValues    Array of styleValue objects from the API
      * @param  string                   $elementId      Element identifier (e.g. "title", "root")
-     * @param  array<string,string>|null $cssPropertyMap styleId → cssProperty from the template
+     * @param  array|NULL $cssPropertyMap styleId → cssProperty from the template
      * @return array  Associative array of CSS property => value
      */
     public static function generateCssDeclarations(

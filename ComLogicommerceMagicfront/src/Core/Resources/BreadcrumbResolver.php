@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 
 use FWK\Core\Resources\Loader;
+use FWK\Enums\LanguageLabels;
 use FWK\Enums\Services;
 use FWK\ViewHelpers\Util\Macro\Breadcrumb as BreadcrumbViewHelper;
 use SDK\Dtos\Catalog\Page\Page;
@@ -44,11 +45,11 @@ class BreadcrumbResolver {
     }
 
     /**
-     * @return array<int, array{label: string, url: string}>
+     * @return array
      */
     private static function routeTrail(Route $route): array {
         $params = (new BreadcrumbViewHelper([
-            'data'     => $route->getBreadcrumb(),
+            'data'     => self::resolvableCrumbs($route->getBreadcrumb()),
             'showHome' => true,
             'showArea' => false,
         ]))->getViewParameters();
@@ -69,7 +70,7 @@ class BreadcrumbResolver {
      * The page's ancestor crumbs (root-most first, direct parent last), walked via the blob's
      * `content.parentId` at each level.
      *
-     * @return array<int, array{label: string, url: string}>
+     * @return array
      */
     private static function subpageParents(Page $page): array {
         $chain    = [];
@@ -94,5 +95,25 @@ class BreadcrumbResolver {
     private static function blobParentId(Page $page): int {
         $blob = json_decode((string) ($page->getLanguage()?->getPageContent() ?? ''), true);
         return is_array($blob) ? (int) ($blob['content']['parentId'] ?? 0) : 0;
+    }
+
+    /**
+     * Drop crumbs whose `{{wildcard}}` name has no matching `FWK\Enums\LanguageLabels::BREADCRUMB_<WILDCARD>`
+     * constant. The FWK breadcrumb view-helper resolves those wildcards by reflecting that constant WITHOUT
+     * an existence check, so an unmapped route type (e.g. ACCOUNT → BREADCRUMB_ACCOUNT, which is missing)
+     * would throw and fatal (502) inside emitMagicfrontData. Pre-filtering avoids the throw entirely while
+     * leaving every resolvable crumb untouched — no broad exception swallowing.
+     *
+     * @param  mixed[] $crumbs
+     * @return mixed[]
+     */
+    private static function resolvableCrumbs(array $crumbs): array {
+        return array_values(array_filter($crumbs, static function ($crumb): bool {
+            $name = is_object($crumb) && method_exists($crumb, 'getName') ? (string) $crumb->getName() : '';
+            if (!preg_match('/^{{(.*)}}$/', $name, $matches)) {
+                return true;
+            }
+            return defined(LanguageLabels::class . '::BREADCRUMB_' . strtoupper($matches[1]));
+        }));
     }
 }

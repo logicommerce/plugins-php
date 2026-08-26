@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
+use SDK\Core\Enums\Enum;
+
 /**
  * Bridge between BO `availablepages` values and FWK RouteTypes.
  * Header/footer overlays live in separate `useHeader`/`useFooter` properties.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Enums
  */
-abstract class AvailablePagesValue {
+abstract class AvailablePagesValue extends Enum {
 
     public const HOME = 'HOME_MODULE';
 
@@ -17,6 +21,12 @@ abstract class AvailablePagesValue {
     public const CATEGORY = 'CATEGORY_MODULE';
 
     public const PRODUCT = 'PRODUCT_MODULE';
+
+    public const ACCOUNT = 'ACCOUNT_MODULE';
+
+    public const BASKET = 'BASKET_MODULE';
+
+    public const CHECKOUT = 'CHECKOUT_MODULE';
 
     public const BLOG_HOME = 'BLOG_HOME_MODULE';
 
@@ -35,6 +45,9 @@ abstract class AvailablePagesValue {
         self::PAGE => 'PAGE',
         self::CATEGORY => 'CATEGORY',
         self::PRODUCT => 'PRODUCT',
+        self::ACCOUNT => 'ACCOUNT',
+        self::BASKET => 'BASKET',
+        self::CHECKOUT => 'CHECKOUT',
         self::BLOG_HOME => 'BLOG_HOME',
         self::BLOG_CATEGORY => 'BLOG_CATEGORY',
         self::BLOG_POST => 'BLOG_POST',

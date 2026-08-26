@@ -6,8 +6,9 @@ namespace Plugins\ComLogicommerceMagicfront\Dtos\Common;
 
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
+use FWK\Enums\RouteType;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
+use Plugins\ComLogicommerceMagicfront\Enums\AccountRedirectRoutes;
 use Plugins\ComLogicommerceMagicfront\Enums\AvailablePagesValue;
 use Plugins\ComLogicommerceMagicfront\Enums\PluginPropertiesPropertyNames;
 use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
@@ -17,10 +18,13 @@ use SDK\Core\Dtos\Traits\ElementTrait;
 use SDK\Dtos\Catalog\Page\Page;
 use SDK\Services\Parameters\Groups\PageParametersGroup;
 
+/**
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Common
+ */
 class PluginProperties extends CorePluginProperties {
     use ElementTrait;
 
-    /** @var array<string, bool> per-request existence memo, keyed by pId */
+    /** @var array per-request existence memo, keyed by pId */
     private array $specialPageExistsCache = [];
 
     protected array $properties = [];
@@ -35,21 +39,37 @@ class PluginProperties extends CorePluginProperties {
 
     /** Layout/chrome routes — broad: any chrome toggle on → all routes. */
     public function getAvailablePages(): array {
-        if ($this->isPreviewRequest() || $this->isHeaderOverlayEnabled() || $this->isFooterOverlayEnabled()) {
+        if (RenderMode::isPreviewMode() || $this->isHeaderOverlayEnabled() || $this->isFooterOverlayEnabled()) {
             return $this->allRouteTypes();
         }
-        return $this->routesFromAvailablepages();
+        return $this->withAccountRedirects($this->routesFromAvailablepages());
     }
 
     /** Controller takeover routes — strict: only BO `availablepages` (chrome toggles don't broaden). */
     public function getControllerOverridePages(): array {
-        if ($this->isPreviewRequest()) {
+        if (RenderMode::isPreviewMode()) {
             return $this->allRouteTypes();
         }
-        return array_values(array_filter(
+        return $this->withAccountRedirects(array_values(array_filter(
             $this->routesFromAvailablepages(),
             fn(string $routeType): bool => $this->specialPagePublished($routeType)
-        ));
+        )));
+    }
+
+    /**
+     * When ACCOUNT is being taken over (present in $routes — i.e. enabled and, for the strict gate,
+     * published), the native account/user sub-routes are folded into /accounts/used, so append them
+     * (see {@see \Plugins\ComLogicommerceMagicfront\Core\Controllers\AccountRedirectController}). If the
+     * merchant disables account, ACCOUNT is absent and nothing is appended.
+     *
+     * @param string[] $routes
+     * @return string[]
+     */
+    private function withAccountRedirects(array $routes): array {
+        if (in_array(RouteType::ACCOUNT, $routes, true)) {
+            $routes = array_merge($routes, AccountRedirectRoutes::types());
+        }
+        return array_values(array_unique($routes));
     }
 
     /**
@@ -125,10 +145,5 @@ class PluginProperties extends CorePluginProperties {
             }
         }
         return false;
-    }
-
-    /** Editor preview unlock: canvas iframe or mfToken URL param. */
-    private function isPreviewRequest(): bool {
-        return MagicfrontUtils::isCanvasMode() || !empty($_GET[MagicfrontToken::MF_TOKEN]);
     }
 }

@@ -64,7 +64,7 @@ trait CssGeneratorTrait {
      * a 48px padding on a button inside an imageTextSplit.
      *
      * @param  WidgetTemplate[] $templates
-     * @return array<string, true>
+     * @return array
      */
     private function collectSlotTypes(array $templates): array {
         $slotTypes = [];
@@ -94,8 +94,8 @@ trait CssGeneratorTrait {
 
     /**
      * @param WidgetInstance[]      $widgets
-     * @param array<string,string>  $cssPropertyMap  styleId → cssProperty across all templates.
-     * @param array<string,true>    $slotTypes       Types whose template has a `childStructure`.
+     * @param array  $cssPropertyMap  styleId → cssProperty across all templates.
+     * @param array    $slotTypes       Types whose template has a `childStructure`.
      */
     private function generateInstanceCss(array $widgets, array $styleElementMap, array $cssPropertyMap, array $slotTypes): string {
         // Desktop canonical rules always emit. Tablet / mobile blocks emit only
@@ -123,12 +123,12 @@ trait CssGeneratorTrait {
     }
 
     /**
-     * @param  string|null $breakpoint null = desktop canonical; 'tablet'/'mobile' = sibling override projection.
+     * @param  string|NULL $breakpoint null = desktop canonical; 'tablet'/'mobile' = sibling override projection.
      * @return string[] CSS blocks for a single widget (one per element-id × descendantSelector group).
      */
     private function instanceCssFor(WidgetInstance $widget, array $styleElementMap, array $cssPropertyMap, array $slotTypes, ?string $breakpoint = null): array {
-        $type        = $widget->getType();
-        $typeMap     = $styleElementMap[$type] ?? [];
+        $type        = $widget->templateKey();
+        $typeMap     = WidgetTypeCollector::resolveByKey($styleElementMap, $type) ?? [];
         $styleValues = $this->resolveStyleValues($widget, $typeMap);
         if ($styleValues === []) {
             return [];
@@ -165,7 +165,7 @@ trait CssGeneratorTrait {
      * `InstanceCssBuilder::extractBreakpoint` so both renderers emit the same
      * media-query CSS for the same DTO.
      *
-     * @return array<int, array<string,mixed>>
+     * @return array
      */
     private function extractBreakpoint(array $styleValues, string $breakpoint): array {
         $out = [];
@@ -226,13 +226,13 @@ trait CssGeneratorTrait {
      * inside a column slot — always render their own `.mff-widget` wrapper,
      * so their own widgetId is a sufficient scope.
      *
-     * @param  array<string,true> $slotTypes
-     * @return array{0:string, 1:?int, 2:bool}  [scopeWidgetId, childIndex, hasSlot]
+     * @param  array $slotTypes
+     * @return array  [scopeWidgetId, childIndex, hasSlot]
      */
     private function resolveWidgetScope(WidgetInstance $widget, array $slotTypes): array {
         $widgetId       = $widget->getId();
         $parentId       = $widget->getParentId();
-        $type           = $widget->getType();
+        $type           = $widget->templateKey();
         // A slot-template here means "no own .mff-widget wrapper" — either
         // the API left type empty, or the widget is a childStructure pseudo
         // (auto-generated, no typed slot; rendered inline by the parent).
@@ -246,7 +246,7 @@ trait CssGeneratorTrait {
         // Slot-templates inherit slot status from their parent (which is always a
         // container). Real widgets are slot containers only when their own
         // template declares childStructure.
-        $hasSlot    = $isSlotTemplate || isset($slotTypes[$type]);
+        $hasSlot    = $isSlotTemplate || WidgetTypeCollector::resolveByKey($slotTypes, $type) !== null;
 
         return [$scopeId, $childIndex, $hasSlot];
     }
@@ -255,7 +255,7 @@ trait CssGeneratorTrait {
      * Group style-value entries by their elementId. Entries without an
      * elementId are dropped (they cannot be scoped to an element selector).
      *
-     * @return array<string, array<int, array>>
+     * @return array
      */
     private function groupStylesByElement(array $styleValues): array {
         $byElement = [];
@@ -275,7 +275,7 @@ trait CssGeneratorTrait {
      * onto each instance by StyleValueArranger at seed / upsert time. Matches
      * preview's InstanceCssBuilder::renderForBreakpoint grouping.
      *
-     * @return array<string, array{elementId:string, descendantSelector:string, styles:array}>
+     * @return array
      */
     private function groupStylesByElementAndDescendant(array $styleValues): array {
         $groups = [];
@@ -305,7 +305,7 @@ trait CssGeneratorTrait {
      * emitted before CSS custom properties so the declaration order mirrors
      * what authors expect when reading the output.
      *
-     * @param array<string,string> $declarations
+     * @param array $declarations
      */
     private function renderCssBlock(string $selector, array $declarations): string {
         $direct = [];
@@ -327,7 +327,7 @@ trait CssGeneratorTrait {
      * Used to resolve missing elementId fields on style values.
      *
      * @param  WidgetTemplate[] $templates
-     * @return array<string, array<string, string>> type => [propertyId => elementId]
+     * @return array type => [propertyId => elementId]
      */
     private function buildStyleElementMap(array $templates): array {
         $map = [];
@@ -356,7 +356,7 @@ trait CssGeneratorTrait {
      * Parse template style definitions into a styleId → elementId map.
      *
      * @param  WidgetTemplateStyle[] $styles
-     * @return array<string, string>
+     * @return array
      */
     private function parseStyleDefinitions(array $styles): array {
         $map = [];
@@ -378,7 +378,7 @@ trait CssGeneratorTrait {
      * styleId === cssProperty continue to render unchanged.
      *
      * @param  WidgetTemplate[] $templates
-     * @return array<string, string>
+     * @return array
      */
     private function buildStyleCssPropertyMap(array $templates): array {
         $map = [];
@@ -394,7 +394,7 @@ trait CssGeneratorTrait {
 
     /**
      * @param WidgetTemplateStyle[]  $styles
-     * @param array<string, string> &$target
+     * @param array &$target
      */
     private function collectCssProperties(array $styles, array &$target): void {
         foreach ($styles as $style) {

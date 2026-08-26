@@ -39,6 +39,8 @@ use SDK\Dtos\Common\Route;
  * @see FWKProductController
  * @see \Plugins\ComLogicommerceMagicfront\Controllers\HomeController
  * @see \Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver::attachProduct()
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers\Product
  */
 class ProductController extends FWKProductController {
     use MagicfrontTrait;

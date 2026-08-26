@@ -10,6 +10,7 @@ use FWK\Enums\Services;
 use FWK\Twig\PluginTwigInitializer;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Dtos\Chrome\ChromeAssets;
 use Plugins\ComLogicommerceMagicfront\Dtos\Chrome\ChromeDocument;
@@ -32,13 +33,12 @@ use Twig\Environment;
  *   - storefront → the page's OWN embedded chrome (its controllerItem blob's content.header /
  *     content.footer) when present, else the generic mff_CHROME page fetched via the LC FOB.
  * Absent chrome → empty ChromeAssets → the theme renders its own header/footer (parent()).
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Twig
  */
-final class TwigInitializer implements PluginTwigInitializer {
+class TwigInitializer implements PluginTwigInitializer {
 
     private const PLUGIN_MODULE = 'com.logicommerce.magicfront';
-
-    /** Twig global: true in canvas preview → the layout renders both chrome variants per region. */
-    private const CANVAS_CHROME_GLOBAL = 'mffCanvasChrome';
 
     /** Twig globals: which chrome starts live per region in canvas preview ('1' = ours, '0' = store). */
     private const HEADER_MFF_GLOBAL = 'mffHeader';
@@ -68,28 +68,40 @@ final class TwigInitializer implements PluginTwigInitializer {
         string $routeType,
         array $controllerData
     ): ?string {
-        $ctx = ContextBuilder::fromSession();
+        $contentOnly = MagicfrontUtils::isContentOnlyRequest();
+        // Blob pId of the page being rendered: singleton routes map to their stable mff_* pId, others to
+        // the numeric page id. Exposed to widgets as the `mff_pagePId` global (see ContextBuilder) so a
+        // widget's AJAX can address its own blob without depending on the request Referer.
+        $pagePId = SpecialPagePId::forRouteType($routeType)
+            ?? (string) ($controllerData[MagicfrontControllerData::PAGE] ?? '');
+        $ctx = ContextBuilder::fromSession(!$contentOnly, $pagePId);
         PluginTwigBootstrap::apply($main, $ctx);
         PluginTwigBootstrap::applyLazyFunctions($core, $ctx);
+
+        // Content-only partial render (userPanel tab swap): emit ONLY the page widget body via a
+        // bare layout — no chrome fetch/emit, no category nav. Widget CSS is already in the document
+        // from the initial full load, so the AJAX response needs the HTML alone.
+        if ($contentOnly) {
+            return 'layouts/mff-content-only.html.twig';
+        }
 
         $properties = self::pluginProperties();
         // Canvas preview renders BOTH chrome variants per region (our widgets + the store's own) so
         // the editor toolbar can swap them in place with no reload — see magicfront.html.twig. In
         // canvas we prepare our chrome for both regions regardless of the BO toggle; production
         // (real visitors) stays gated by the BO toggle alone and only ever renders one variant.
-        $canvasChrome = MagicfrontUtils::isCanvasMode() && MagicfrontToken::getToken() !== null;
+        $canvasMode = RenderMode::isCanvasMode();
         $boHeader = $properties !== null && $properties->isHeaderOverlayEnabled();
         $boFooter = $properties !== null && $properties->isFooterOverlayEnabled();
         // Canvas swaps both variants live via the bridge; the standalone preview tab (token but not
         // an iframe) has no toolbar/bridge, so it honours the toggle choice carried as ?mffHeader/
         // ?mffFooter. Production (no token) ignores the params → BO toggle alone.
         // Production gate: our chrome overrides only when the mff_CHROME page is published; until then
-        // producción keeps the commerce's own header/footer. The editor (canvasChrome / preview token)
+        // producción keeps the commerce's own header/footer. The editor (canvasMode / preview token)
         // is never gated so chrome can be authored before publish.
-        $chromePublished = $canvasChrome || ($properties !== null && $properties->pageExists(SpecialPagePId::CHROME));
-        $headerOn = $canvasChrome || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader));
-        $footerOn = $canvasChrome || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter));
-        $main->addGlobal(self::CANVAS_CHROME_GLOBAL, $canvasChrome);
+        $chromePublished = $canvasMode || ($properties !== null && $properties->pageExists(SpecialPagePId::CHROME));
+        $headerOn = $canvasMode || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader));
+        $footerOn = $canvasMode || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter));
         // Which variant starts LIVE in canvas per region — '1' = our chrome, '0' = the store's own.
         // Our chrome when the BO toggle is on (an active plugin defaults MagicFront to our chrome).
         $main->addGlobal(self::HEADER_MFF_GLOBAL, $boHeader ? '1' : '0');
@@ -119,7 +131,7 @@ final class TwigInitializer implements PluginTwigInitializer {
             $pageChrome = [];
         }
 
-        $editor = self::isEditorRequest();
+        $editor = RenderMode::isPreviewMode();
         $pageChromeBlob = $editor ? null : self::pageChromeBlob($controllerData);
 
         foreach ($kinds as $kind) {
@@ -217,7 +229,7 @@ final class TwigInitializer implements PluginTwigInitializer {
      * generic mff_CHROME per kind. Null for non-blob pages (e.g. commerce category / product,
      * whose controllerItem is a Category / Product DTO, not a Page).
      *
-     * @param array<string, mixed> $controllerData
+     * @param array $controllerData
      */
     private static function pageChromeBlob(array $controllerData): ?ChromeDocument {
         $page = $controllerData[Controller::CONTROLLER_ITEM] ?? null;
@@ -265,14 +277,6 @@ final class TwigInitializer implements PluginTwigInitializer {
             return null;
         }
         return ChromeDocument::fromJson($page->getLanguage()?->getPageContent());
-    }
-
-    /**
-     * Editor request signal — canvas iframe or a non-empty mfToken URL param. Same test as
-     * PluginProperties::isPreviewRequest and MagicfrontTrait's editorMode.
-     */
-    private static function isEditorRequest(): bool {
-        return MagicfrontUtils::isCanvasMode() || !empty($_GET[MagicfrontToken::MF_TOKEN]);
     }
 
     /**

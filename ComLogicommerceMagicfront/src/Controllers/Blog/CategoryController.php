@@ -20,6 +20,8 @@ use SDK\Services\Parameters\Groups\Blog\BlogPostParametersGroup;
  * page.blogCategories / page.blogTags.
  *
  * @see FWKBlogCategoryController
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Controllers\Blog
  */
 class CategoryController extends FWKBlogCategoryController {
     use MagicfrontTrait;

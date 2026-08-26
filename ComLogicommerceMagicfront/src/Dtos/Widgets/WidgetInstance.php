@@ -35,6 +35,9 @@ class WidgetInstance extends Element {
 
     protected string $widgetTemplateId = '';
 
+    /** Anchored version wire key (`familia@N`); null → {@see templateKey()} falls back to family. */
+    protected ?string $widgetTemplateVersionId = null;
+
     /**
      * Internal alias — mirrors `widgetTemplateId` when the API omits a separate
      * `type` field, so rendering code can always call getType() uniformly.
@@ -105,6 +108,18 @@ class WidgetInstance extends Element {
      */
     public function getWidgetTemplateId(): string {
         return $this->widgetTemplateId;
+    }
+
+    public function getWidgetTemplateVersionId(): ?string {
+        return $this->widgetTemplateVersionId;
+    }
+
+    /** Template lookup key: version wire key if anchored, else family. */
+    public function templateKey(): string {
+        if ($this->widgetTemplateVersionId !== null && $this->widgetTemplateVersionId !== '') {
+            return $this->widgetTemplateVersionId;
+        }
+        return $this->widgetTemplateId !== '' ? $this->widgetTemplateId : $this->type;
     }
 
     /**
@@ -196,6 +211,10 @@ class WidgetInstance extends Element {
         if ($this->type === '') {
             $this->type = $id;
         }
+    }
+
+    protected function setWidgetTemplateVersionId(?string $versionId): void {
+        $this->widgetTemplateVersionId = $versionId;
     }
 
     protected function setChildren(array $children): void {

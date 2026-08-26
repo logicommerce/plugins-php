@@ -14,7 +14,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssJsHa
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignStyleHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignScriptHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
-use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\SubpageContentHandler;
+use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\WidgetContentHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
 use SDK\Core\Dtos\Element;
 use SDK\Core\Resources\BatchRequests;
@@ -48,7 +48,7 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             new CustomizeDesignStyleHandler(),
             new CustomizeDesignScriptHandler(),
             new CustomizeCssJsHandler(),
-            new SubpageContentHandler(),
+            new WidgetContentHandler(),
             new GetWidgetHandler(),
         ];
     }
@@ -69,9 +69,14 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
         $noMod = [FilterInput::CONFIGURATION_FILTER_KEY_ENABLE_MODIFICATION => false];
         return [
             Parameters::WIDGET_ID => new FilterInput($noMod),
+            // pId: the blob the widget lives in, sent by widgetContent AJAX so the endpoint works even
+            // when the request Referer is missing/stripped and on any page (not just the account area).
+            Parameters::P_ID      => new FilterInput($noMod),
             Parameters::PAGE      => new FilterInput($noMod),
             Parameters::TYPE      => new FilterInput($noMod),
             Parameters::LANGUAGE  => new FilterInput($noMod),
+            // id: the selected shopping list (or other row-list) the live-reload AJAX operates on.
+            Parameters::ID        => new FilterInput($noMod),
             // Design routes: PAGE carries the page type, TEMPLATE the design key.
             // Both are declared in Parameters.php so Varnish forwards them
             // (custom query params would be stripped by the cache layer).
@@ -109,6 +114,10 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
 
     public function getRequestParamValue(string $parameter, bool $required = true, mixed $default = null): mixed {
         return $this->getRequestParam($parameter, $required, $default);
+    }
+
+    public function getControllerRoute(): Route {
+        return $this->getRoute();
     }
 
     public function addWidgetTwigBaseFunctions(TwigLoader $twig): void {

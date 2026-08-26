@@ -12,8 +12,10 @@ use Twig\Environment;
  * renderer and the docker template-renderer call this so their Twig envs
  * behave identically. Pairs Class B globals (ContextBuilder) with Class C
  * functions (MagicfrontTwigFunctions).
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Twig
  */
-final class PluginTwigBootstrap {
+class PluginTwigBootstrap {
 
     /** Apply globals + functions on an env not yet initialised (extension set unlocked). */
     public static function apply(Environment $twig, ContextBuilder $ctx): void {

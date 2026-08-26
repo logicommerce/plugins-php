@@ -132,7 +132,7 @@ class WidgetsService extends Service {
      * from the page record (`GET /pages/{pageId}`). Empty entries are omitted so the caller
      * can fall back to the commerce default per kind via {@see getChromeDoc()} with `$asDefault`.
      *
-     * @return array{header?: string, footer?: string}
+     * @return array
      */
     public function getPageChromeRefs(string $pageId): array {
         $data = $this->call(
@@ -156,15 +156,15 @@ class WidgetsService extends Service {
     /**
      * Returns the Magic Front page ID for the given route ID (0 = home page).
      */
-    public function getPageId(string $routeId): string {
+    /*public function getPageId(string $routeId): string {
         return $this->getPageIdByType((int) $routeId === 0 ? 'HOME' : 'LANDING');
-    }
+    }*/
 
     /**
      * Resolves the singleton page id for a dcsapi pageType (HOME, LANDING,
      * BLOG_CATEGORY, BLOG_POST, ...). Empty string when no page of that type exists.
      */
-    public function getPageIdByType(string $pageType): string {
+    /*public function getPageIdByType(string $pageType): string {
         // Raw call (no DTO hydration): the plugin Page inherits SDK's `int $id`,
         // but Java pages use string UUIDs, so hydrating as Page would TypeError.
         $data = $this->call(
@@ -174,7 +174,7 @@ class WidgetsService extends Service {
                 ->build()
         );
         return (string) ($data['items'][0]['id'] ?? '');
-    }
+    }*/
 
     /**
      * Returns templates for the given widget types only (1 API call per type).
@@ -201,7 +201,7 @@ class WidgetsService extends Service {
      * but our endpoints need raw key/value arrays (language, pageType). This thin
      * wrapper calls `getResponse()` directly so array-based url params work.
      *
-     * @param array<string, string|int|bool> $urlParams
+     * @param array $urlParams
      */
     private function fetchCollection(string $class, string $resource, array $urlParams = []): ?ElementCollection {
         return $this->getResponse(
@@ -231,7 +231,7 @@ class WidgetsService extends Service {
         $devel     = defined('DEVEL_HEADER') && DEVEL_HEADER;
         $cacheable = !$devel
             && !$this->bypassCache
-            && !MagicfrontUtils::isCanvasMode()
+            && !MagicfrontUtils::isIframeRequest()
             && $request->getMethod() === 'GET'
             && $this->isCacheablePath($request->getPath());
 

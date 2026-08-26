@@ -8,8 +8,7 @@ use FWK\Core\Resources\Loader;
 use FWK\Core\Resources\Session;
 use FWK\Core\Resources\Session\SessionGeneralSettings;
 use FWK\Enums\Services;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use SDK\Application;
 use SDK\Dtos\Catalog\CategoryTree;
@@ -17,10 +16,14 @@ use SDK\Services\Parameters\Groups\AreaCategoriesTreeParametersGroup;
 
 /**
  * Class B — runtime context. Single source of truth for the Twig globals and
- * locale-bound values that {@see PluginTwigBootstrap} feeds into both the
- * storefront fwk renderer and the docker template-renderer.
+ * environment values that {@see PluginTwigBootstrap} feeds into the storefront
+ * fwk renderer AND, via `sync-plugin.sh`, into the docker template-renderer.
+ * Two entry points, one per environment: `fromSession()` reads the fwk Session,
+ * `fromArray()` takes the Java payload the isolated docker renderer receives.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Twig
  */
-final class ContextBuilder {
+class ContextBuilder {
 
     /** Widget macros only ship for bootstrap5 (twigCoreTemplates/macros/modes/bootstrap5/). */
     public const DEFAULT_CORE_MODE = 'bootstrap5';
@@ -30,66 +33,70 @@ final class ContextBuilder {
     private const CATEGORY_NAV_DEPTH = 5;
 
     public function __construct(
+        /** THE editor canvas: an iframe carrying a token. Widgets render mock, providers skip real
+         *  data fetches, the layout ships both chrome variants and only the whitelisted canvas JS. */
+        public readonly bool $canvasMode,
+        /** Canvas OR the standalone preview tab. Unlocks editor-only behaviour both share:
+         *  resolving un-published pages, honouring ?mffHeader/?mffFooter. NOT a mock switch. */
         public readonly bool $previewMode,
         public readonly string $coreMode,
-        public readonly ?string $locale,
-        /** 2-letter ISO language ("es","en","ca") — distinct from $locale (ICU "es_ES"). */
+        /** 2-letter ISO language ("es","en","ca") — the only locale-ish value any consumer reads. */
         public readonly ?string $language,
-        public readonly ?string $currencyCode,
-        public readonly ?string $currencySymbolOverride,
-        /** Each entry: ['code'=>'es', 'url'=>'/es/...', 'isActive'=>bool]. Consumer: mff_getLanguages(). */
+        /** Each entry: ['code'=>'es', 'name'=>'Castellano', 'url'=>'/es/...', 'isActive'=>bool]. Consumer: mff_getLanguages(). */
         public readonly array $languages = [],
         /** Each entry: ['code','symbol','name','codeNumber','usdValue','id','isActive']. Consumer: mff_getMoney(). */
         public readonly array $currencies = [],
         /** Top categories (parentId 0) each with one level of subcategories.
          *  Each entry: ['id','name','url','subcategories'=>[['id','name','url'],...]]. Consumer: mff_getCategories(). */
         public readonly array $categories = [],
+        /** Stable blob pId of the page being rendered (mff_* for singleton routes, else the numeric page id).
+         *  Exposed as the `mff_pagePId` Twig global so a widget can echo it (data-mff-page-pid) and its AJAX
+         *  can address its own blob without relying on the request Referer. '' when unknown. */
+        public readonly string $pagePId = '',
     ) {
         if ($this->coreMode === '') {
             throw new \InvalidArgumentException('ContextBuilder: coreMode is required.');
         }
-        if ($this->locale === '') {
-            throw new \InvalidArgumentException('ContextBuilder: locale must be non-empty when provided.');
-        }
         if ($this->language === '') {
             throw new \InvalidArgumentException('ContextBuilder: language must be non-empty when provided.');
         }
-        if ($this->currencyCode === '') {
-            throw new \InvalidArgumentException('ContextBuilder: currencyCode must be non-empty when provided.');
-        }
     }
 
-    /** docker template-renderer entry. Only `coreMode` is required. */
+    /**
+     * docker template-renderer entry — the renderer has no fwk Session, so Java sends the values.
+     * Reached via `docker/template-renderer/index.php`, which this file is rsynced into by
+     * `sync-plugin.sh`; the call site lives in that repo, NOT in the plugin tree.
+     */
     public static function fromArray(array $ctx): self {
         return new self(
+            canvasMode: (bool) ($ctx[MagicfrontControllerData::CONTEXT_CANVAS_MODE] ?? false),
             previewMode: (bool) ($ctx[MagicfrontControllerData::CONTEXT_PREVIEW_MODE] ?? false),
             coreMode: self::requireString($ctx, MagicfrontControllerData::CONTEXT_CORE_MODE),
-            locale: self::optionalString($ctx, 'locale'),
             language: self::optionalString($ctx, 'language'),
-            currencyCode: self::optionalString($ctx, 'currencyCode'),
-            currencySymbolOverride: self::optionalString($ctx, 'currencySymbolOverride'),
             languages: is_array($ctx['languages'] ?? null) ? $ctx['languages'] : [],
             currencies: is_array($ctx['currencies'] ?? null) ? $ctx['currencies'] : [],
             categories: is_array($ctx['categories'] ?? null) ? $ctx['categories'] : [],
+            pagePId: is_string($ctx['pagePId'] ?? null) ? $ctx['pagePId'] : '',
         );
     }
 
-    /** fwk storefront entry. Session must already be initialised. */
-    public static function fromSession(): self {
+    /**
+     * fwk storefront entry. Session must already be initialised.
+     *
+     * `$withNav` builds the header category tree ({@see self::buildCategoriesFromArea}, an AREA
+     * service call); a content-only partial render skips it (the nav is chrome, not rendered).
+     */
+    public static function fromSession(bool $withNav = true, string $pagePId = ''): self {
         $settings = Session::getInstance()->getGeneralSettings();
         return new self(
-            // Editor/preview signal (canvas iframe or mfToken URL param) — same test as
-            // MagicfrontTrait::editorMode / TwigInitializer::isEditorRequest. Exposed to widgets as
-            // the `previewMode` Twig global so they can render mock data only inside the editor.
-            previewMode: MagicfrontUtils::isCanvasMode() || !empty($_GET[MagicfrontToken::MF_TOKEN]),
+            canvasMode: RenderMode::isCanvasMode(),
+            previewMode: RenderMode::isPreviewMode(),
             coreMode: self::DEFAULT_CORE_MODE,
-            locale: $settings->getLocale(),
             language: $settings->getLanguage(),
-            currencyCode: $settings->getCurrency(),
-            currencySymbolOverride: self::lookupAppCurrencySymbol($settings->getCurrency()),
             languages: self::buildLanguagesFromSession($settings),
             currencies: self::buildCurrenciesFromSession($settings),
-            categories: self::buildCategoriesFromArea(),
+            categories: $withNav ? self::buildCategoriesFromArea() : [],
+            pagePId: $pagePId,
         );
     }
 
@@ -107,7 +114,7 @@ final class ContextBuilder {
      * Never throws: a null tree (no category-role area configured) or any service failure yields []
      * so chrome still renders (the menu shows its empty-state placeholder).
      *
-     * @return array<int, array{id:int,name:string,url:string,subcategories:array<int,mixed>}>
+     * @return array
      */
     private static function buildCategoriesFromArea(): array {
         try {
@@ -140,7 +147,7 @@ final class ContextBuilder {
      * admin-set external redirects, so .link is what real storefront menus use). Returns null when
      * the category has no language payload (skipped: a nameless nav item is never rendered).
      *
-     * @return array{id:int,name:string,url:string,subcategories:array<int,mixed>}|null
+     * @return array|NULL
      */
     private static function mapCategoryTree(CategoryTree $category, int $depth): ?array {
         $language = $category->getLanguage();
@@ -189,21 +196,12 @@ final class ContextBuilder {
         foreach ($settings->getDefaultAvailableLanguages() as $lang) {
             $out[] = [
                 'code'     => $lang->getCode(),
+                'name'     => $lang->getName(),
                 'url'      => $lang->getUrl(),
                 'isActive' => $lang->getCode() === $current,
             ];
         }
         return $out;
-    }
-
-    /** Merchant-configured symbol override for $code, or null if not set. */
-    private static function lookupAppCurrencySymbol(string $code): ?string {
-        foreach (Application::getInstance()->getCurrenciesSettings() as $currency) {
-            if ($currency->getCode() === $code) {
-                return $currency->getSymbol();
-            }
-        }
-        return null;
     }
 
     private static function requireString(array $ctx, string $key): string {
@@ -225,11 +223,13 @@ final class ContextBuilder {
         return $value;
     }
 
-    /** @return array<string, mixed> */
+    /** @return array */
     public function toGlobals(): array {
         return [
+            MagicfrontControllerData::CONTEXT_CANVAS_MODE  => $this->canvasMode,
             MagicfrontControllerData::CONTEXT_PREVIEW_MODE => $this->previewMode,
             MagicfrontControllerData::CONTEXT_CORE_MODE    => $this->coreMode,
+            'mff_pagePId'                                  => $this->pagePId,
         ];
     }
 }

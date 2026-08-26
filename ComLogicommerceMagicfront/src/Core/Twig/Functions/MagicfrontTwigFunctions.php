@@ -18,8 +18,10 @@ use Twig\TwigFunction;
  * `registerLateBinding` exists because fwk's `$coreTwig` is locked by the time
  * controller hooks fire; `registerUndefinedFunctionCallback` is the only API
  * that bypasses the init lock.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Twig\Functions
  */
-final class MagicfrontTwigFunctions {
+class MagicfrontTwigFunctions {
 
     public static function addFunctions(Environment $twig, ContextBuilder $ctx): void {
         foreach (self::all($ctx) as $function) {
@@ -47,13 +49,24 @@ final class MagicfrontTwigFunctions {
             self::mffWidgetSlot(),
             self::mffGetAccount(),
             self::mffPreviewMode($ctx),
+            self::mffIsCanvasMode($ctx),
         ];
     }
 
-    /** `mff_previewMode()` → true inside the editor canvas iframe / mfToken preview. Exposed as a
-     *  FUNCTION (not a global) because fwk's `$coreTwig` — the env that renders widgets — is locked
-     *  by the time hooks fire and cannot take globals; functions bind lazily. Widgets use it to
-     *  render mock/demo data only in preview, never on the live storefront. */
+    /** `mff_isCanvasMode()` → true ONLY inside the editor canvas (iframe + token). THE mock switch:
+     *  widgets render demo data here and nowhere else. Exposed as a FUNCTION (not a global) because
+     *  fwk's `$coreTwig` — the env that renders widgets — is locked by the time hooks fire and cannot
+     *  take globals; functions bind lazily. */
+    private static function mffIsCanvasMode(ContextBuilder $ctx): TwigFunction {
+        return new TwigFunction(
+            'mff_isCanvasMode',
+            static fn(): bool => $ctx->canvasMode,
+        );
+    }
+
+    /** `mff_previewMode()` → the canvas OR the standalone preview tab. Superseded by
+     *  `mff_isCanvasMode()` and unused by current widgets, but KEPT FOREVER: already-published page
+     *  blobs carry templates that call it, and removing it would fail their Twig compile. */
     private static function mffPreviewMode(ContextBuilder $ctx): TwigFunction {
         return new TwigFunction(
             'mff_previewMode',
@@ -61,8 +74,9 @@ final class MagicfrontTwigFunctions {
         );
     }
 
-    /** `mff_getAccount()` → the storefront session account for the accountPanel logged state.
-     *  Anonymous (isLogged false) when no registered session. */
+    /** `mff_getAccount()` → minimal session login state for the accountPage state switch.
+     *  Anonymous (isLogged false) when no registered session. Full account DATA is attached
+     *  per-route to `page.account` (product/category pattern), not exposed here. */
     private static function mffGetAccount(): TwigFunction {
         return new TwigFunction(
             'mff_getAccount',
@@ -85,6 +99,7 @@ final class MagicfrontTwigFunctions {
             },
         );
     }
+
 
 
     /** `mff_getCategories()` → ContextBuilder's top-categories tree (each with one level of
@@ -145,17 +160,23 @@ final class MagicfrontTwigFunctions {
     }
 
     /**
-     * `mff_widget_slot(arg)` — renders one slot child as a widget block.
-     * String arg → lookup by slotId in `page.subpages`; Page/array arg →
-     * render as slot container. Needs env+context for recursion into the
-     * widget macro.
+     * `mff_widget_slot(arg, scope=null)` — renders one slot child as a widget block.
+     * String arg → lookup by slotId; Page/array arg → render as slot container. When
+     * `scope` (a Page) is given with a string arg, the slotId is resolved inside `scope`'s
+     * subpages instead of the template's `page` — this is how a childStructure pseudo's
+     * own `childStructure.slots[]` child is rendered from within the parent's
+     * `{% for subpage in page.subpages %}` loop (the pseudo is never rendered on its own,
+     * so its typed slot child is unreachable via the default `page`-scoped lookup).
+     * Needs env+context for recursion into the widget macro.
      */
     private static function mffWidgetSlot(): TwigFunction {
         return new TwigFunction(
             'mff_widget_slot',
-            static function (Environment $env, array $context, mixed $arg = null): Markup {
+            static function (Environment $env, array $context, mixed $arg = null, mixed $scope = null): Markup {
                 if (is_string($arg)) {
-                    $subPage = WidgetSlotRenderer::findSlotById($context, $arg);
+                    $subPage = $scope !== null
+                        ? WidgetSlotRenderer::findSlotById(['page' => $scope], $arg)
+                        : WidgetSlotRenderer::findSlotById($context, $arg);
                     if ($subPage === null) {
                         return new Markup('', 'UTF-8');
                     }

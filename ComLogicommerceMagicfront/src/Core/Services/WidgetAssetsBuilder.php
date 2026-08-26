@@ -16,14 +16,14 @@ use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Services
  */
-final class WidgetAssetsBuilder {
+class WidgetAssetsBuilder {
     use CssGeneratorTrait;
     use JsGeneratorTrait;
 
     /**
      * @param  WidgetInstance[]              $widgets   Flat list (via WidgetTypeCollector::flatten).
-     * @param  array<string, WidgetTemplate> $templates Templates keyed by type.
-     * @return array{css: string, js: string}
+     * @param  array $templates Templates keyed by type.
+     * @return array
      */
     public function build(array $widgets, array $templates): array {
         if ($widgets === [] || $templates === []) {

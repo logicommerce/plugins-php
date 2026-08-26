@@ -76,9 +76,10 @@ class WidgetToPageTransformer {
             }
         }
         return [
-            'id'               => $widget->getId(),
-            'widgetTemplateId' => $widget->getWidgetTemplateId(),
-            'orderIndex'       => $widget->getOrderIndex(),
+            'id'                      => $widget->getId(),
+            'widgetTemplateId'        => $widget->getWidgetTemplateId(),
+            'widgetTemplateVersionId' => $widget->getWidgetTemplateVersionId(),
+            'orderIndex'              => $widget->getOrderIndex(),
             'propertyValues'   => $widget->getPropertyValues(),
             'styleValues'      => $widget->getStyleValues(),
             'children'         => $children,
@@ -106,6 +107,7 @@ class WidgetToPageTransformer {
         $page = new Page([
             'id'              => 0,
             'customType'      => $pageArray['customType'] ?? '',
+            'templateKey'     => $pageArray['templateKey'] ?? '',
             'position'        => $pageArray['position'] ?? 0,
             'pageType'        => $pageArray['pageType'] ?? 'CUSTOM',
             'active'          => $pageArray['active'] ?? true,

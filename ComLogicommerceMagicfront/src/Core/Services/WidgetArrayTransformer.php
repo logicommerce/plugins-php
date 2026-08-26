@@ -27,7 +27,16 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Services;
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Services
  */
-final class WidgetArrayTransformer {
+class WidgetArrayTransformer {
+
+    /** Template lookup key: version wire key (`familia@N`) if present, else family. Mirrors dcsapi WidgetWireType.of(). */
+    private static function templateKey(array $widget): string {
+        $versioned = $widget['widgetTemplateVersionId'] ?? '';
+        if (is_string($versioned) && $versioned !== '') {
+            return $versioned;
+        }
+        return $widget['widgetTemplateId'] ?? '';
+    }
 
     /**
      * Transform a widget array into a page-compatible array.
@@ -43,6 +52,7 @@ final class WidgetArrayTransformer {
             'draftId'         => $widget['id'] ?? '',
             'type'            => $type,
             'customType'      => $type,
+            'templateKey'     => self::templateKey($widget),
             'position'        => (int) ($widget['orderIndex'] ?? 0),
             'pageType'        => 'CUSTOM',
             'active'          => true,
@@ -62,7 +72,7 @@ final class WidgetArrayTransformer {
     /**
      * Single-pass: builds moduleSettings + customTagValues simultaneously.
      *
-     * @return array{moduleSettings: array, customTags: array, language: array}
+     * @return array
      */
     private static function processPropertyValues(string $type, array $propertyValues, int $childrenCount = 0): array {
         $moduleSettings = [];
@@ -130,6 +140,7 @@ final class WidgetArrayTransformer {
                 'id'              => 0,
                 'draftId'         => $childData['id'] ?? '',
                 'customType'      => $childType,
+                'templateKey'     => self::templateKey($childData),
                 'position'        => $childData['orderIndex'] ?? 0,
                 'pageType'        => 'CUSTOM',
                 'active'          => true,
@@ -152,7 +163,7 @@ final class WidgetArrayTransformer {
      * Normalize a single property value entry. API can send `propertyId`
      * (PropertyValueDTO) or `styleId` (StyleValueDTO) as the identifier.
      *
-     * @return array{propertyId: string, value: mixed, elementId: string, enabled: bool}
+     * @return array
      */
     private static function normalizePropertyEntry(array $propertyValue): array {
         $propId    = $propertyValue['propertyId'] ?? $propertyValue['styleId'] ?? '';

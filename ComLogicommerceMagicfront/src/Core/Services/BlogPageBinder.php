@@ -19,7 +19,7 @@ use SDK\Core\Dtos\ElementCollection;
  */
 class BlogPageBinder {
 
-    /** @param array<string, mixed> $data */
+    /** @param array $data */
     public function __construct(private readonly array $data) {
     }
 

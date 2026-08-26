@@ -17,6 +17,8 @@ use SDK\Core\Dtos\Element;
  * deferred commerce 'core' bundle (which these modules depend on).
  *
  * URL: .../plugin_route/com.logicommerce.magicfront?type=customizeDesignJS&page=category&design=design189
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
  */
 class CustomizeDesignScriptHandler implements PluginRouteHandlerInterface {
 

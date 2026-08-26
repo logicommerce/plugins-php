@@ -5,32 +5,33 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers;
 
 use FWK\Core\Resources\Language;
-use FWK\Core\Resources\Utils;
 use FWK\Core\Theme\Theme;
 use FWK\Enums\Parameters;
-use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\WidgetTwigRenderingTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderContext;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
-use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
-use Plugins\ComLogicommerceMagicfront\Core\Twig\PluginTwigBootstrap;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
-use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
-use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
 
+/**
+ * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
+ */
 class GetWidgetHandler extends AbstractCustomizeHandler {
 
     use CssGeneratorTrait;
     use JsGeneratorTrait;
-    use WidgetTwigRenderingTrait;
+    use WidgetTwigRenderingTrait {
+        buildTwigEnvironment as private buildBaseTwigEnvironment;
+    }
 
     public function supports(string $type): bool {
         return $type === FunctionType::GET_WIDGET;
@@ -57,7 +58,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             $instance     = $service->getPageWidgetInstanceById($pageId, $widgetId, $language);
             $widget       = $instance !== null ? WidgetToPageTransformer::transformSingle($instance) : null;
             $widget       = $this->resolveCatalogRelations($widget);
-            $neededTypes  = WidgetTypeCollector::fromPages([$widget]);
+            $neededTypes  = WidgetTypeCollector::templateKeysFromPages([$widget]);
 
             $templates          = $service->getWidgetTemplatesForTypes($neededTypes);
             $widgetTemplateList = $this->buildWidgetTemplateList($neededTypes, $templates);
@@ -65,9 +66,6 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
 
             // Per-instance CSS: flatten the instance subtree so every widget's styleValues
             // emit their `[data-widget-id]`-scoped rules — same generator the full page uses.
-            // Previously this passed `[]`, shipping only class/template CSS; a slot child added
-            // live (linkBar, footerInfoColumns…) then rendered at browser defaults until a full
-            // page reload regenerated the server `mff-chrome-{kind}-css` block.
             $flatWidgets = $instance !== null ? WidgetTypeCollector::flatten([$instance]) : [];
             $css = $this->generateCss($flatWidgets, $templates);
             $js  = $this->generateJs($templates);
@@ -119,24 +117,62 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
 
     // ─── Rendering ────────────────────────────────────────────────────────────
 
-    private function renderWidget(
+    protected function renderWidget(
         ComLogicommerceMagicfrontController $controller,
         PluginPage $widget,
         array $widgetTemplateList
     ): string {
         $widgetId   = $widget->getDraftId() ?: $widget->getId();
         $widgetType = $widget->getCustomType();
+        $lookupKey  = $widget->getTemplateKey();
 
         $twigEnv = $this->buildTwigEnvironment($controller, $widgetTemplateList);
-        $html    = $this->renderWidgetHtml($twigEnv, $widgetType, $widgetTemplateList, [
+        $html    = $this->renderWidgetHtml($twigEnv, $lookupKey, $widgetTemplateList, [
             'page'            => $widget,
             'moduleType'      => $widgetType,
             'moduleSettings'  => $widget->getModuleSettings(),
             'widgetId'        => $widgetId,
             'version'         => Theme::getInstance()->getVersion(),
+            // The full-page render feeds widgets `shared` as a template local via the widgets macro;
+            // this per-widget AJAX path renders the template directly, so expose the same local here
+            // (and mff_widget_slot propagates it to slot children through the render context).
+            'shared'          => $this->buildSharedForTypes(array_keys($widgetTemplateList)),
         ]);
 
         return $this->wrapWithMarkers($widgetId, $widgetType, $html);
+    }
+
+    /**
+     * Extends the base per-widget Twig environment ({@see WidgetTwigRenderingTrait::buildTwigEnvironment},
+     * aliased as buildBaseTwigEnvironment) with the `shared` container. The full-page render exposes
+     * `shared` (countries/locations/… the FWK globals lack) via the controller's provider dispatch; this
+     * per-widget AJAX path (e.g. userPanel tab swap) rebuilds it for the types being rendered so
+     * account/address widgets get their form data, not just `session`.
+     */
+    protected function buildTwigEnvironment(
+        ComLogicommerceMagicfrontController $controller,
+        array $widgetTemplateList
+    ): \Twig\Environment {
+        $twigEnv = $this->buildBaseTwigEnvironment($controller, $widgetTemplateList);
+        $twigEnv->addGlobal(MagicfrontControllerData::SHARED, $this->buildSharedForTypes(array_keys($widgetTemplateList)));
+        return $twigEnv;
+    }
+
+    /**
+     * Rebuild the `shared` container for a per-widget AJAX render by running the same providers the
+     * controller uses on the full page, gated to the widget types present. No session/route needed:
+     * the account provider's sharedData draws countries/locations from Application + LMS.
+     *
+     * @param string[] $presentTypes
+     * @return array
+     */
+    private function buildSharedForTypes(array $presentTypes): array {
+        $families = array_values(array_unique(array_map(
+            [WidgetTypeCollector::class, 'familyOf'],
+            $presentTypes
+        )));
+        $ctx = new ProviderContext(null, null, $families, static fn(string $key): mixed => null);
+        return ProviderRegistry::collectShared(ProviderRegistry::all(), $ctx);
     }
 
     /**

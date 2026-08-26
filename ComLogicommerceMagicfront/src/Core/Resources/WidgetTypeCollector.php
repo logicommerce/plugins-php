@@ -19,7 +19,7 @@ use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Resources
  */
-final class WidgetTypeCollector {
+class WidgetTypeCollector {
 
     /**
      * Recursively collect unique widget types from a tree of plugin Pages.
@@ -29,8 +29,30 @@ final class WidgetTypeCollector {
      */
     public static function fromPages(array $pages): array {
         $types = [];
-        self::walkPages($pages, $types);
+        self::walkPages($pages, $types, false);
         return array_values(array_unique($types));
+    }
+
+    /** Like {@see fromPages()} but keyed by the template lookup wire key (version ‖ family). */
+    public static function templateKeysFromPages(array $pages): array {
+        $types = [];
+        self::walkPages($pages, $types, true);
+        return array_values(array_unique($types));
+    }
+
+    /** Strip the version suffix from a wire key: `heading@2` → `heading`; a bare family is returned as-is. */
+    public static function familyOf(string $wireKey): string {
+        $at = strpos($wireKey, '@');
+        return $at === false ? $wireKey : substr($wireKey, 0, $at);
+    }
+
+    /**
+     * Look up a wire-keyed map ({@see WidgetInstance::templateKey()}) by an instance's key, falling
+     * back to its family for blobs whose schema is family-keyed. Single point for the version‖family
+     * resolution shared by every template / style / slot lookup; returns null when neither key is present.
+     */
+    public static function resolveByKey(array $map, string $key): mixed {
+        return $map[$key] ?? $map[self::familyOf($key)] ?? null;
     }
 
     /**
@@ -63,13 +85,26 @@ final class WidgetTypeCollector {
      * @return string[]
      */
     public static function fromWidgets(array $widgets): array {
+        return self::collectWidgets($widgets, false);
+    }
+
+    /** Like {@see fromWidgets()} but keyed by the template lookup wire key (version ‖ family). */
+    public static function templateKeysFromWidgets(array $widgets): array {
+        return self::collectWidgets($widgets, true);
+    }
+
+    /**
+     * @param  WidgetInstance[] $widgets
+     * @return string[]
+     */
+    private static function collectWidgets(array $widgets, bool $wireKey): array {
         $types = [];
         foreach ($widgets as $widget) {
-            if (!$widget instanceof WidgetInstance) {
+            if (!$widget instanceof WidgetInstance || $widget->isChildStructurePseudo()) {
                 continue;
             }
-            $type = $widget->getType();
-            if ($type === '' || $widget->isChildStructurePseudo()) {
+            $type = $wireKey ? $widget->templateKey() : $widget->getType();
+            if ($type === '') {
                 continue;
             }
             $types[$type] = true;
@@ -81,18 +116,18 @@ final class WidgetTypeCollector {
      * @param Page[]   $pages
      * @param string[] $types
      */
-    private static function walkPages(array $pages, array &$types): void {
+    private static function walkPages(array $pages, array &$types, bool $wireKey): void {
         foreach ($pages as $page) {
             if (!$page instanceof Page) {
                 continue;
             }
-            $type = $page->getCustomType();
+            $type = $wireKey ? $page->getTemplateKey() : $page->getCustomType();
             if ($type !== '' && !$page->isChildStructurePseudo()) {
                 $types[] = $type;
             }
             $subpages = $page->getSubpages() ?? [];
             if (!empty($subpages)) {
-                self::walkPages($subpages, $types);
+                self::walkPages($subpages, $types, $wireKey);
             }
         }
     }

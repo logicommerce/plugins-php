@@ -23,6 +23,8 @@ use SDK\Core\Dtos\Traits\ElementTrait;
  *
  * Blob shape: { "content": { "languages": [...], "widgets": [ &lt;tree&gt; ] }, "schema": [ ... ] }.
  * Runtime-only (SDK DTOs); never referenced by the docker PHAR renderer.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Content
  */
 class PageDocument extends Element {
     use ElementTrait;
@@ -67,7 +69,7 @@ class PageDocument extends Element {
         return WidgetToPageTransformer::transform($this->widgets());
     }
 
-    /** @return array<string, WidgetTemplate> the full schema keyed by template id (== widget type), unfiltered. */
+    /** @return array the full schema keyed by template id (== widget type), unfiltered. */
     public function templatesById(): array {
         return $this->schema?->byId() ?? [];
     }

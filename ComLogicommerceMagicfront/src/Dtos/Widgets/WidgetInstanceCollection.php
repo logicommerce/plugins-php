@@ -12,6 +12,8 @@ use SDK\Core\Dtos\ElementCollection;
  * so a chrome region is a typed object, not a bare array.
  *
  * @method WidgetInstance[] getItems()
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Dtos\Widgets
  */
 class WidgetInstanceCollection extends ElementCollection {
 

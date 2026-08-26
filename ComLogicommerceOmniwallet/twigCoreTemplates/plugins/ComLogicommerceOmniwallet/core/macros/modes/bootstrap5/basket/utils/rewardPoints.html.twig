@@ -1,11 +1,15 @@
-{# Nothing to show #}
-{#
 {%- set settings = pluginRewardPointsProperties.eventsResults.SETTINGS.getSettings.data -%}
+{%- set labelMaxPointsRedeem = 'Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MAX_POINTS_TO_REDEEM' -%}
+{%- set maxPointsRedeem = languageSheet[constant(labelMaxPointsRedeem)]|replace({'{{CURRENCY}}': settings.CURRENCY})|replace({'{{MAX_REDEEM}}': settings.MAX_REDEEM})|replace({'{{CURRENCY_ABBREVIATION}}': settings.CURRENCY_ABBREVIATION}) %}
+
+{%- set labelMinImport = 'Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MIN_IMPORT_PURCHASE' -%}
+{%- set minImportPurchase = languageSheet[constant(labelMinImport)]|replace({'{{MIN_IMPORT_PURCHASE}}': outputHtmlCurrency(settings.MIN_IMPORT_PURCHASE)}) %}
+
 <div class="rewardPointsSummary">
     <div class="rewardPointsItem">
         <div class="rewardPointsTotalEarning">
-            Show points summary here
+            {{maxPointsRedeem}}            
+            {{minImportPurchase}}
         </div>
     </div>
 </div>
-#}

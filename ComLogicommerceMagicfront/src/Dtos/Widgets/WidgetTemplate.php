@@ -50,7 +50,7 @@ class WidgetTemplate extends Element {
      * `WidgetTemplateSlot` shape: id, defaultType, minItems, maxItems,
      * allowMove, allowDelete, allowDuplicate, allowTypeChange.
      *
-     * @var array<int, array<string,mixed>>
+     * @var array
      */
     protected array $slots = [];
 
@@ -125,7 +125,7 @@ class WidgetTemplate extends Element {
      * instance CSS must be `:not()`-scoped at the slot boundary to prevent
      * descendant leakage into slot-child widget roots.
      *
-     * @return array<int, array<string,mixed>>
+     * @return array
      */
     public function getSlots(): array {
         return $this->slots;

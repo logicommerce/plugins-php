@@ -18,6 +18,8 @@ use SDK\Core\Resources\Cookie;
  * session storage couldn't guarantee that because the session cookie is
  * bootstrapped asynchronously via GetSessionController, which always lost
  * the race against synchronous <link>/<script> requests on first visit.
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Resources
  */
 class MagicfrontToken {
 

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
-use FWK\Core\Resources\Session;
 use SDK\Core\Enums\Enum;
 
 /**
@@ -24,12 +23,12 @@ abstract class Resource extends Enum {
 
     public const GET_WIDGET_TEMPLATE_BY_ID = self::WIDGET_TEMPLATES_BASE . "{id}";
 
-    public const GET_PAGES = "/pages";
+    //public const GET_PAGES = "/pages"; 
 
     /** Single page record by id; its `chrome` field carries the {header,footer} chrome doc ids. */
-    public const GET_PAGE_BY_ID = "/pages/{pageId}";
+    public const GET_PAGE_BY_ID = "/pages/{pageId}";  
 
-    public const AUTH = "/auth";
+    //public const AUTH = "/auth";
 
     /**
      * Site chrome doc addressed by its own id (= root widget id). Returns the chrome

@@ -22,8 +22,10 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
  * Asset paths are relative to assets/css/<page>/ and assets/js/<page>/.
  * Page component snippets live in mff-snippets/<page>/; the shared product card
  * snippets live in mff-snippets/category/ (reused by the product page).
+ *
+ * @package Plugins\ComLogicommerceMagicfront\Core\Resources
  */
-final class DesignConfig {
+class DesignConfig {
 
     /** Pages this config serves. */
     private const PAGES = ['category', 'product'];
@@ -210,7 +212,7 @@ final class DesignConfig {
      * Decode the live-preview `additionalData` payload (base64 JSON) into an
      * override map keeping only the section/card keys. Returns [] on empty/invalid.
      *
-     * @return array<string,mixed>
+     * @return array
      */
     public static function overrideFromPayload(?string $base64): array {
         $out = [];
@@ -241,11 +243,11 @@ final class DesignConfig {
      * Resolve a (page, design) into the structure the page template needs:
      * per-component snippet paths + the shared productList card config object.
      *
-     * @param array<string,mixed> $override optional live-preview overrides
+     * @param array $override optional live-preview overrides
      *        (productList / categoryPage / productPage), deep-merged onto the
      *        design before resolving; decoded from the `additionalData` request
      *        param by the editor preview.
-     * @return array<string,mixed>
+     * @return array
      */
     public static function resolve(string $page, ?string $design, array $override = []): array {
         $design = self::resolveDesign($page, $design);
@@ -269,7 +271,7 @@ final class DesignConfig {
      * Normalise the shared product-card config: card snippet + feature detail keys
      * + pure show/hide flags, all defaulted to current behaviour.
      *
-     * @return array<string,mixed>
+     * @return array
      */
     private static function resolveProductList(array $pl): array {
         $version = $pl['version'] ?? '02';
@@ -308,7 +310,7 @@ final class DesignConfig {
         ];
     }
 
-    /** @return array<string,mixed> */
+    /** @return array */
     private static function resolveCategory(string $design, array $cat, array $pl): array {
         $filter = self::COMPONENTS['category']['filter'][$cat['filter']];
         return [
@@ -331,7 +333,7 @@ final class DesignConfig {
         ];
     }
 
-    /** @return array<string,mixed> */
+    /** @return array */
     private static function resolveProduct(string $design, array $prod, array $pl): array {
         return [
             'design'        => $design,

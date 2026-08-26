@@ -8,6 +8,9 @@ use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 
+/**
+ * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
+ */
 abstract class AbstractCustomizeHandler extends AbstractPluginRouteHandler {
 
     /**

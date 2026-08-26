@@ -8,6 +8,7 @@ use FWK\Core\Resources\Utils;
 use FWK\Core\Theme\Theme;
 use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\PluginTwigBootstrap;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
@@ -26,13 +27,13 @@ trait WidgetTwigRenderingTrait {
      * Extract templateHtml from already-fetched templates, filtered to the given types.
      *
      * @param  string[]                    $types
-     * @param  array<string, WidgetTemplate> $allTemplates
-     * @return array<string, string>       HTML indexed by type
+     * @param  array $allTemplates
+     * @return array       HTML indexed by type
      */
     protected function buildWidgetTemplateList(array $types, array $allTemplates): array {
         $list = [];
         foreach ($types as $type) {
-            $template = $allTemplates[$type] ?? null;
+            $template = WidgetTypeCollector::resolveByKey($allTemplates, $type);
             if ($template === null) {
                 continue;
             }
@@ -45,7 +46,7 @@ trait WidgetTwigRenderingTrait {
     }
 
     /**
-     * @param array<string, string> $widgetTemplateList
+     * @param array $widgetTemplateList
      */
     protected function buildTwigEnvironment(
         ComLogicommerceMagicfrontController $controller,
@@ -81,8 +82,8 @@ trait WidgetTwigRenderingTrait {
     }
 
     /**
-     * @param array<string, string> $widgetTemplateList
-     * @param array<string, mixed>  $twigData
+     * @param array $widgetTemplateList
+     * @param array  $twigData
      */
     protected function renderWidgetHtml(
         \Twig\Environment $twigEnv,
