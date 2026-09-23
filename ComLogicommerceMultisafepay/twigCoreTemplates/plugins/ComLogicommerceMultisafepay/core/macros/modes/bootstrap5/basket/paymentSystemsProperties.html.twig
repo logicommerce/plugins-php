@@ -11,13 +11,13 @@
 	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesPropertyNames::ACCOUNTID') %}
 		{% set accountId = property.value %}
 	{% endif %}
-{% endfor %}
-{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
-    {% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::ENVIRONMENT') %}
+	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesPropertyNames::NEWENVIRONMENT') %}
 		{% if property.value == 'true' %}
         	{% set environment = "live" %}
 		{% endif %}	
-    {% endif %}
+	{% endif %}
+{% endfor %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
 	{% if property.name == constant('Plugins\\ComLogicommerceMultisafepay\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') %}
 		{% set subPaymentSystemId = property.value %}
 	{% endif %}

@@ -29,5 +29,7 @@ class PluginPropertiesPropertyNames extends Enum {
     public const APIURLLIVE = 'apiUrlLive';
 
     public const CANCELLED = 'cancelled';
+
+    public const NEWENVIRONMENT = 'newEnvironment';
  
 }

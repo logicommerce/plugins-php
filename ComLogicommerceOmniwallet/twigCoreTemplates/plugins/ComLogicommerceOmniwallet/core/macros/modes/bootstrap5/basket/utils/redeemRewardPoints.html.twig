@@ -1,0 +1,107 @@
+
+{%- set settings = pluginRewardPointsProperties.eventsResults.SETTINGS.getSettings.data -%}
+{%- if rewardPoints.items|length -%}
+    <div class="rewardPoints">
+        {%- for rewardPoint in rewardPoints.items -%}
+            {%- set name = rewardPoint.language.name -%}
+            <div class="rewardPoint rewardPointsRecord">
+                {%- if args.showRewardPointsHeader -%}
+                    <div class="rewardPointHeader">
+                        <span class="name">{{ rewardPoint.language.name }}</span>
+                        {%- if rewardPoint.language.description|length -%}
+                            <span class="description">{{ rewardPoint.language.description }}</span>
+                        {%- endif -%}
+                    </div>
+                {%- endif -%}
+                <div class="rewardPoint rewardPointsBalance">
+                    <div class="rewardPointPending">
+                        {%- set quantity -%}
+                            {%- if args.showSelectableBox -%}
+                                <select class="quantitySelect rewardPointQuantity form-select {{ args.class }}" id="rewardPointQuantity_{{ rewardPoint.id }}" name="rewardPointQuantity_{{ rewardPoint.id }}" data-lc-id="{{- rewardPoint.id -}}" data-conversion-rate="{{ settings.CONVERSION_RULE }}">
+                                    {%- for optionIndex in range(0, rewardPoint.maxAvailable, 1) -%}
+                                        <option value="{{- optionIndex -}}" {%- if rewardPoint.toRedeem == optionIndex %} selected="selected" {%- endif -%}>{{- optionIndex -}}</option>
+                                    {%- endfor -%}
+                                </select>
+                            {%- else -%}
+                                <input
+                                    type="text"
+                                    data-validation="number"
+                                    data-validation-allowing="range[0;{{- rewardPoint.maxAvailable -}}]"
+                                    class="rewardPointQuantity {{ args.class }}"
+                                    id="rewardPointQuantity_{{ rewardPoint.id }}"
+                                    name="rewardPointQuantity_{{ rewardPoint.id }}"
+                                    value="{{rewardPoint.toRedeem}}"
+                                    data-input="true"
+                                    min="0"
+                                    max="{{- rewardPoint.maxAvailable -}}"
+                                    data-force-min-zero="true"
+                                    data-lc-id="{{- rewardPoint.id -}}"
+                                    data-conversion-rate="{{ settings.CONVERSION_RULE }}"
+                                    {%- if args.quantityPlugin %} data-lc-quantity="quantity" {% endif -%}
+                                >
+                            {%- endif -%}
+                        {%- endset -%}
+                        <div class="rewardPointsAddText">
+                            {%- if rewardPoint.available > rewardPoint.maxAvailable -%}
+                                {{- languageSheet[constant('FWK\\Enums\\LanguageLabels::BASKET_REWARD_POINTS_ADD_MAX')]|replace({
+                                    '{{name}}': settings.CURRENCY,
+                                    '{{value}}': rewardPoint.available,
+                                    '{{quantity}}': quantity,
+                                    '{{max}}': rewardPoint.maxAvailable
+                                }) -}}
+                            {%- else -%}
+                                {{- languageSheet[constant('FWK\\Enums\\LanguageLabels::BASKET_REWARD_POINTS_ADD')]|replace({
+                                    '{{name}}': settings.CURRENCY,
+                                    '{{value}}': rewardPoint.available,
+                                    '{{quantity}}': quantity
+                                }) -}}
+                            {%- endif -%}
+                        </div>
+                        <div class="rewardPointsAddText" style="padding-top:8px">
+                            <span class="owRewardPointsResultText">Cantidad de descuento: </span>
+                            <span class="owRewardPointsResult" id="owRewardPointsResult_{{ rewardPoint.id }}">
+                                {{- outputHtmlCurrency(rewardPoint.toRedeem * settings.CONVERSION_RULE) -}}
+                            </span>
+                            <button type="button" class="btn btn-primary rewardPointButton" id="rewardPointButton_{{ rewardPoint.id }}" data-lc-id="{{- rewardPoint.id -}}">
+                                {{- languageSheet[constant('FWK\\Enums\\LanguageLabels::APPLY')] -}}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {%- endfor -%}
+        <script>
+            (function () {
+                var bindRewardPointsLiveDiscount = function () {
+                    $('.rewardPointsRecord .rewardPointQuantity').each(function () {
+                        var $input = $(this);
+                        if ($input.data('liveDiscountBound')) {
+                            return;
+                        }
+                        $input.data('liveDiscountBound', true);
+                        $input.on('input change', function () {
+                            var $result = $('#owRewardPointsResult_' + $input.data('lc-id'));
+                            if (!$result.length) {
+                                return;
+                            }
+                            var conversionRate = parseFloat($input.attr('data-conversion-rate')) || 0;
+                            var quantity = parseFloat($input.val()) || 0;
+                            $result.html(outputHtmlCurrency(quantity * conversionRate));
+                        });
+                    });
+                };
+                if (window.jQuery) {
+                    bindRewardPointsLiveDiscount();
+                } else {
+                    document.addEventListener('DOMContentLoaded', function () {
+                        if (window.jQuery) {
+                            bindRewardPointsLiveDiscount();
+                        }
+                    });
+                }
+            })();
+        </script>
+    </div>
+{%- else -%}
+    <div class="rewardPointsEmpty">{{- languageSheet[constant('FWK\\Enums\\LanguageLabels::REWARD_POINTS_NO_BALANCE')] -}}</div>
+{%- endif -%}

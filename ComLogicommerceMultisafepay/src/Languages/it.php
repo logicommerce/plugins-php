@@ -11,9 +11,10 @@ use Plugins\ComLogicommerceMultisafepay\Enums\LanguageLabels;
  */
 return [
     LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_SHOPPER_REFERENCE => "Referéncia",
+    LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_SHOPPER_ENTITY => "Entitat",
     LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_IBAN => "IBAN",
-    LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_BIC => "BIC",
-    LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_NAME => "Per nominare",
+    LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_BIC => "BIC/SWIFT",
+    LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_NAME => "Beneficiario",
     LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_TOTAL => "Totale",
     LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_LINK => "Enlace QR",
     LanguageLabels::COM_LOGICOMMERCE_MULTISAFEPAY_IDENTIFIED => "Identificatore",
