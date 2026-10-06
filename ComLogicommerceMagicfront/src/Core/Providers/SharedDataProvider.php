@@ -35,6 +35,12 @@ class SharedDataProvider implements WidgetDataProvider {
 
     use AddDefaultCountryAndLocationsTrait;
 
+    /** @var array<string,string>|null */
+    private ?array $countryNameMap = null;
+
+    /** @var array|null */
+    private ?array $countrySettingsItems = null;
+
     /** The widget types whose business data this provider fetches (into `page.*`) via {@see DataWidgetRegistry}. */
     public function handledTypes(): array {
         return DataWidgetRegistry::types();
@@ -193,14 +199,42 @@ class SharedDataProvider implements WidgetDataProvider {
         return is_array($serialized) ? $serialized : [];
     }
 
+    /**
+     * Country code → localized name, resolved ONCE per request. `Utils::getCountryNameByCountryCode`
+     * memoizes a single code per call and re-fetches the WHOLE geolocation countries list on every
+     * miss (one HTTPS round-trip per country when the Redis object cache is off), so building the
+     * map from one `Utils::getCountries()` call replaces N remote calls with one.
+     *
+     * @return array<string,string>
+     */
+    private function countryNameMap(): array {
+        if ($this->countryNameMap === null) {
+            $map = [];
+            foreach (Utils::getCountries()->getItems() as $country) {
+                $map[$country->getCode()] = $country->getName();
+            }
+            $this->countryNameMap = $map;
+        }
+        return $this->countryNameMap;
+    }
+
+    /** @return array Commerce country settings items, fetched once per request. */
+    private function countrySettingsItems(): array {
+        if ($this->countrySettingsItems === null) {
+            $countrySettings = Application::getInstance()->getCountriesSettings(Language::getInstance()->getLanguage());
+            $this->countrySettingsItems = $countrySettings?->getItems() ?? [];
+        }
+        return $this->countrySettingsItems;
+    }
+
     /** @return array */
     private function buildCountries(): array {
         $countries = [];
-        $countrySettings = Application::getInstance()->getCountriesSettings(Language::getInstance()->getLanguage());
-        foreach (($countrySettings?->getItems() ?? []) as $country) {
+        $names = $this->countryNameMap();
+        foreach ($this->countrySettingsItems() as $country) {
             $countries[] = [
                 'code' => $country->getCode(),
-                'name' => Utils::getCountryNameByCountryCode($country->getCode()),
+                'name' => $names[$country->getCode()] ?? '',
                 'raw'  => json_decode(json_encode($country), true),
             ];
         }
@@ -210,9 +244,9 @@ class SharedDataProvider implements WidgetDataProvider {
     /** @return array country code → localized name */
     private function buildCountryNames(): array {
         $names = [];
-        $countrySettings = Application::getInstance()->getCountriesSettings(Language::getInstance()->getLanguage());
-        foreach (($countrySettings?->getItems() ?? []) as $country) {
-            $names[$country->getCode()] = Utils::getCountryNameByCountryCode($country->getCode());
+        $map = $this->countryNameMap();
+        foreach ($this->countrySettingsItems() as $country) {
+            $names[$country->getCode()] = $map[$country->getCode()] ?? '';
         }
         return $names;
     }

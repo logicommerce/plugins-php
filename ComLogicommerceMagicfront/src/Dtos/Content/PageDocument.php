@@ -60,6 +60,11 @@ class PageDocument extends Element {
         return new self($data);
     }
 
+    /** The family's page type from the blob, '' when the blob predates it. */
+    public function pageType(): string {
+        return $this->content?->getPageType() ?? '';
+    }
+
     public function widgets(): ?WidgetInstanceCollection {
         return $this->content?->getWidgets();
     }

@@ -17,8 +17,11 @@ use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use FWK\ViewHelpers\Product\ProductJsonData;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BundleOptionsResolver;
+use SDK\Core\Dtos\CustomTag;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
+use SDK\Enums\CustomTagType;
+use SDK\Services\Parameters\Groups\CustomTagsParametersGroup;
 use SDK\Dtos\Catalog\Product\Product;
 use SDK\Dtos\Common\Route;
 
@@ -47,8 +50,9 @@ class ProductController extends FWKProductController {
 
     private const BUNDLE_DEFINITIONS_KEY = 'mffProductBundleDefinitions';
 
-
     private const COMMENTS_KEY = 'mffProductComments';
+
+    private const CUSTOM_TAGS_KEY = 'mffProductCustomTags';
 
     public function __construct(Route $route) {
         parent::__construct($route);
@@ -59,7 +63,16 @@ class ProductController extends FWKProductController {
         parent::setBatchData($requests);
         $this->addBundleDefinitions($requests);
         $this->addComments($requests);
+        $this->addProductCustomTags($requests);
         $this->setMagicfrontBatchData($requests);
+    }
+
+    /** The commerce's PRODUCT custom-tag definitions — the only source of a tag's localized NAME
+     *  (the product itself carries `customTagValues` keyed by pId, no names). */
+    private function addProductCustomTags(BatchRequests $requests): void {
+        $params = new CustomTagsParametersGroup();
+        $params->setType(CustomTagType::PRODUCT);
+        Loader::service(Services::BASKET)->addGetCustomTags($requests, self::CUSTOM_TAGS_KEY, $params);
     }
 
     private function addBundleDefinitions(BatchRequests $requests): void {
@@ -68,7 +81,6 @@ class ProductController extends FWKProductController {
         }
         Loader::service(Services::PRODUCT)->addGetBundleDefinitions($requests, self::BUNDLE_DEFINITIONS_KEY, $this->getRoute()->getId());
     }
-
 
     private function addComments(BatchRequests $requests): void {
         Loader::service(Services::PRODUCT)->addGetComments($requests, self::COMMENTS_KEY, $this->getRoute()->getId());
@@ -84,6 +96,25 @@ class ProductController extends FWKProductController {
         return $product instanceof Product ? $product : null;
     }
 
+    /** pId → `{name, controlType}` of every PRODUCT custom tag, for `page.productCustomTags` (`mff_product_specs`). */
+    protected function routeProductCustomTags(): array {
+        $tags = $this->getControllerData(self::CUSTOM_TAGS_KEY);
+        if (!$tags instanceof ElementCollection) {
+            return [];
+        }
+        $names = [];
+        foreach ($tags->getItems() as $tag) {
+            if (!$tag instanceof CustomTag) {
+                continue;
+            }
+            $name = $tag->getLanguage()?->getName() ?? '';
+            if ($tag->getPId() !== '' && $name !== '') {
+                $names[$tag->getPId()] = ['name' => $name, 'controlType' => (string) $tag->getControlType()];
+            }
+        }
+        return $names;
+    }
+
     protected function routeProductBundles(): ?BundleDefinitionsWithGroupings {
         $definitions = $this->getControllerData(self::BUNDLE_DEFINITIONS_KEY);
         if (!$definitions instanceof ElementCollection) {
@@ -97,6 +128,11 @@ class ProductController extends FWKProductController {
      *  Product service (pId-based block filtering temporarily disabled). */
     protected function routeProductRelated(): array {
         return $this->buildProductRelated($this->getRoute()->getId(), Loader::service(Services::PRODUCT));
+    }
+
+    /** The route product's related-items GROUPS → `page.productRelatedGroups`, read by the productSiblings widget. */
+    protected function routeProductRelatedGroups(): array {
+        return $this->buildProductRelatedGroups($this->getRoute()->getId(), Loader::service(Services::PRODUCT));
     }
 
     /** The route product's comments, attached to every widget page as `page.comments`. */

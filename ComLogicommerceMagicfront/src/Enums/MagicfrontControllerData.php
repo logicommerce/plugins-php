@@ -37,6 +37,12 @@ abstract class MagicfrontControllerData extends Enum {
      *  countries/countryNames/locationData/companyRoles/customTags). Assembled by the providers. */
     public const SHARED               = 'mffShared';
 
+    /** True when the render is a Studio DOCUMENT (one store widget, `mff_store_widget`), not a page: the
+     *  layout drops the chrome and paints the widget alone ({@see \Plugins\ComLogicommerceMagicfront\Core\Twig\TwigInitializer}). */
+    public const STUDIO_DOCUMENT      = 'mffStudioDocument';
+    /** Placement of the Studio document's widget (BLOCK | SECTION); empty outside the Studio. */
+    public const STUDIO_PLACEMENT     = 'mffStudioPlacement';
+
     public const ASSETS_URL      = 'mffAssetsUrl';
     public const CANVAS_MODE     = 'mffCanvasMode';
     public const PREVIEW_MODE    = 'mffPreviewMode';

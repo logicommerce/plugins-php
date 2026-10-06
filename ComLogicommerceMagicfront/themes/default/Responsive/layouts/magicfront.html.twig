@@ -42,19 +42,19 @@
            MFF owns the chrome, so our self-contained panels render whenever we HAVE panel content
            (the merchant designed one) — not gated by the store theme's own offcanvas config. #}
         {%- if mffMobileMenuPanelPages|default(null) -%}
-            {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList }) }}
+            {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffShared|default({}) }) }}
         {%- endif -%}
         {%- if mffBasketPanelPages|default(null) -%}
-            {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList }) }}
+            {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList, shared: mffShared|default({}) }) }}
         {%- endif -%}
         {%- if mffAccountPanelPages|default(null) -%}
-            {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList }) }}
+            {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffShared|default({}) }) }}
         {%- endif -%}
         {# Our header, captured once and reused across the slot/template/single positions below. The
            region JS ships INSIDE only in canvas (so runScripts re-runs it on swap-in); otherwise it
            stays in jsAssets, deferred after the commerce core bundle. #}
         {%- set ourHeader -%}
-            {{ widgetMacros.widgets({ pages: mffHeaderPages, version: version, widgetTemplateList: mffHeaderTemplateList }) }}
+            {{ widgetMacros.widgets({ pages: mffHeaderPages, version: version, widgetTemplateList: mffHeaderTemplateList, shared: mffShared|default({}) }) }}
             {%- if mff_isCanvasMode() and mffHeaderJs|default('')|length -%}<script>{{ mffHeaderJs|raw }}</script>{%- endif -%}
         {%- endset -%}
         {%- if mff_isCanvasMode() -%}
@@ -78,7 +78,7 @@
 {%- block footer -%}
     {%- if mffOverrideFooter|default(false) -%}
         {%- set ourFooter -%}
-            {{ widgetMacros.widgets({ pages: mffFooterPages, version: version, widgetTemplateList: mffFooterTemplateList }) }}
+            {{ widgetMacros.widgets({ pages: mffFooterPages, version: version, widgetTemplateList: mffFooterTemplateList, shared: mffShared|default({}) }) }}
             {%- if mff_isCanvasMode() and mffFooterJs|default('')|length -%}<script>{{ mffFooterJs|raw }}</script>{%- endif -%}
         {%- endset -%}
         {%- if mff_isCanvasMode() -%}
@@ -99,9 +99,13 @@
 
 {%- block jsAssets -%}
     {%- if mff_isCanvasMode() -%}
+        {# resources.js too: it only defines helpers (readCookie, writeCookie…), and the FWK's inline
+           lcCommerceData block calls readCookie on every visibilitychange — without it the canvas logged
+           «readCookie is not defined» each time the editor tab came back to the front. #}
         {{- includeJsAssets([
             TOOLS_CORE_PATH ~ '/jquery-3.7.0.min.js', 
             TOOLS_CORE_PATH ~ '/bootstrap/5.3.1/bootstrap.bundle.min.js',
+            TOOLS_CORE_PATH ~ '/resources.js',
         ]) -}}
         {{- includeJsAssets(ASSETS_ENVIRONMENT_COMMERCE, 'default') -}} 
     {%- else -%}

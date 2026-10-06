@@ -9,6 +9,8 @@ use FWK\Core\FilterInput\FilterInput;
 use FWK\Core\FilterInput\FilterInputHandler;
 use FWK\Core\Resources\Response;
 use FWK\Enums\Parameters;
+use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
+use Plugins\ComLogicommerceMagicfront\Enums\SampleSituationParam;
 use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssJsHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignStyleHandler;
@@ -16,6 +18,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignS
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\WidgetContentHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use SDK\Core\Dtos\Element;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
@@ -81,6 +84,16 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             // Both are declared in Parameters.php so Varnish forwards them
             // (custom query params would be stripped by the cache layer).
             Parameters::TEMPLATE  => new FilterInput($noMod),
+            // The editor's product simulator, forwarded by the per-widget refresh like the canvas URL does.
+            SampleSituationParam::STOCK   => new FilterInput($noMod),
+            SampleSituationParam::OFFER   => new FilterInput($noMod),
+            SampleSituationParam::REVIEWS => new FilterInput($noMod),
+            SampleSituationParam::LISTING => new FilterInput($noMod),
+            SampleSituationParam::WISHLIST => new FilterInput($noMod),
+            // The preview content-language override, like the whole page.
+            MagicfrontUtils::MFF_LANG => new FilterInput($noMod),
+            // `getWidgets`: the comma-separated ids of the widgets to render in one request.
+            FunctionType::WIDGET_IDS_PARAM => new FilterInput($noMod),
         ];
     }
 

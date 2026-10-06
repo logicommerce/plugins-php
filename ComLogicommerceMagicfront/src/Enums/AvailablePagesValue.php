@@ -46,7 +46,7 @@ abstract class AvailablePagesValue extends Enum {
         self::CATEGORY => 'CATEGORY',
         self::PRODUCT => 'PRODUCT',
         self::ACCOUNT => 'ACCOUNT',
-        self::BASKET => 'BASKET',
+        self::BASKET => 'CHECKOUT_BASKET',
         self::CHECKOUT => 'CHECKOUT',
         self::BLOG_HOME => 'BLOG_HOME',
         self::BLOG_CATEGORY => 'BLOG_CATEGORY',

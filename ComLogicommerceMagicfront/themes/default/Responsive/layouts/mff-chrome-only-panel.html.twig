@@ -1,0 +1,60 @@
+{# MagicFront chrome-only layout — PANELS. Sibling of mff-chrome-only-header/footer.html.twig,
+   selected by ?mff_chrome_only=accountPanel|basketPanel|mobileMenuPanel. The three share this file:
+   what changes is WHICH panel the initializer emitted, not how it is painted, and only the scoped
+   one carries globals — so the three `if`s below resolve to exactly one.
+
+   A panel is an overlay the visitor OPENS: inside a whole shop page it is invisible by construction
+   (`.offcanvas` ships fixed, hidden and translated off-screen), so the merchant edited it blind. Here
+   the region is painted ALONE and the offcanvas is laid flat — static, visible, untranslated — so the
+   panel is simply the content of the screen. Nothing else renders: no header, no footer, no page body.
+
+   The flattening keys on the panel's OWN widget class, never on an ancestor: every panel's script
+   re-anchors its wrapper to <body> on boot (an overlay has to be a body child to cover the page), so
+   a rule scoped to this container stops matching the moment the panel is ready. The style block is
+   emitted here, in the body, so it always lands after the region CSS the head carries. It lays the
+   panel out RELATIVE, not static: `.offcanvas` ships fixed, so the pieces the panels position
+   absolutely (the close button, the empty-cart block) are laid out against the panel — turned static
+   they escaped to the viewport and spread across the whole screen.
+
+   The macro import is this template's own: Twig imports are template-local, and a block declared in a
+   child does not inherit the parent's. Without it the macro call resolves to null and the panel is
+   silently dropped — the screen renders white.
+
+   The theme's `commerce-content` wrappers are not emitted either: they carry a full-viewport
+   min-height, and with the panel re-anchored out of them they were left as an empty screen-tall
+   spacer pushing it below the fold.
+
+   `#mff-page-content` stays as an EMPTY, HIDDEN node for the same reason as in the other two variants:
+   it is the canvas's page anchor, and leaving it visible would offer to add page content on a screen
+   that does not edit pages. #}
+{%- extends "Responsive/layouts/magicfront.html.twig" -%}
+{%- import macrosCore.widget as widgetMacros -%}
+
+{%- block commerceContent -%}
+    <style>
+        .offcanvas.widget-accountPanel,
+        .offcanvas.widget-basketPanel,
+        .offcanvas.widget-mobileMenuPanel {
+            position: relative;
+            visibility: visible;
+            transform: none;
+            border: 0;
+            max-width: 100%;
+        }
+        .offcanvas-backdrop { display: none; }
+    </style>
+    {%- if mffAccountPanelPages|default(null) -%}
+        {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList }) }}
+    {%- endif -%}
+    {%- if mffBasketPanelPages|default(null) -%}
+        {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList }) }}
+    {%- endif -%}
+    {%- if mffMobileMenuPanelPages|default(null) -%}
+        {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList }) }}
+    {%- endif -%}
+    <main class="main-content layout-1" hidden style="display:none">
+        <div class="content-modules divisible-section"><div id="mff-page-content"></div></div>
+    </main>
+    <div id="lcNotify" tabindex="-1"></div>
+    {%- include version ~ '/snippets/icons.html.twig' -%}
+{%- endblock commerceContent -%}

@@ -39,4 +39,13 @@ abstract class Resource extends Enum {
      * no dedicated defaults endpoint.
      */
     public const GET_CHROME_DOC = "/chrome/{id}";
+
+    /**
+     * MagicFront-owned sample content by kind (`product`), localized by query `language`. The editor
+     * canvas and the docker renderer paint a PRODUCT page with it when there is no route product —
+     * the same shape the SDK `Product` DTO hydrates from, so widgets never see two contracts.
+     */
+    public const SAMPLES_BASE = "/samples/";
+
+    public const GET_SAMPLE = self::SAMPLES_BASE . "{kind}";
 }

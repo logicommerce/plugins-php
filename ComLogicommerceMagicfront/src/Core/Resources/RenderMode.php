@@ -18,13 +18,15 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 class RenderMode {
 
     /**
-     * THE editor canvas: rendered inside an iframe AND carrying a token.
+     * THE editor canvas: rendered for the canvas AND carrying a token.
      *
-     * The token comes from {@see MagicfrontToken::getToken()} (cookie first, URL as fallback)
-     * because the canvas drops the URL param on internal navigation while the cookie survives.
+     * The token comes from {@see MagicfrontToken::getToken()} (of the cookie and the URL, the later expiry)
+     * because the canvas drops the URL param on internal navigation while the cookie survives. It
+     * only proves an editor session was opened, never that it is valid — the backend is what
+     * rejects a bad one — so it narrows the scenario, it does not authorise it.
      */
     public static function isCanvasMode(): bool {
-        return MagicfrontUtils::isIframeRequest() && MagicfrontToken::getToken() !== null;
+        return (MagicfrontUtils::isIframeRequest() || MagicfrontUtils::isCanvasFetch()) && MagicfrontToken::getToken() !== null;
     }
 
     /**

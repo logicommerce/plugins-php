@@ -10,7 +10,7 @@ use SDK\Core\Dtos\Traits\ElementTrait;
 
 /**
  * The `content` object of a published page blob: its widget tree, a typed WidgetInstanceCollection
- * hydrated by ElementTrait. Any other content keys (`languages`) are simply ignored.
+ * hydrated by ElementTrait. Any other content keys (`languages`) are simply ignored; `pageType` is kept.
  *
  * @see PageDocument
  *
@@ -21,11 +21,22 @@ class PageContent extends Element {
 
     protected ?WidgetInstanceCollection $widgets = null;
 
+    /** The family's page type as the backend writes it (`HOME`, `LANDING`, `PRODUCT`, …); '' on older blobs. */
+    protected string $pageType = '';
+
     protected function setWidgets(array $widgets): void {
         $this->widgets = new WidgetInstanceCollection(['items' => $widgets]);
     }
 
     public function getWidgets(): ?WidgetInstanceCollection {
         return $this->widgets;
+    }
+
+    protected function setPageType(string $pageType): void {
+        $this->pageType = $pageType;
+    }
+
+    public function getPageType(): string {
+        return $this->pageType;
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits;
 
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
+use Plugins\ComLogicommerceMagicfront\Core\Services\VisibilityRanges;
 use Plugins\ComLogicommerceMagicfront\Core\Services\StyleMapper;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
@@ -23,9 +24,20 @@ trait CssGeneratorTrait {
     /** Media query for the mobile breakpoint. Must match preview's InstanceCssBuilder. */
     private const MOBILE_MEDIA = '@media (max-width: 767px)';
 
+    private const SELF_ELEMENT_ID = '_self';
+
     private const TITLE_WEIGHT_BASE_CSS = '[data-property="title"]{font-weight:400}[data-property="title"] strong,[data-property="title"] b{font-weight:700}';
 
     // ─── Public API ───────────────────────────────────────────────────────────
+
+    /**
+     * Position of each childStructure pseudo child among its siblings (widgetId → 0-based index by orderIndex). The DOM
+     * numbers them with `loop.index0` (ChildIndexInjector), so the CSS must use the same position — orderIndex alone
+     * drifts as soon as there is a gap (items 0 and 2 → DOM 0 and 1).
+     *
+     * @var array
+     */
+    private array $mffChildPositions = [];
 
     /**
      * Build final CSS from widget templates and instance style overrides.
@@ -34,6 +46,7 @@ trait CssGeneratorTrait {
      * @param WidgetTemplate[]  $templates Templates indexed by type.
      */
     protected function generateCss(array $widgets, array $templates): string {
+        $this->mffChildPositions = self::childPositions($widgets);
         $styleElementMap = $this->buildStyleElementMap($templates);
         $cssPropertyMap  = $this->buildStyleCssPropertyMap($templates);
         $slotTypes       = $this->collectSlotTypes($templates);
@@ -103,16 +116,27 @@ trait CssGeneratorTrait {
         // templates with no responsive declarations pay zero cost. Matches
         // preview's InstanceCssBuilder::build contract (kept in sync per
         // template-renderers.md §5).
-        $desktopBlocks = [];
-        $tabletBlocks  = [];
-        $mobileBlocks  = [];
+        $desktopBlocks    = [];
+        $wideBlocks       = [];
+        $fromTabletBlocks = [];
+        $tabletBlocks     = [];
+        $mobileBlocks     = [];
         foreach ($widgets as $widget) {
-            $desktopBlocks = array_merge($desktopBlocks, $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, null));
-            $tabletBlocks  = array_merge($tabletBlocks,  $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, 'tablet'));
-            $mobileBlocks  = array_merge($mobileBlocks,  $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, 'mobile'));
+            $desktopBlocks    = array_merge($desktopBlocks,    $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, null));
+            $wideBlocks       = array_merge($wideBlocks,       $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, 'wide'));
+            $fromTabletBlocks = array_merge($fromTabletBlocks, $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, 'fromTablet'));
+            $tabletBlocks     = array_merge($tabletBlocks,     $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, 'tablet'));
+            $mobileBlocks     = array_merge($mobileBlocks,     $this->instanceCssFor($widget, $styleElementMap, $cssPropertyMap, $slotTypes, 'mobile'));
         }
 
         $out = implode("\n", $desktopBlocks);
+        // «Hidden on desktop, visible on a smaller device» (VisibilityRanges): the desktop none only on its range.
+        if ($wideBlocks !== []) {
+            $out .= ($out === '' ? '' : "\n") . VisibilityRanges::WIDE_MEDIA . " {\n" . $this->indent(implode("\n", $wideBlocks)) . "}\n";
+        }
+        if ($fromTabletBlocks !== []) {
+            $out .= ($out === '' ? '' : "\n") . VisibilityRanges::FROM_TABLET_MEDIA . " {\n" . $this->indent(implode("\n", $fromTabletBlocks)) . "}\n";
+        }
         if ($tabletBlocks !== []) {
             $out .= ($out === '' ? '' : "\n") . self::TABLET_MEDIA . " {\n" . $this->indent(implode("\n", $tabletBlocks)) . "}\n";
         }
@@ -123,7 +147,8 @@ trait CssGeneratorTrait {
     }
 
     /**
-     * @param  string|NULL $breakpoint null = desktop canonical; 'tablet'/'mobile' = sibling override projection.
+     * @param  string|NULL $breakpoint null = desktop canonical; 'tablet'/'mobile' = sibling override projection;
+     *                                 'wide'/'fromTablet' = the desktop display@_self none moved to a range (VisibilityRanges).
      * @return string[] CSS blocks for a single widget (one per element-id × descendantSelector group).
      */
     private function instanceCssFor(WidgetInstance $widget, array $styleElementMap, array $cssPropertyMap, array $slotTypes, ?string $breakpoint = null): array {
@@ -134,11 +159,16 @@ trait CssGeneratorTrait {
             return [];
         }
 
-        if ($breakpoint !== null) {
-            $styleValues = $this->extractBreakpoint($styleValues, $breakpoint);
-            if ($styleValues === []) {
-                return [];
-            }
+        $ranges = VisibilityRanges::split($styleValues);
+        if ($breakpoint === null) {
+            $styleValues = $ranges['desktop'];
+        } elseif ($breakpoint === 'wide' || $breakpoint === 'fromTablet') {
+            $styleValues = $ranges[$breakpoint];
+        } else {
+            $styleValues = $this->extractBreakpoint($ranges['devices'], $breakpoint);
+        }
+        if ($styleValues === []) {
+            return [];
         }
 
         [$scopeId, $childIndex, $hasSlot] = $this->resolveWidgetScope($widget, $slotTypes);
@@ -181,11 +211,21 @@ trait CssGeneratorTrait {
             if (!is_array($override) || !array_key_exists('value', $override) || $override['value'] === null) {
                 continue;
             }
+            // A composite value (a SHADOW: x, y, blur, spread, color) overridden on a device may carry only the parts
+            // the merchant touched there: the rest come from desktop, never 0 — a tablet override of the blur alone
+            // produced an invalid box-shadow.
+            $value = $override['value'];
+            $base  = $styleArr['value'] ?? null;
+            $value = is_object($value) ? get_object_vars($value) : $value;
+            $base  = is_object($base) ? get_object_vars($base) : $base;
+            if (is_array($value) && is_array($base)) {
+                $value = array_merge($base, array_filter($value, static fn($part): bool => $part !== null && $part !== ''));
+            }
             $out[] = [
                 'styleId'     => $styleArr['styleId']     ?? null,
                 'styleTagPId' => $styleArr['styleTagPId'] ?? ($styleArr['styleId'] ?? null),
                 'elementId'   => $styleArr['elementId']   ?? '',
-                'value'       => $override['value'],
+                'value'       => $value,
                 'unit'        => $override['unit']        ?? ($styleArr['unit'] ?? ''),
             ];
         }
@@ -210,6 +250,24 @@ trait CssGeneratorTrait {
         return $styleValues !== []
             ? $this->applyElementIdMapping($styleValues, $typeMap)
             : $this->propertyValuesToStyleValues($widget->getPropertyValues(), $typeMap);
+    }
+
+    /** @param WidgetInstance[] $widgets @return array */
+    private static function childPositions(array $widgets): array {
+        $byParent = [];
+        foreach ($widgets as $w) {
+            if ($w instanceof WidgetInstance && $w->isChildStructurePseudo() && (string) $w->getParentId() !== '') {
+                $byParent[(string) $w->getParentId()][] = $w;
+            }
+        }
+        $out = [];
+        foreach ($byParent as $siblings) {
+            usort($siblings, static fn(WidgetInstance $a, WidgetInstance $b): int => ((int) $a->getOrderIndex()) <=> ((int) $b->getOrderIndex()));
+            foreach ($siblings as $i => $w) {
+                $out[(string) $w->getId()] = $i;
+            }
+        }
+        return $out;
     }
 
     /**
@@ -242,7 +300,7 @@ trait CssGeneratorTrait {
         $hasParent      = $parentId !== null && $parentId !== '';
 
         $scopeId    = ($isSlotTemplate && $hasParent) ? $parentId : $widgetId;
-        $childIndex = ($isSlotTemplate && $hasParent) ? $widget->getOrderIndex() : null;
+        $childIndex = ($isSlotTemplate && $hasParent) ? ($this->mffChildPositions[$widgetId] ?? $widget->getOrderIndex()) : null;
         // Slot-templates inherit slot status from their parent (which is always a
         // container). Real widgets are slot containers only when their own
         // template declares childStructure.
@@ -482,6 +540,11 @@ trait CssGeneratorTrait {
         if ($elementId === '') {
             return $base . $descendantSelector;
         }
+        // Platform style on the widget's own wrapper box (PlatformStyles.SELF_ELEMENT_ID in the backend model): the
+        // box the platform wraps every widget in, e.g. flex-grow so a widget fills the free space of a row group.
+        if ($elementId === self::SELF_ELEMENT_ID && $childIndex === null) {
+            return $base;
+        }
 
         $escapedEl = preg_replace('/[^a-zA-Z0-9_-]/', '', $elementId);
         $target    = "{$base} [data-mff-el=\"{$escapedEl}\"]";
@@ -489,6 +552,6 @@ trait CssGeneratorTrait {
         if (!$hasSlot) {
             return $target . $descendantSelector;
         }
-        return "{$target}{$descendantSelector}:not({$base} [data-mff-widget-root] [data-mff-el=\"{$escapedEl}\"]{$descendantSelector})";
+        return "{$target}{$descendantSelector}:not({$base} .mff-widget [data-mff-el=\"{$escapedEl}\"]{$descendantSelector})";
     }
 }

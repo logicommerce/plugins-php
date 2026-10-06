@@ -9,9 +9,11 @@ use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Services\SuccessCacheTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
+use Plugins\ComLogicommerceMagicfront\Dtos\Content\PageFacts;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Enums\Resource;
+use Plugins\ComLogicommerceMagicfront\Enums\SampleSituationParam;
 use SDK\Core\Builders\RequestBuilder;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Dtos\Request;
@@ -41,6 +43,8 @@ class WidgetsService extends Service {
 
     private const CACHEABLE_PATH_PREFIXES = [
         Resource::WIDGET_TEMPLATES_BASE,
+        // Sample content is shipped with the backend and only changes on deploy — static like a template.
+        Resource::SAMPLES_BASE,
     ];
 
     private static ?self $instance = null;
@@ -79,10 +83,15 @@ class WidgetsService extends Service {
      * {@see getPageWidgetById} (the Page-transformed view).
      */
     public function getPageWidgetInstanceById(string $pageId, string $widgetId, string $language): ?WidgetInstance {
+        // A node of a Studio document (`store:<slug>@N`) is not in any page: its id is a nodeKey, unique only
+        // inside that store widget, so the read names the document. Page widgets keep their bare-id read.
+        $params = MagicfrontUtils::isStudioDocumentRef($pageId)
+            ? ['language' => $language, 'page' => $pageId]
+            : ['language' => $language];
         $widget = $this->getResourceElement(
             WidgetInstance::class,
             $this->replaceWildcards(Resource::GET_PAGE_WIDGET_BY_ID, ['pageId' => $pageId, 'widgetId' => $widgetId]),
-            ['language' => $language]
+            $params
         );
         return $widget instanceof WidgetInstance ? $widget : null;
     }
@@ -128,29 +137,41 @@ class WidgetsService extends Service {
     }
 
     /**
-     * Returns the `page.chrome` doc-id refs `{header:<id>, footer:<id>}` for a page, read
-     * from the page record (`GET /pages/{pageId}`). Empty entries are omitted so the caller
-     * can fall back to the commerce default per kind via {@see getChromeDoc()} with `$asDefault`.
+     * What the editor path needs from the page record in ONE `GET /pages/{pageId}`: the `page.chrome`
+     * doc-id refs `{header:<id>, footer:<id>}` (empty kinds omitted so the caller falls back to the
+     * commerce default per kind via {@see getChromeDoc()} with `$asDefault`) and the page type (`HOME`,
+     * `PRODUCT`, …) — the canvas loads any page from the shop root, so the type is the only way to know
+     * a PRODUCT page is being painted.
      *
-     * @return array
+     * A Studio document (`store:`/`draft:`) also says its placement (BLOCK | SECTION), so the Studio layout can give a
+     * BLOCK widget the side room a page section gives it.
+     *
+     * @return PageFacts
      */
-    public function getPageChromeRefs(string $pageId): array {
-        $data = $this->call(
+    public function getPageFacts(string $pageId): PageFacts {
+        return new PageFacts($this->call(
             (new RequestBuilder())
                 ->path($this->replaceWildcards(Resource::GET_PAGE_BY_ID, ['pageId' => $pageId]))
                 ->build()
+        ));
+    }
+
+    /**
+     * MagicFront's sample content of a kind (`GET /samples/{kind}?language=`), as the raw array the
+     * backend returns: for `product`, `{kind, product: <SDK Product shape>, customTags: {pId: {name, controlType}}}`.
+     * A piece the response lacks is painted empty by the caller.
+     * `$situation` is the editor simulator's `{stock, offer}` ({@see SampleSituationParam::fromRequest}).
+     *
+     * @param array $situation
+     * @return array
+     */
+    public function getSample(string $kind, string $language, array $situation = []): array {
+        return $this->call(
+            (new RequestBuilder())
+                ->path($this->replaceWildcards(Resource::GET_SAMPLE, ['kind' => $kind]))
+                ->urlParams(['language' => $language] + $situation)
+                ->build()
         );
-        $chrome = $data['chrome'] ?? null;
-        if (!is_array($chrome)) {
-            return [];
-        }
-        $refs = [];
-        foreach (['header', 'footer'] as $kind) {
-            if (isset($chrome[$kind]) && is_string($chrome[$kind]) && $chrome[$kind] !== '') {
-                $refs[$kind] = $chrome[$kind];
-            }
-        }
-        return $refs;
     }
 
     /**

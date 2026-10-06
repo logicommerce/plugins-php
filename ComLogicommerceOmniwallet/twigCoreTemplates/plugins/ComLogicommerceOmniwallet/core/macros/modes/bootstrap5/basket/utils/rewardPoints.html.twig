@@ -4,7 +4,7 @@
 
 {%- set labelMinImport = 'Plugins\\ComLogicommerceOmniwallet\\Enums\\LanguageLabels::COM_LOGICOMMERCE_MIN_IMPORT_PURCHASE' -%}
 {%- set minImportPurchase = languageSheet[constant(labelMinImport)]|replace({'{{MIN_IMPORT_PURCHASE}}': outputHtmlCurrency(settings.MIN_IMPORT_PURCHASE)}) %}
-
+{%- if settings.MAX_REDEEM > 0 -%}
 <div class="rewardPointsSummary">
     <div class="rewardPointsItem">
         <div class="rewardPointsTotalEarning">
@@ -13,3 +13,4 @@
         </div>
     </div>
 </div>
+{%- endif -%}

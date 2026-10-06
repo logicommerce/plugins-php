@@ -30,7 +30,9 @@ abstract class AbstractCustomizeHandler extends AbstractPluginRouteHandler {
     }
 
     protected function isValidPageId(string $pageId): bool {
-        return $pageId !== '' && (bool) preg_match('/^[a-zA-Z0-9_-]+$/', $pageId);
+        // A page id, or a Studio document ref: `store:<slug>` / `store:<slug>@N` / `draft:<id>`.
+        // The backend serves those refs only to a preview token minted for exactly that document.
+        return $pageId !== '' && (bool) preg_match('/^(?:[a-zA-Z0-9_-]+|store:[a-z0-9-]+(?:@\d+)?|draft:[a-zA-Z0-9_-]+)$/', $pageId);
     }
 
     /**

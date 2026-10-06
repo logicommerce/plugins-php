@@ -15,6 +15,7 @@ use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
 use SDK\Core\Dtos\PluginProperties as CorePluginProperties;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Dtos\Traits\ElementTrait;
+use SDK\Core\Registry;
 use SDK\Dtos\Catalog\Page\Page;
 use SDK\Services\Parameters\Groups\PageParametersGroup;
 
@@ -24,8 +25,13 @@ use SDK\Services\Parameters\Groups\PageParametersGroup;
 class PluginProperties extends CorePluginProperties {
     use ElementTrait;
 
-    /** @var array per-request existence memo, keyed by pId */
-    private array $specialPageExistsCache = [];
+    /**
+     * Per-REQUEST memo of the special pages, keyed by pId: the page, or null when it is not published. Static, not
+     * per object: the FWK builds more than one PluginProperties in a request, and each one would ask again.
+     *
+     * @var array
+     */
+    private static array $specialPages = [];
 
     protected array $properties = [];
 
@@ -52,7 +58,7 @@ class PluginProperties extends CorePluginProperties {
         }
         return $this->withAccountRedirects(array_values(array_filter(
             $this->routesFromAvailablepages(),
-            fn(string $routeType): bool => $this->specialPagePublished($routeType)
+            fn(string $routeType): bool => !$this->decidesThisRequest($routeType) || $this->specialPagePublished($routeType)
         )));
     }
 
@@ -73,6 +79,26 @@ class PluginProperties extends CorePluginProperties {
     }
 
     /**
+     * Whether `$routeType` decides anything in THIS request. The FWK only asks whether the CURRENT route is in
+     * {@see getControllerOverridePages()}, yet every type the merchant enabled used to be checked against the API on
+     * every page view — one call per type, each bringing the whole page: 3-5 s per page on nightly. A type that
+     * decides nothing here is listed by the merchant's setting alone. What decides: the current route, and the
+     * account page when the current route is one of the account sub-routes folded into it. When the current route
+     * is not known yet, every type decides, as before.
+     */
+    private function decidesThisRequest(string $routeType): bool {
+        try {
+            $current = Registry::exist(Registry::PAGE_TYPE) ? (string) Registry::get(Registry::PAGE_TYPE) : '';
+        } catch (\Throwable) {
+            $current = '';
+        }
+        if ($current === '' || $current === $routeType) {
+            return true;
+        }
+        return $routeType === RouteType::ACCOUNT && in_array($current, AccountRedirectRoutes::types(), true);
+    }
+
+    /**
      * A route with a singleton special page ({@see SpecialPagePId::forRouteType}) may take over ONLY
      * when that page exists; until it is published producción keeps serving the commerce's own
      * controller. Routes without one (e.g. PAGE / pageModules) are never gated — they carry their
@@ -87,21 +113,34 @@ class PluginProperties extends CorePluginProperties {
      * Whether a MagicFront page with the given stable pId exists (is published). Per-request memoized,
      * shared by controller takeover AND chrome/panel injection so an unpublished special page keeps
      * producción on the commerce's own rendering. Public so {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\TwigInitializer}
-     * gates mff_CHROME / mff_PANELS through the same single query+cache.
+     * gates mff_CHROME / mff_PANELS through the same single query+cache. Always asked in THIS request, never
+     * remembered from an earlier one: a page unpublished a second ago is already gone here, so a route never takes
+     * over to paint a page that is not there.
      */
     public function pageExists(string $pId): bool {
-        if (!array_key_exists($pId, $this->specialPageExistsCache)) {
+        return self::loadSpecialPage($pId) !== null;
+    }
+
+    /**
+     * The published special page with this pId, fetched once per request: whoever asks first (the existence check,
+     * the route painting it, the chrome) brings it, and the others reuse it. Each one used to be fetched twice per
+     * page view. A failed call counts as not published for this request, as before.
+     */
+    public static function loadSpecialPage(string $pId): ?Page {
+        if (!array_key_exists($pId, self::$specialPages)) {
+            $page = null;
             try {
                 $params = new PageParametersGroup();
                 $params->setPId($pId);
                 $collection = Loader::service(Services::PAGE)->getPages($params);
-                $this->specialPageExistsCache[$pId] = $collection instanceof ElementCollection
-                    && ($collection->getItems()[0] ?? null) instanceof Page;
+                $first = $collection instanceof ElementCollection ? ($collection->getItems()[0] ?? null) : null;
+                $page = $first instanceof Page ? $first : null;
             } catch (\Throwable) {
-                $this->specialPageExistsCache[$pId] = false;
+                $page = null;
             }
+            self::$specialPages[$pId] = $page;
         }
-        return $this->specialPageExistsCache[$pId];
+        return self::$specialPages[$pId];
     }
 
     /** @return string[] */

@@ -37,6 +37,9 @@ class WidgetTemplate extends Element {
 
     protected string $templateJs = '';
 
+    /** JavaScript only the editor canvas runs (reactions to the preview states). Never emitted in the store. */
+    protected string $previewJs = '';
+
     protected array $properties = [];
 
     /** @var WidgetTemplateStyle[] */
@@ -88,6 +91,15 @@ class WidgetTemplate extends Element {
      */
     public function getTemplateJs(): string {
         return $this->templateJs;
+    }
+
+    /**
+     * Returns the canvas-only JavaScript (the widget's reactions to the editor's preview states).
+     *
+     * @return string
+     */
+    public function getPreviewJs(): string {
+        return $this->previewJs;
     }
 
     /**

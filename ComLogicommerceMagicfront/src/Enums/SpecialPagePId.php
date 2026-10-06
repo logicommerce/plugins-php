@@ -33,6 +33,11 @@ abstract class SpecialPagePId extends Enum {
 
     public const CHECKOUT = 'mff_CHECKOUT';
 
+    // The basket PAGE is FWK's CHECKOUT_BASKET route (/checkout/basket); RouteType::BASKET (/basket) is only
+    // the add-rows-by-hash endpoint that redirects there. With one-step checkout on, FWK itself redirects the
+    // basket page to CHECKOUT, so this page only paints for commerces that run the classic basket step.
+    public const BASKET = 'mff_BASKET';
+
     public const BLOG_HOME = 'mff_BLOG_HOME';
 
     public const BLOG_POST = 'mff_BLOG_POST';
@@ -57,6 +62,7 @@ abstract class SpecialPagePId extends Enum {
             'PRODUCT'       => self::PRODUCT,
             'ACCOUNT'       => self::ACCOUNT,
             'CHECKOUT'      => self::CHECKOUT,
+            'CHECKOUT_BASKET' => self::BASKET,
             'BLOG_HOME'     => self::BLOG_HOME,
             'BLOG_POST'     => self::BLOG_POST,
             'BLOG_CATEGORY' => self::BLOG_CATEGORY,

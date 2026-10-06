@@ -1,0 +1,23 @@
+{# MagicFront chrome-only layout — HEADER. Selected by TwigInitializer when the request carries
+   ?mff_chrome_only=header AND a preview token, i.e. the Personalización editor's own iframe.
+   It renders the chrome overlay exactly as the storefront does (same header block, same panels,
+   same CSS/JS) and simply does not emit the page body nor the footer: editing the header inside a
+   full shop page buried it between an empty content area and a footer that is not being edited.
+   `#mff-page-content` stays as an EMPTY, HIDDEN node on purpose: the canvas resolves the page
+   container by that id and hangs its "add widget" bar inside it, so removing the node would move that
+   bar on top of the chrome, and leaving it visible would offer to add page content on a screen that
+   does not edit pages. Present for the anchor, hidden for the merchant. #}
+{%- extends "Responsive/layouts/magicfront.html.twig" -%}
+
+{%- block commerceContent -%}
+    <div class="commerce-content commerce-content-{{- THIS_PAGE }}">
+        <div class="commerce-content-inset">
+            {{- block('header') -}}
+            <main class="main-content layout-1" hidden style="display:none">
+                <div class="content-modules divisible-section"><div id="mff-page-content"></div></div>
+            </main>
+        </div>
+    </div>
+    <div id="lcNotify" tabindex="-1"></div>
+    {%- include version ~ '/snippets/icons.html.twig' -%}
+{%- endblock commerceContent -%}

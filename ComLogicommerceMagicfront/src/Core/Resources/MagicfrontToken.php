@@ -25,15 +25,43 @@ class MagicfrontToken {
 
     public const MF_TOKEN = 'mfToken';
 
+    /**
+     * The token this request authenticates with: of the cookie's and the URL's, the one that expires LATER.
+     *
+     * Cookie first was wrong whenever the editor opened a page with a fresh `?mfToken=` while the cookie still
+     * held an expired one: the Twig initializer fetches the page's header/footer (`/chrome/{id}`) BEFORE the
+     * controller stages the URL token, so that fetch went out with the expired cookie, got a 401 and the page
+     * painted without header and footer, silently. Taking the later expiry makes the answer independent of that
+     * order, and a stale URL (a tab reloaded with an old token) still loses to a fresh cookie.
+     */
     public static function getToken(): ?string {
-        $value = Cookie::get(self::MF_TOKEN);
-        if (is_string($value) && $value !== '') {
-            return $value;
-        }
-        // Fallback to the URL param: the cookie is only persisted inside the canvas iframe, so a
-        // standalone preview request (top document) authenticates itself from its own query token.
+        $cookie = Cookie::get(self::MF_TOKEN);
+        $cookie = is_string($cookie) && $cookie !== '' ? $cookie : null;
+        // The cookie is only persisted inside the canvas iframe, so a standalone preview request (top document)
+        // authenticates itself from its own query token.
         $param = $_GET[self::MF_TOKEN] ?? null;
-        return is_string($param) && $param !== '' ? $param : null;
+        $param = is_string($param) && $param !== '' ? $param : null;
+        if ($cookie === null || $param === null || $cookie === $param) {
+            return $param ?? $cookie;
+        }
+        return self::expiresAt($param) >= self::expiresAt($cookie) ? $param : $cookie;
+    }
+
+    /**
+     * The `exp` claim of a JWT, read without verifying it (the API verifies; this only chooses which of two
+     * tokens to send). An unreadable token counts as already expired.
+     */
+    private static function expiresAt(string $jwt): int {
+        $parts = explode('.', $jwt);
+        if (count($parts) !== 3) {
+            return 0;
+        }
+        $payload = base64_decode(strtr($parts[1], '-_', '+/'), true);
+        if ($payload === false) {
+            return 0;
+        }
+        $claims = json_decode($payload, true);
+        return is_array($claims) && isset($claims['exp']) && is_numeric($claims['exp']) ? (int) $claims['exp'] : 0;
     }
 
     /**

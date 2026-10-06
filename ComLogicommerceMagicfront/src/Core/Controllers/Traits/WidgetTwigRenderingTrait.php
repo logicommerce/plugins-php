@@ -11,8 +11,9 @@ use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\PluginTwigBootstrap;
-use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
+use Plugins\ComLogicommerceMagicfront\Core\Twig\WidgetApi;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
+use Twig\Extension\SandboxExtension;
 
 /**
  * Shared widget → HTML rendering for plugin-route handlers: builds the widget Twig environment
@@ -72,7 +73,8 @@ trait WidgetTwigRenderingTrait {
 
         PluginTwigBootstrap::apply($twigEnv, ContextBuilder::fromSession());
 
-        foreach ($controller->getDefaultDataForWidgetRender() as $key => $value) {
+        $defaultData = $controller->getDefaultDataForWidgetRender();
+        foreach ($defaultData as $key => $value) {
             $twigEnv->addGlobal($key, $value);
         }
 
@@ -94,6 +96,18 @@ trait WidgetTwigRenderingTrait {
         if (empty($widgetTemplateList[$widgetType])) {
             throw new \Exception("Template not found in API response for widget type: {$widgetType}");
         }
-        return $twigEnv->createTemplate($widgetTemplateList[$widgetType])->render($twigData);
+        // The widget's own template renders sandboxed, the same as in the widgets macro (WidgetSecurityPolicy).
+        // Created INSIDE the sandbox too: Twig checks a template's tags, filters and functions when it loads it.
+        $sandbox = $twigEnv->getExtension(SandboxExtension::class);
+        $wasSandboxed = $sandbox->isSandboxed();
+        $sandbox->enableSandbox();
+        try {
+            return $twigEnv->createTemplate($widgetTemplateList[$widgetType])
+                ->render($twigData + [WidgetApi::VARIABLE => WidgetApi::forEnvironment($twigEnv)]);
+        } finally {
+            if (!$wasSandboxed) {
+                $sandbox->disableSandbox();
+            }
+        }
     }
 }

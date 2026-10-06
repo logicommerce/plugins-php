@@ -20,6 +20,16 @@ enum ChromeKind: string {
     case BasketPanel = 'basketPanel';
     case MobileMenuPanel = 'mobileMenuPanel';
 
+    /** The three side panels, in the order the storefront emits them. */
+    public static function panels(): array {
+        return [self::AccountPanel, self::BasketPanel, self::MobileMenuPanel];
+    }
+
+    /** True for the side panels; false for the two page regions. */
+    public function isPanel(): bool {
+        return in_array($this, self::panels(), true);
+    }
+
     public function pagesGlobalKey(): string {
         return match ($this) {
             self::Header => MagicfrontControllerData::HEADER_PAGES,

@@ -1,0 +1,18 @@
+{# MagicFront chrome-only layout — FOOTER. Sibling of mff-chrome-only-header.html.twig, selected by
+   ?mff_chrome_only=footer: the footer alone, with no page body above it and no header, so the
+   merchant edits it without scrolling a whole shop page to reach it. `#mff-page-content` stays as an
+   EMPTY, HIDDEN node for the same reason as in the header variant: it is the canvas's page anchor. #}
+{%- extends "Responsive/layouts/magicfront.html.twig" -%}
+
+{%- block commerceContent -%}
+    <div class="commerce-content commerce-content-{{- THIS_PAGE }}">
+        <div class="commerce-content-inset">
+            <main class="main-content layout-1" hidden style="display:none">
+                <div class="content-modules divisible-section"><div id="mff-page-content"></div></div>
+            </main>
+            {{- block('footer') -}}
+        </div>
+    </div>
+    <div id="lcNotify" tabindex="-1"></div>
+    {%- include version ~ '/snippets/icons.html.twig' -%}
+{%- endblock commerceContent -%}

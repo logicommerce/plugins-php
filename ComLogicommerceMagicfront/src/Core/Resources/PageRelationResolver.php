@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 
+use SDK\Dtos\Catalog\Product\Comment;
 use FWK\Core\Dtos\ElementCollection as DtosElementCollection;
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
@@ -190,6 +191,40 @@ class PageRelationResolver {
         }
     }
 
+    /** The product's related-items groups (`{name, products[]}`) → `page.productRelatedGroups` on every widget page. */
+    public static function attachProductRelatedGroups(?ElementCollection $pages, array $groups): void {
+        if ($pages === null || empty($groups)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setProductRelatedGroups($groups);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProductRelatedGroups(new ElementCollection(['items' => $subItems]), $groups);
+            }
+        }
+    }
+
+    /** Product custom tags (pId → `{name, controlType}`) → `page.productCustomTags` on every widget page. */
+    public static function attachProductCustomTags(?ElementCollection $pages, array $names): void {
+        if ($pages === null || empty($names)) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $page->setProductCustomTags($names);
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachProductCustomTags(new ElementCollection(['items' => $subItems]), $names);
+            }
+        }
+    }
+
     public static function attachWishlist(?ElementCollection $pages, array $wishlist): void {
         if ($pages === null || empty($wishlist)) {
             return;
@@ -246,6 +281,54 @@ class PageRelationResolver {
                 self::attachWidgetData(new ElementCollection(['items' => $subItems]), $assignments);
             }
         }
+    }
+
+    /**
+     * The sample product's reviews as the SDK Comment DTOs a real product route yields (the ProductController reads
+     * them from LogiCommerce). Both editor render paths (the whole page and the per-widget refresh) use it, so they
+     * paint the same reviews.
+     *
+     * @return Comment[]
+     */
+    public static function sampleComments(array $sample): array {
+        $rows = $sample['comments'] ?? [];
+        return is_array($rows) ? array_map(static fn(array $row) => new Comment($row), array_values(array_filter($rows, 'is_array'))) : [];
+    }
+
+    public static function sampleCustomTags(array $sample): array {
+        $tags = $sample['customTags'] ?? [];
+        return is_array($tags) ? array_filter($tags, 'is_array') : [];
+    }
+
+    public static function sampleRelatedGroups(array $sample): array {
+        $groups = $sample['relatedGroups'] ?? [];
+        return is_array($groups) ? array_values(array_filter($groups, 'is_array')) : [];
+    }
+
+    /**
+     * The sample's own trail (Home › … › the sample), the one the full editor render attaches
+     * (MagicfrontTrait::sampleCategoryBreadcrumb / sampleProductBreadcrumb): without it a breadcrumb added or
+     * edited on the page repainted the demo trail «Inicio / Sección / Página actual» until the canvas reloaded.
+     */
+    public static function sampleTrail(array $sample): array {
+        $trail = $sample['breadcrumb'] ?? null;
+        return is_array($trail) ? array_values(array_filter($trail, 'is_array')) : [];
+    }
+
+    /** One collection of the category sample (`{items, pagination}`) as the SDK ElementCollection a real route yields. */
+    public static function sampleCollection(array $sample, string $key, string $dtoClass): ?ElementCollection {
+        $raw = $sample[$key] ?? null;
+        if (!is_array($raw) || !is_array($raw['items'] ?? null)) {
+            return null;
+        }
+        $items = array_map(static fn(array $item) => new $dtoClass($item), array_values(array_filter($raw['items'], 'is_array')));
+        $collection = ['items' => $items];
+        foreach (['pagination', 'filter'] as $part) {
+            if (is_array($raw[$part] ?? null)) {
+                $collection[$part] = $raw[$part];
+            }
+        }
+        return new ElementCollection($collection);
     }
 
     public static function attachComments(?ElementCollection $pages, array $comments): void {

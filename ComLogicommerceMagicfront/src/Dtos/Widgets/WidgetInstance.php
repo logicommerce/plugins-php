@@ -58,9 +58,34 @@ class WidgetInstance extends Element {
     /**
      * Permissions resolved server-side from the slot's declaration. Null
      * when slotId is null. Keys: allowMove, allowDelete, allowDuplicate,
-     * allowTypeChange (all booleans).
+     * allowTypeChange (booleans), contentScope ('OWNER'|'ANY'), accepts
+     * (string[]), ownerId (id of the widget that declares the slot) and
+     * locked (bool: lockedWhen holds on the owner → not draggable, cascades).
      */
     protected ?array $slotPermissions = null;
+
+    /**
+     * True when the widget's (anchored) template declares acceptsChildren:
+     * a free container whose children are ordinary widgets (today: group).
+     * The macro publishes it as data-mff-container="1".
+     */
+    protected ?bool $acceptsChildren = null;
+
+    /**
+     * True when the widget's (anchored) template declares childStructure or slots: its instance CSS is scoped
+     * with :not() (CssGeneratorTrait hasSlot). The macro publishes it as data-mff-scoped="1" so the canvas
+     * live-patch builds the same selector instead of guessing from the DOM.
+     */
+    protected ?bool $scoped = null;
+
+    /**
+     * Role of the node inside a store-widget instance: locked | exposed | slot; null outside
+     * one. The macro publishes it, and locks the inner pieces so the canvas treats the instance as one block.
+     */
+    protected ?string $storeRole = null;
+
+    /** {id, version, revision} on the ROOT of a store-widget instance; null on every other node. */
+    protected ?array $storeWidgetRef = null;
 
     protected array $propertyValues = [];
 
@@ -159,6 +184,22 @@ class WidgetInstance extends Element {
         return $this->slotPermissions;
     }
 
+    public function getAcceptsChildren(): ?bool {
+        return $this->acceptsChildren;
+    }
+
+    public function getScoped(): ?bool {
+        return $this->scoped;
+    }
+
+    public function getStoreRole(): ?string {
+        return $this->storeRole;
+    }
+
+    public function getStoreWidgetRef(): ?array {
+        return $this->storeWidgetRef;
+    }
+
     /**
      * True for childStructure pseudo-widgets — auto-generated AND occupying
      * no typed slot. Such children have no standalone template; their CSS/JS
@@ -234,5 +275,21 @@ class WidgetInstance extends Element {
 
     protected function setSlotPermissions(?array $slotPermissions): void {
         $this->slotPermissions = $slotPermissions;
+    }
+
+    protected function setAcceptsChildren(?bool $acceptsChildren): void {
+        $this->acceptsChildren = $acceptsChildren;
+    }
+
+    protected function setScoped(?bool $scoped): void {
+        $this->scoped = $scoped;
+    }
+
+    protected function setStoreRole(?string $storeRole): void {
+        $this->storeRole = $storeRole;
+    }
+
+    protected function setStoreWidgetRef(?array $storeWidgetRef): void {
+        $this->storeWidgetRef = $storeWidgetRef;
     }
 }

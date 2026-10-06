@@ -67,7 +67,11 @@ class CustomizeCssJsHandler extends AbstractCustomizeHandler {
      */
     private function buildOutput(string $pageId, string $language): array {
         $widgets     = $this->getPageWidgets($pageId, $language);
-        $widgetTypes = WidgetTypeCollector::fromWidgets($widgets);
+        // Version-anchored keys (`button@1`), never bare families: the family id resolves to the LATEST
+        // version of the catalog, so a page mixing `button@1` instances with a `button@2` piece received
+        // only the v2 stylesheet and every v1 button lost its own rules (filled/outline variants, borders).
+        // Each anchored key fetches its own template, and the CSS generator emits one block per version.
+        $widgetTypes = WidgetTypeCollector::templateKeysFromWidgets($widgets);
         if (empty($widgetTypes)) {
             return $this->emptyData();
         }

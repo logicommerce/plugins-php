@@ -1,0 +1,22 @@
+{# MagicFront Studio document: ONE store widget painted alone (`mff_store_widget`), selected by TwigInitializer.
+   The same document a page gets — theme CSS, brand, widget assets, canvas markers, preview JS — without the chrome:
+   no header, no footer, no panels. The widget is what the merchant is designing, so nothing else competes with it. #}
+{%- extends "Responsive/layouts/magicfront.html.twig" -%}
+
+{%- block headContent -%}
+    {{ parent() }}
+    {# Room around the widget, so a full-bleed section does not touch the iframe edges. Structural, not a brand
+       value; emitted only by this layout, so it never reaches a page.
+       A BLOCK widget never sits loose on a page: it is born inside a section (wrapIn group), whose side padding is
+       24 px on desktop and 16 px from tablet down (WidgetFactory.applySectionSpacing). The Studio gives it that same
+       room, as presentation only — no node, no widget marker, so the canvas never selects or moves it. A SECTION
+       widget stays full width, as on a page. #}
+    <style id="mff-studio-document">.commerce-content-inset{padding:48px 0}
+    {%- if mffStudioPlacement|default('') == 'BLOCK' -%}
+        .commerce-content-inset{padding-left:24px;padding-right:24px}@media (max-width:991px){.commerce-content-inset{padding-left:16px;padding-right:16px}}
+    {%- endif -%}</style>
+{%- endblock headContent -%}
+
+{%- block header -%}{%- endblock header -%}
+
+{%- block footer -%}{%- endblock footer -%}

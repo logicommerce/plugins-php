@@ -6,12 +6,15 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits;
 
 use FWK\Core\Controllers\Controller;
 use FWK\Core\FilterInput\FilterInput;
-use FWK\Core\Resources\Loader;
+use FWK\Core\Resources\Response;
+use FWK\Core\Resources\Utils;
+use SDK\Core\Resources\Timer;
 use FWK\Enums\Parameters;
-use FWK\Enums\Services;
+use FWK\Enums\RouteType;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PanelUrl;
+use Plugins\ComLogicommerceMagicfront\Dtos\Common\PluginProperties;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BreadcrumbResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
@@ -21,11 +24,11 @@ use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetAssetsBuilder;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
+use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontPageType;
+use Plugins\ComLogicommerceMagicfront\Enums\SampleSituationParam;
 use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
-use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
-use SDK\Services\Parameters\Groups\PageParametersGroup;
 use SDK\Services\Parameters\Groups\RelatedItemsParametersGroup;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Resources\Environment;
@@ -58,7 +61,14 @@ trait MagicfrontTrait {
     public const MFF_PREVIEW = 'mff_preview';
 
     /** Optional content-language override for preview (storefront-contract: mff_lang). Forces the MFF widget content locale, e.g. the template gallery previews in English. */
-    public const MFF_LANG = 'mff_lang';
+    public const MFF_LANG = MagicfrontUtils::MFF_LANG;
+
+    /**
+     * The Studio DOCUMENT to paint instead of a page: `store:<slug>@N` or a draft `draft:<id>`, one store widget
+     * alone. The backend serves it through the same page reads (`/pages/{ref}/widgets`, `/pages/{ref}`) and only
+     * to a preview token whose `storeWidget` claim is exactly this ref, so the query value alone opens nothing.
+     */
+    public const MFF_STORE_WIDGET = 'mff_store_widget';
 
     protected ?ElementCollection $pages = null;
 
@@ -86,6 +96,27 @@ trait MagicfrontTrait {
      */
     protected array $pageChrome = [];
 
+    /**
+     * The MagicFront page type (`HOME`, `PRODUCT`, …) of the page being painted. Editor path: from the
+     * page record; storefront path: from the published blob. Empty until one of them ran. Decides
+     * whether a page without a route product gets the sample (`PRODUCT`) or nothing.
+     */
+    protected string $pageType = '';
+
+    /** True when {@see self::MFF_STORE_WIDGET} named a Studio document: the page id IS the store widget ref. */
+    protected bool $studioDocument = false;
+
+    /** Placement of the Studio document's widget (BLOCK | SECTION); empty outside the Studio. */
+    protected string $studioPlacement = '';
+
+    /** Memoized `GET /samples/product` (array as the backend returns it); null until first asked. */
+    private ?array $productSampleCache = null;
+
+    /** Memoized `GET /samples/category` (array as the backend returns it); null until first asked. */
+    private ?array $categorySampleCache = null;
+
+    private array $relatedItemsCache = [];
+
     private bool $magicfrontPageResolved = false;
 
     private ?Page $magicfrontPageCache = null;
@@ -99,10 +130,17 @@ trait MagicfrontTrait {
             Parameters::PAGE         => new FilterInput($noMod),
             self::MFF_PREVIEW        => new FilterInput($noMod),
             self::MFF_LANG           => new FilterInput($noMod),
+            self::MFF_STORE_WIDGET   => new FilterInput($noMod),
             PanelUrl::PARAM          => new FilterInput($noMod),
             // Raw request `id` (e.g. the selected shopping list) exposed to widgets via requestParams —
             // request state, not API data; widgets apply their own selection rule from it.
             Parameters::ID           => new FilterInput($noMod),
+            // The editor's product simulator: the situation the SAMPLE product is painted in.
+            SampleSituationParam::STOCK   => new FilterInput($noMod),
+            SampleSituationParam::OFFER   => new FilterInput($noMod),
+            SampleSituationParam::REVIEWS => new FilterInput($noMod),
+            SampleSituationParam::LISTING => new FilterInput($noMod),
+            SampleSituationParam::WISHLIST => new FilterInput($noMod),
         ];
     }
 
@@ -116,8 +154,43 @@ trait MagicfrontTrait {
         if (MagicfrontUtils::isIframeRequest()) {
             MagicfrontToken::setToken($rawToken);
         }
+        $this->redirectToContentLanguage($route);
         $this->widgetsService = WidgetsService::getInstance();
         $this->pageId = $this->getRequestParam(Parameters::PAGE, false, null);
+        $storeWidget = $this->getRequestParam(self::MFF_STORE_WIDGET, false, null);
+        if (is_string($storeWidget) && MagicfrontUtils::isStudioDocumentRef($storeWidget)) {
+            $this->pageId         = $storeWidget;
+            $this->studioDocument = true;
+        }
+    }
+
+    /**
+     * The editor's language bar asks for a language with `mff_lang`; send the preview to this page's address in
+     * that language, so the store around the widgets (theme texts, menu, `<html lang>`) is in it too
+     * ({@see MagicfrontUtils::languageRedirectUrl}). Only page navigations (GET, not the canvas' own fetches nor a
+     * content-only partial): those already run on the right route once the frame has moved.
+     */
+    private function redirectToContentLanguage(Route $route): void {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || MagicfrontUtils::isCanvasFetch()
+            || MagicfrontUtils::isContentOnlyRequest()
+        ) {
+            return;
+        }
+        $languageUrls = [];
+        foreach ($route->getAvailableLanguages() as $available) {
+            $languageUrls[$available->getCode()] = $available->getUrl();
+        }
+        $asked  = $_GET[self::MFF_LANG] ?? null;
+        $target = MagicfrontUtils::languageRedirectUrl(
+            is_string($asked) ? $asked : null,
+            MagicfrontToken::getToken() !== null,
+            $route->getLanguage(),
+            $languageUrls,
+            (string) ($_SERVER['QUERY_STRING'] ?? '')
+        );
+        if ($target !== null) {
+            Response::redirect($target, 302);
+        }
     }
 
     // ─── Batch / data hooks ────────────────────────────────────────────────
@@ -129,28 +202,43 @@ trait MagicfrontTrait {
      * the route language when the override is absent (normal storefront + editor-canvas editing).
      */
     private function resolveContentLanguage(): string {
-        $override = $this->getRequestParam(self::MFF_LANG, false, null);
-        if (is_string($override) && $override !== '') {
-            return $override;
-        }
-        return $this->route->getLanguage();
+        return MagicfrontUtils::contentLanguage($this->route->getLanguage());
     }
 
     protected function setMagicfrontBatchData(BatchRequests $requests): void {
         if (!RenderMode::isPreviewMode() || !$this->pageId) {
             return;
         }
+        // Chrome-only render: `page` carries the CHROME document id (the canvas requires a non-empty
+        // page on every widget re-render), not a page. Fetching a page with it would 404 twice per load
+        // and there is no page body to paint anyway — the chrome then resolves from the commerce
+        // DEFAULT docs, which is exactly what Personalización edits.
+        if (MagicfrontUtils::chromeOnlyRegion() !== null) {
+            return;
+        }
+        Utils::addTimerDebugFlag('mf-batchPageWidgets', Timer::START_SUFFIX);
         $instances       = $this->widgetsService->getPageWidgetInstances($this->pageId, $this->resolveContentLanguage());
+        Utils::addTimerDebugFlag('mf-batchPageWidgets', Timer::END_SUFFIX);
         $this->widgets   = WidgetTypeCollector::flatten($instances);
         $this->pages     = WidgetToPageTransformer::transform(new ElementCollection(['items' => $instances]));
-        $this->pageChrome = $this->widgetsService->getPageChromeRefs($this->pageId);
+        Utils::addTimerDebugFlag('mf-batchChromeRefs', Timer::START_SUFFIX);
+        $facts            = $this->widgetsService->getPageFacts($this->pageId);
+        // A Studio document has no chrome: the store widget is painted alone.
+        $this->pageChrome = $this->studioDocument ? [] : $facts->getChrome();
+        $this->pageType   = $facts->getPageType();
+        $this->studioPlacement = $this->studioDocument ? $facts->getStudioPlacement() : '';
+        Utils::addTimerDebugFlag('mf-batchChromeRefs', Timer::END_SUFFIX);
     }
 
     protected function setMagicfrontData(): void {
+        Utils::addTimerDebugFlag('mf-loadTemplates', Timer::START_SUFFIX);
         $templates = RenderMode::isPreviewMode()
             ? $this->loadEditorTemplates()
             : $this->loadStorefrontData();
+        Utils::addTimerDebugFlag('mf-loadTemplates', Timer::END_SUFFIX);
+        Utils::addTimerDebugFlag('mf-emit', Timer::START_SUFFIX);
         $this->emitMagicfrontData($templates);
+        Utils::addTimerDebugFlag('mf-emit', Timer::END_SUFFIX);
     }
 
     // ─── Editor path (dcsapi) ──────────────────────────────────────────────
@@ -188,12 +276,12 @@ trait MagicfrontTrait {
         if ($document === null) {
             return [];
         }
-        $this->widgets = WidgetTypeCollector::flatten($document->widgets()?->getItems() ?? []);
-        $this->pages   = $document->toPages();
-        $this->pageId  = (string) $pageDto->getId();
+        $this->widgets  = WidgetTypeCollector::flatten($document->widgets()?->getItems() ?? []);
+        $this->pages    = $document->toPages();
+        $this->pageId   = (string) $pageDto->getId();
+        $this->pageType = $document->pageType();
         return $document->templatesById();
     }
-
 
     // ─── Shared output ─────────────────────────────────────────────────────
 
@@ -205,16 +293,24 @@ trait MagicfrontTrait {
         // Product-detail routes attach the route's product to every widget page so the
         // product-detail widgets read it as `page.product` (raw SDK Product). No-op elsewhere.
         PageRelationResolver::attachProduct($this->pages, $this->routeProduct());
+        // Custom-tag NAMES (pId → localized name) so specs can label the product's customTagValues.
+        PageRelationResolver::attachProductCustomTags($this->pages, $this->routeProductCustomTags());
+        // Related-items GROUPS (name + products) so productSiblings can show one group as swatches.
+        PageRelationResolver::attachProductRelatedGroups($this->pages, $this->routeProductRelatedGroups());
         // Category-listing routes attach the route's category (`page.category`) + its product
         // LIST (`page.products` on widgets without their own categoryId). No-op elsewhere.
         PageRelationResolver::attachCategory($this->pages, $this->routeCategory(), $this->routeSubcategories());
         // Unified product LIST → `page.products` for the productList widget, regardless of route:
         // category routes supply the category listing, product routes the related-products list.
         PageRelationResolver::attachProducts($this->pages, $this->routeProducts());
-        PageRelationResolver::attachBreadcrumb($this->pages, BreadcrumbResolver::build($this->getRoute(), $this->magicfrontPage()));
+        PageRelationResolver::attachBreadcrumb($this->pages, $this->sampleCategoryBreadcrumb()
+            ?? $this->sampleProductBreadcrumb()
+            ?? BreadcrumbResolver::build($this->getRoute(), $this->magicfrontPage()));
         // Account/session widgets attach via the provider registry (runs when their widget type is
         // present, independent of route — the basis for placing account widgets on any page).
+        Utils::addTimerDebugFlag('mf-providerAttach', Timer::START_SUFFIX);
         $this->dispatchProviderAttach();
+        Utils::addTimerDebugFlag('mf-providerAttach', Timer::END_SUFFIX);
         // Product-detail routes attach the bundle definitions → page.productBundles. No-op elsewhere.
         PageRelationResolver::attachProductBundles($this->pages, $this->routeProductBundles());
         // Product-detail routes attach related-items groups → page.relatedItems. No-op elsewhere.
@@ -230,7 +326,11 @@ trait MagicfrontTrait {
         PageRelationResolver::attachWishlist($this->pages, $this->routeWishlist());
         // Product-detail routes attach native comment-form wiring → page.commentForm. No-op elsewhere.
         PageRelationResolver::attachCommentForm($this->pages, $this->routeCommentForm());
-        $this->dispatchProviderShared();
+        if (MagicfrontUtils::chromeOnlyRegion() === null) {
+            Utils::addTimerDebugFlag('mf-providerShared', Timer::START_SUFFIX);
+            $this->dispatchProviderShared();
+            Utils::addTimerDebugFlag('mf-providerShared', Timer::END_SUFFIX);
+        }
         $this->setDataValue(PageRelationResolver::PAGES, $this->pages);
 
         $widgetTypes = WidgetTypeCollector::fromWidgets($this->widgets);
@@ -262,6 +362,8 @@ trait MagicfrontTrait {
         $this->setDataValue(MagicfrontControllerData::WIDGET_TYPES, $widgetTypes);
         $this->setDataValue(MagicfrontControllerData::PAGE, $this->pageId);
         $this->setDataValue(MagicfrontControllerData::PAGE_CHROME, $this->pageChrome);
+        $this->setDataValue(MagicfrontControllerData::STUDIO_DOCUMENT, $this->studioDocument);
+        $this->setDataValue(MagicfrontControllerData::STUDIO_PLACEMENT, $this->studioPlacement);
         $this->setDataValue(MagicfrontControllerData::ASSETS_URL, Environment::get('MF_ASSETS_URL'));
         $this->setDataValue(MagicfrontControllerData::CANVAS_MODE, $canvasMode);
         $this->setDataValue(MagicfrontControllerData::PREVIEW_MODE, $previewMode);
@@ -293,18 +395,11 @@ trait MagicfrontTrait {
     }
 
     /**
-     * Reads a single published page by its stable pId via the LC FOB. Uses getPages()->getItems()[0]
-     * (not PageService::getPageByPId, whose ?Page return type mismatches its ?ElementCollection body).
+     * Reads a single published page by its stable pId via the LC FOB — the one the route's existence check already
+     * fetched in this request when there is one ({@see PluginProperties::loadSpecialPage()}).
      */
     private function loadPageByPId(string $pId): ?Page {
-        $params = new PageParametersGroup();
-        $params->setPId($pId);
-        $collection = Loader::service(Services::PAGE)->getPages($params);
-        if (!$collection instanceof ElementCollection) {
-            return null;
-        }
-        $page = $collection->getItems()[0] ?? null;
-        return $page instanceof Page ? $page : null;
+        return PluginProperties::loadSpecialPage($pId);
     }
 
     // ─── Widget data providers ─────────────────────────────────────────────
@@ -468,21 +563,156 @@ trait MagicfrontTrait {
     }
 
     /**
-     * The product-detail route's product, or null. Only the ProductController overrides this
-     * (returning the FWK-resolved route product); Home/Page controllers keep the null default,
-     * so `attachProduct` is a no-op for them. Null in the editor/docker preview → widgets mock.
+     * The product-detail route's product. The ProductController overrides this with the FWK-resolved
+     * route product. Every other controller gets the default: MagicFront's SAMPLE product when the page
+     * being painted is of type PRODUCT and we are in the editor/preview path (the canvas loads any page
+     * from the shop root, so a product page there has no route product), null otherwise. The sample
+     * hydrates the very same SDK `Product` DTO a real route yields, so widgets and the `mff_product_*`
+     * helpers read one contract. Off the preview path a page never gets the sample: no data, no demo.
      */
     protected function routeProduct(): ?Product {
-        return null;
+        if (!$this->paintsSampleProduct()) {
+            return null;
+        }
+        $sample = $this->productSample();
+        return is_array($sample['product'] ?? null) ? new Product($sample['product']) : null;
+    }
+
+    /**
+     * Product custom tags (pId → `{name, controlType}`) → `page.productCustomTags`. The
+     * ProductController overrides this with the commerce's `GET /customTags?type=PRODUCT`; the default
+     * returns the sample's own `customTags` when the sample product is painted, empty otherwise.
+     *
+     * @return array
+     */
+    protected function routeProductCustomTags(): array {
+        if (!$this->paintsSampleProduct()) {
+            return [];
+        }
+        return PageRelationResolver::sampleCustomTags($this->productSample());
+    }
+
+    /**
+     * The product's related-items groups (`[{name, products: [Product…]}]`) → `page.productRelatedGroups`.
+     * ProductController overrides this with the route product's real groups; the default returns the
+     * sample's own `relatedGroups` when the sample product is painted, empty otherwise.
+     */
+    protected function routeProductRelatedGroups(): array {
+        if (!$this->paintsSampleProduct()) {
+            return [];
+        }
+        return PageRelationResolver::sampleRelatedGroups($this->productSample());
+    }
+
+    /**
+     * The route entity's related-items GROUPS, each with its name and products, for the productSiblings
+     * widget — fetched only when a page carries one (one API call per product page otherwise saved).
+     * Unlike {@see self::buildProductRelated()} the groups are kept apart: the widget shows ONE group,
+     * picked by name by the merchant ("Colors").
+     *
+     * @return array
+     */
+    protected function buildProductRelatedGroups(int $entityId, object $service): array {
+        if ($entityId <= 0 || !method_exists($service, 'getRelatedItems')) {
+            return [];
+        }
+        if (!$this->hasWidgetType($this->pages?->getItems() ?? [], 'productSiblings')) {
+            return [];
+        }
+        $related = $this->relatedItems($entityId, $service, false);
+        if ($related === null) {
+            return [];
+        }
+        $groups = [];
+        foreach ($related->getItems() as $group) {
+            if (is_object($group) && method_exists($group, 'getProducts') && method_exists($group, 'getName')) {
+                $groups[] = ['name' => (string) $group->getName(), 'products' => $group->getProducts()];
+            }
+        }
+        return $groups;
+    }
+
+    private function paintsSampleProduct(): bool {
+        return $this->pageType === MagicfrontPageType::PRODUCT
+            && RenderMode::isPreviewMode()
+            && $this->widgetsService instanceof WidgetsService;
+    }
+
+    /**
+     * The sample category's own trail (Home › … › the sample category) while it is painted, so the breadcrumb
+     * reads like the category it sits on instead of the shop root's one-crumb trail; null otherwise.
+     */
+    private function sampleCategoryBreadcrumb(): ?array {
+        if (!$this->paintsSampleCategory()) {
+            return null;
+        }
+        $trail = $this->categorySample()['breadcrumb'] ?? null;
+        return is_array($trail) && $trail !== [] ? array_values(array_filter($trail, 'is_array')) : null;
+    }
+
+    /**
+     * The sample product's own trail (Home › … › the sample product) while it is painted OFF a real product
+     * route, so a product page previewed from the shop root shows a breadcrumb like the product it sits on;
+     * null otherwise (a real product route keeps its own trail).
+     */
+    private function sampleProductBreadcrumb(): ?array {
+        if (!$this->paintsSampleProduct() || (string) $this->getRoute()?->getType() === RouteType::PRODUCT) {
+            return null;
+        }
+        $trail = $this->productSample()['breadcrumb'] ?? null;
+        return is_array($trail) && $trail !== [] ? array_values(array_filter($trail, 'is_array')) : null;
+    }
+
+    private function paintsSampleCategory(): bool {
+        return $this->pageType === MagicfrontPageType::CATEGORY
+            && (string) $this->getRoute()?->getType() !== RouteType::CATEGORY
+            && RenderMode::isPreviewMode()
+            && $this->widgetsService instanceof WidgetsService;
+    }
+
+    private function categorySample(): array {
+        if ($this->categorySampleCache === null) {
+            $this->categorySampleCache = $this->widgetsService->getSample(
+                MagicfrontPageType::SAMPLE_KIND[MagicfrontPageType::CATEGORY],
+                $this->resolveContentLanguage(),
+                SampleSituationParam::fromRequest(fn(string $p): mixed => $this->getRequestParam($p, false, null))
+            );
+        }
+        return $this->categorySampleCache;
+    }
+
+    /**
+     * One collection of the category sample (`{items, pagination}`) as the SDK ElementCollection a real
+     * category route yields, each item hydrated into `$dtoClass`. Null when the sample does not carry it.
+     */
+    private function sampleCollection(string $key, string $dtoClass): ?ElementCollection {
+        return PageRelationResolver::sampleCollection($this->categorySample(), $key, $dtoClass);
+    }
+
+    private function productSample(): array {
+        if ($this->productSampleCache === null) {
+            $this->productSampleCache = $this->widgetsService->getSample(
+                MagicfrontPageType::SAMPLE_KIND[MagicfrontPageType::PRODUCT],
+                $this->resolveContentLanguage(),
+                SampleSituationParam::fromRequest(fn(string $p): mixed => $this->getRequestParam($p, false, null))
+            );
+        }
+        return $this->productSampleCache;
     }
 
     /**
      * The category-listing route's category, or null. Only the CategoryController overrides this
      * (returning the FWK-resolved route category); other controllers keep the null default so
-     * `attachCategory` is a no-op. Null in the editor/docker preview → category widgets mock.
+     * `attachCategory` is a no-op. In the editor/preview path a CATEGORY page (loaded from the shop root, so
+     * with no route category) gets MagicFront's SAMPLE category instead, hydrated into the same SDK
+     * `Category` a real route yields — the counterpart of {@see self::routeProduct()} on product pages.
      */
     protected function routeCategory(): ?Category {
-        return null;
+        if (!$this->paintsSampleCategory()) {
+            return null;
+        }
+        $category = $this->categorySample()['category'] ?? null;
+        return is_array($category) ? new Category($category) : null;
     }
 
     /**
@@ -511,7 +741,10 @@ trait MagicfrontTrait {
      *  listing; other controllers keep null so `attachProducts` is a no-op. Lets the productList
      *  widget read one variable on any route. */
     protected function routeProducts(): ?ElementCollection {
-        return null;
+        if (!$this->paintsSampleCategory()) {
+            return null;
+        }
+        return $this->sampleCollection('products', Product::class);
     }
 
     /** Product-related lists keyed by pId, attached to `page.productRelated`. Only ProductController
@@ -542,16 +775,8 @@ trait MagicfrontTrait {
         if (!$this->hasWidgetType($this->pages?->getItems() ?? [], 'productRelated')) {
             return [];
         }
-        $params = new RelatedItemsParametersGroup();
-        if ($categoryProducts) {
-            $params->setCategoryProducts(true);
-        }
-        try {
-            $related = $service->getRelatedItems($entityId, '', $params);
-        } catch (\Throwable) {
-            return [];
-        }
-        if (!$related instanceof ElementCollection) {
+        $related = $this->relatedItems($entityId, $service, $categoryProducts);
+        if ($related === null) {
             return [];
         }
         $products = [];
@@ -561,6 +786,19 @@ trait MagicfrontTrait {
             }
         }
         return $products;
+    }
+
+    private function relatedItems(int $entityId, object $service, bool $categoryProducts): ?ElementCollection {
+        $key = spl_object_id($service) . ':' . $entityId . ':' . (int) $categoryProducts;
+        if (!array_key_exists($key, $this->relatedItemsCache)) {
+            $params = new RelatedItemsParametersGroup();
+            if ($categoryProducts) {
+                $params->setCategoryProducts(true);
+            }
+            $related = $service->getRelatedItems($entityId, '', $params);
+            $this->relatedItemsCache[$key] = $related instanceof ElementCollection ? $related : null;
+        }
+        return $this->relatedItemsCache[$key];
     }
 
     /* pId-based related-block filtering temporarily disabled — kept for re-enabling later.
@@ -652,7 +890,10 @@ trait MagicfrontTrait {
     /** The route category's child categories, attached to `page.categories` of the subcategoryGrid
      *  widget. Null off a category route. Overridden by CategoryController. */
     protected function routeSubcategories(): ?ElementCollection {
-        return null;
+        if (!$this->paintsSampleCategory()) {
+            return null;
+        }
+        return $this->sampleCollection('subcategories', Category::class);
     }
 
     /**
@@ -672,7 +913,10 @@ trait MagicfrontTrait {
      * @return array
      */
     protected function routeComments(): array {
-        return [];
+        if (!$this->paintsSampleProduct()) {
+            return [];
+        }
+        return PageRelationResolver::sampleComments($this->productSample());
     }
 
     /**

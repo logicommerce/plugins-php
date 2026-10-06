@@ -6,6 +6,7 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Services;
 
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetTemplate;
 
@@ -31,7 +32,28 @@ class WidgetAssetsBuilder {
         }
         return [
             'css' => $this->generateCss($widgets, $templates),
-            'js'  => $this->generateJs($templates),
+            'js'  => $this->generateJs(self::presentTemplates($widgets, $templates)),
         ];
+    }
+
+    /**
+     * The templates the widget list actually instantiates, each once. A chrome blob's schema carries
+     * every family of BOTH regions, so emitting it whole would ship the footer's JS inside the header
+     * (and run every module twice); a family-keyed schema resolved through several versions must not
+     * repeat a template either.
+     *
+     * @param  WidgetInstance[] $widgets
+     * @param  array            $templates
+     * @return WidgetTemplate[]
+     */
+    private static function presentTemplates(array $widgets, array $templates): array {
+        $present = [];
+        foreach (WidgetTypeCollector::templateKeysFromWidgets($widgets) as $key) {
+            $template = WidgetTypeCollector::resolveByKey($templates, $key);
+            if ($template instanceof WidgetTemplate) {
+                $present[spl_object_id($template)] = $template;
+            }
+        }
+        return array_values($present);
     }
 }

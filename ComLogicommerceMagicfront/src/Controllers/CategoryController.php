@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Controllers;
 
+use SDK\Core\Resources\Timer;
+use FWK\Core\Resources\Utils;
 use FWK\Controllers\CategoryController as FWKCategoryController;
 use FWK\Core\Controllers\Controller;
 use FWK\Core\FilterInput\FilterInputHandler;
@@ -78,7 +80,9 @@ class CategoryController extends FWKCategoryController {
     }
 
     protected function setBatchData(BatchRequests $requests): void {
+        Utils::addTimerDebugFlag('cat-magicfrontPage', Timer::START_SUFFIX);
         $templatePage = $this->magicfrontPage();
+        Utils::addTimerDebugFlag('cat-magicfrontPage', Timer::END_SUFFIX);
         $this->categoryService->addGetCategoriesByParentId($requests, self::KEY_SUBCATS, $this->categoryId);
         $productParams = new ProductsParametersGroup();
         $productParams->setCategoryId($this->categoryId);
