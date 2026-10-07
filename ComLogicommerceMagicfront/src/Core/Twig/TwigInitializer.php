@@ -236,7 +236,9 @@ class TwigInitializer implements PluginTwigInitializer {
         if ($widgets === []) {
             return ChromeAssets::empty();
         }
-        $types = WidgetTypeCollector::fromWidgets(WidgetTypeCollector::flatten($widgets));
+        // E20: by the version each node is anchored to (header@2 in bands vs master header@1), like the published blob
+        // and the page path; by family it painted a migrated chrome with the CURRENT version of each family.
+        $types = WidgetTypeCollector::templateKeysFromWidgets(WidgetTypeCollector::flatten($widgets));
         $templates = $types !== [] ? $service->getWidgetTemplatesForTypes($types) : [];
         // getChromeDoc already returns hydrated WidgetInstance objects — wrap them in a base
         // ElementCollection (direct assign, no re-hydration) so fromWidgets takes one shape.
