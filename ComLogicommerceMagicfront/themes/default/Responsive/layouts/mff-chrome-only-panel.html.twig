@@ -1,60 +1,101 @@
 {# MagicFront chrome-only layout — PANELS. Sibling of mff-chrome-only-header/footer.html.twig,
    selected by ?mff_chrome_only=accountPanel|basketPanel|mobileMenuPanel. The three share this file:
    what changes is WHICH panel the initializer emitted, not how it is painted, and only the scoped
-   one carries globals — so the three `if`s below resolve to exactly one.
+   one carries globals — so the three `if`s below resolve to exactly one. The scaffolding the three
+   chrome-only variants share lives in _mff-chrome-only-shell.html.twig.
 
-   A panel is an overlay the visitor OPENS: inside a whole shop page it is invisible by construction
-   (`.offcanvas` ships fixed, hidden and translated off-screen), so the merchant edited it blind. Here
-   the region is painted ALONE and the offcanvas is laid flat — static, visible, untranslated — so the
-   panel is simply the content of the screen. Nothing else renders: no header, no footer, no page body.
+   A panel is an overlay the visitor OPENS FROM THE HEADER: inside a whole shop page it is invisible
+   by construction (`.offcanvas` ships hidden and translated off-screen), so the merchant edited it
+   blind; painted ALONE it became a second window with no sign of where it came from. Here the header
+   renders BEHIND, exactly as the storefront paints it, and the panel sits over it untranslated and
+   visible — the screen the visitor sees with the panel open. The footer and the page body are not
+   emitted: neither is being edited.
 
-   The flattening keys on the panel's OWN widget class, never on an ancestor: every panel's script
-   re-anchors its wrapper to <body> on boot (an overlay has to be a body child to cover the page), so
-   a rule scoped to this container stops matching the moment the panel is ready. The style block is
-   emitted here, in the body, so it always lands after the region CSS the head carries. It lays the
-   panel out RELATIVE, not static: `.offcanvas` ships fixed, so the pieces the panels position
-   absolutely (the close button, the empty-cart block) are laid out against the panel — turned static
-   they escaped to the viewport and spread across the whole screen.
+   The header is CONTEXT, not content: it is sealed into its own stacking context so the panel paints
+   over it, and the whole wrapper is `inert`, which takes its clicks, its hovers, its drags, its focus
+   and its place in the accessibility tree away in one go. Keying on `.mff-widget` was not enough and
+   was actively wrong: that wrapper is emitted only by OUR macro, so with the back-office header
+   toggle off the theme paints its own header and every link, dropdown and the hamburger stayed live
+   under the dim — and the hamburger toggles the very offcanvas being edited. The editor filters its
+   own events to the subtree it is editing too, but a "+" bar that lights up and does nothing is a
+   promise the screen cannot keep.
+
+   The panel is emitted HERE and only here: the parent layout's header block emits the three panels so
+   our triggers have something to open, and `mffPanelOnly` turns that emission off on a scoped render —
+   with both emitting, the panel was in the document twice under the same widget ids.
+
+   The panel is NOT laid flat. `.offcanvas` ships fixed, and the pieces the panels position
+   absolutely (the close button, the empty-cart block) are laid out against it — turned static they
+   escaped to the viewport and spread across the whole screen. Only `visibility` and `transform` are
+   undone, which is exactly what opening it does.
 
    The macro import is this template's own: Twig imports are template-local, and a block declared in a
    child does not inherit the parent's. Without it the macro call resolves to null and the panel is
    silently dropped — the screen renders white.
 
-   The theme's `commerce-content` wrappers are not emitted either: they carry a full-viewport
-   min-height, and with the panel re-anchored out of them they were left as an empty screen-tall
-   spacer pushing it below the fold.
+   The panel is emitted OUTSIDE `.commerce-content` on purpose: the store theme's `beforeJs` moves
+   every `.offcanvas` it finds in there to `<body>` and leaves behind what does not hang from it —
+   including the `MFF_WIDGET_START` markers the canvas reads. Out of its reach the panel never gets
+   separated from its wrapper nor from its markers; its own script still re-anchors wrapper and panel
+   to `<body>`, which is harmless.
 
-   `#mff-page-content` stays as an EMPTY, HIDDEN node for the same reason as in the other two variants:
-   it is the canvas's page anchor, and leaving it visible would offer to add page content on a screen
-   that does not edit pages. #}
-{%- extends "Responsive/layouts/magicfront.html.twig" -%}
+   The CSS keys on `data-widget-family`, never on the family class: a versioned family emits
+   `widget-accountPanel--v2`, which a `.widget-accountPanel` selector does not match, so the rule died
+   in silence when the panels went to @2. The attribute carries no version, so it cannot rot the same
+   way, and unlike `data-mff-el="section"` it names the panel instead of a role 25 families share.
+
+   El ASPA del cascarón (`data-mff-lock`) pierde los eventos de puntero: el guarda del lienzo ya
+   bloqueaba su `data-bs-dismiss`, así que ofrecía cursor de mano para no hacer nada. Ahora el clic
+   cae en el panel y lo selecciona, como cualquier otra zona bloqueada. El widget `panelClose` no
+   lleva la marca y se sigue seleccionando para editarlo.
+
+   The area AROUND the panel is DIMMED, and the dim has to be STRONG enough to be read as one. It
+   started at 6% — 255,255,255 to 240,240,240 — which is no dim at all: the header behind looked as
+   live as the panel, offered itself to be clicked and then answered nothing, because its pointer
+   events are gone. A scrim is what says "this is the backdrop and the panel is the subject", so it
+   sits where a modal's does. A background-color on `body` changes NOTHING (the theme paints above
+   it). It is its own element rather than `body::before`, which belongs to the merchant's theme and
+   would be clobbered here but nowhere else. It sits UNDER the panel, which is fixed and comes later
+   in the document, and over the header, which is context. It takes no click. #}
+{%- extends "Responsive/layouts/_mff-chrome-only-shell.html.twig" -%}
 {%- import macrosCore.widget as widgetMacros -%}
 
-{%- block commerceContent -%}
+{%- block chromeOnlyStyles -%}
     <style>
-        .offcanvas.widget-accountPanel,
-        .offcanvas.widget-basketPanel,
-        .offcanvas.widget-mobileMenuPanel {
-            position: relative;
+        .mff-panel-backdrop { position: relative; z-index: 0; }
+        .mff-panel-backdrop .mff-add-widget-bar { display: none; }
+        .mff-panel-dim {
+            position: fixed;
+            inset: 0;
+            z-index: 1;
+            background-color: rgba(0, 0, 0, 0.35);
+            pointer-events: none;
+        }
+        .offcanvas[data-widget-family] {
             visibility: visible;
             transform: none;
-            border: 0;
             max-width: 100%;
         }
         .offcanvas-backdrop { display: none; }
+        .offcanvas [data-bs-dismiss="offcanvas"][data-mff-lock] { pointer-events: none; }
     </style>
+{%- endblock chromeOnlyStyles -%}
+
+{% block wrapperClasses %} mff-panel-backdrop{% endblock wrapperClasses %}
+
+{% block wrapperAttributes %} inert{% endblock wrapperAttributes %}
+
+{%- block regionAbove -%}{{- block('header') -}}{%- endblock regionAbove -%}
+
+{%- block afterWrapper -%}
+    <div class="mff-panel-dim" aria-hidden="true"></div>
     {%- if mffAccountPanelPages|default(null) -%}
-        {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList }) }}
+        {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffShared|default({}) }) }}
     {%- endif -%}
     {%- if mffBasketPanelPages|default(null) -%}
-        {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList }) }}
+        {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList, shared: mffShared|default({}) }) }}
     {%- endif -%}
     {%- if mffMobileMenuPanelPages|default(null) -%}
-        {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList }) }}
+        {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffShared|default({}) }) }}
     {%- endif -%}
-    <main class="main-content layout-1" hidden style="display:none">
-        <div class="content-modules divisible-section"><div id="mff-page-content"></div></div>
-    </main>
-    <div id="lcNotify" tabindex="-1"></div>
-    {%- include version ~ '/snippets/icons.html.twig' -%}
-{%- endblock commerceContent -%}
+{%- endblock afterWrapper -%}

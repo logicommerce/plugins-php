@@ -114,12 +114,14 @@ class TwigInitializer implements PluginTwigInitializer {
         $headerOn = $canvasMode || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader));
         $footerOn = $canvasMode || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter));
         $chromeOnly = MagicfrontUtils::chromeOnlyRegion();
-        // A scoped panel is a screen of its own: no header, no footer, no page body. The three panels
-        // are overlays the visitor opens, so inside a whole shop page the merchant never got to see
-        // the one being edited. The suppression itself happens in the guard below and in the layout.
+        // A scoped panel renders no footer and no page body, but it DOES render the header behind it:
+        // a panel is an overlay the visitor opens FROM the header, and painting it alone turned the
+        // editor into a second window with no sign of where the panel came from. The header rides
+        // along as context only — the layout marks its whole wrapper `inert` — so what is edited is
+        // still the panel alone.
         $panelOnly = $chromeOnly !== null ? self::panelKind($chromeOnly) : null;
         if ($chromeOnly !== null) {
-            $headerOn = $headerOn && $chromeOnly === ChromeKind::Header->value;
+            $headerOn = $headerOn && $chromeOnly !== ChromeKind::Footer->value;
             $footerOn = $footerOn && $chromeOnly === ChromeKind::Footer->value;
         }
         // Which variant starts LIVE in canvas per region — '1' = our chrome, '0' = the store's own.
@@ -133,6 +135,7 @@ class TwigInitializer implements PluginTwigInitializer {
 
         $main->addGlobal(MagicfrontControllerData::OVERRIDE_HEADER, $headerOn);
         $main->addGlobal(MagicfrontControllerData::OVERRIDE_FOOTER, $footerOn);
+        $main->addGlobal(MagicfrontControllerData::PANEL_ONLY, $panelOnly?->value);
 
         $kinds = [];
         if ($headerOn) {
@@ -156,8 +159,10 @@ class TwigInitializer implements PluginTwigInitializer {
         }
 
         $editor = RenderMode::isPreviewMode();
-        // A scoped panel renders no page region, so the page's embedded chrome blob is never read.
-        $pageChromeBlob = ($editor || $panelOnly !== null) ? null : self::pageChromeBlob($controllerData);
+        // El panel no pinta cuerpo de página, pero sí la cabecera que le sirve de contexto: su blob se
+        // resuelve igual que en un render normal, o la cabecera de contexto saldría distinta de la que
+        // el visitante ve en esa página.
+        $pageChromeBlob = $editor ? null : self::pageChromeBlob($controllerData);
 
         Utils::addTimerDebugFlag('ti-chrome', Timer::START_SUFFIX);
         foreach ($kinds as $kind) {

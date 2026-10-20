@@ -51,6 +51,11 @@ abstract class MagicfrontControllerData extends Enum {
     public const CUSTOM_JS       = 'mffCustomJs';
     public const OVERRIDE_HEADER = 'mffOverrideHeader';
     public const OVERRIDE_FOOTER = 'mffOverrideFooter';
+    /**
+     * El `ChromeKind->value` del panel al que se acota el render (`?mff_chrome_only=`), o null en un
+     * render normal. El layout lo usa para no emitir los paneles dos veces.
+     */
+    public const PANEL_ONLY      = 'mffPanelOnly';
 
     public const HEADER_PAGES         = 'mffHeaderPages';
     public const HEADER_TEMPLATE_LIST = 'mffHeaderTemplateList';

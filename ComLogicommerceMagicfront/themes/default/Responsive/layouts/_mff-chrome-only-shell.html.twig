@@ -1,0 +1,32 @@
+{# MagicFront chrome-only SCAFFOLDING, shared by the three mff-chrome-only-* layouts the Personalización
+   editor mounts (?mff_chrome_only=header|footer|accountPanel|basketPanel|mobileMenuPanel). It is NOT a
+   layout on its own: the leading `_` keeps it out of reach of TwigInitializer::overlayLayout, which
+   builds the layout name by concatenating the region.
+
+   It extends the chrome overlay, so a scoped render keeps everything that layout brings: the canvas
+   bundle, the chrome CSS/JS and the panels. Each variant renders its region on the side of the page
+   anchor the storefront paints it on and leaves the rest unrendered: what is not being edited is not
+   emitted.
+
+   `#mff-page-content` stays as an EMPTY, HIDDEN node on purpose: the canvas resolves the page container
+   by that id and hangs its "add widget" bar inside it, so removing the node would move that bar on top
+   of the chrome, and leaving it visible would offer to add page content on a screen that does not edit
+   pages. Present for the anchor, hidden for the merchant — the inline style is needed because the
+   theme's CSS beats `[hidden]`. #}
+{%- extends "Responsive/layouts/magicfront.html.twig" -%}
+
+{%- block commerceContent -%}
+    {%- block chromeOnlyStyles -%}{%- endblock chromeOnlyStyles -%}
+    <div class="commerce-content commerce-content-{{- THIS_PAGE }}{% block wrapperClasses %}{% endblock wrapperClasses %}"{% block wrapperAttributes %}{% endblock wrapperAttributes %}>
+        <div class="commerce-content-inset">
+            {%- block regionAbove -%}{%- endblock regionAbove -%}
+            <main class="main-content layout-1" hidden style="display:none">
+                <div class="content-modules divisible-section"><div id="mff-page-content"></div></div>
+            </main>
+            {%- block regionBelow -%}{%- endblock regionBelow -%}
+        </div>
+    </div>
+    {%- block afterWrapper -%}{%- endblock afterWrapper -%}
+    <div id="lcNotify" tabindex="-1"></div>
+    {%- include version ~ '/snippets/icons.html.twig' -%}
+{%- endblock commerceContent -%}

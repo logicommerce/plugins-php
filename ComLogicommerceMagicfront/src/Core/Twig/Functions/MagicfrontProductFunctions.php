@@ -92,6 +92,7 @@ class MagicfrontProductFunctions {
     public static function all(ContextBuilder $ctx): array {
         return [
             new TwigFunction('mff_product_prices', [self::class, 'prices']),
+            new TwigFunction('mff_bundle_prices', [self::class, 'bundlePrices']),
             new TwigFunction('mff_product_stock', [self::class, 'stock']),
             new TwigFunction('mff_product_sku', [self::class, 'sku']),
             new TwigFunction('mff_product_flags', [self::class, 'flags']),
@@ -150,6 +151,60 @@ class MagicfrontProductFunctions {
             'alternative' => $alternative,
             'tiers'       => $tiers,
         ];
+    }
+
+    /**
+     * `mff_bundle_prices(bundle)`: what a pack (BundleGrouping, or its `combinationData` alone) charges, in the same
+     * shape as {@see prices()} and with the store's tax mode, as LogiCommerce's `getBuyPrice` reads a pack: the
+     * charged price is the combination's retailPrice, and its basePrice (the sum of the products without the pack's
+     * discount) is shown struck through only when it is higher. A pack's combination carries its amounts FLAT
+     * (`combinationData.pricesWithTaxes.retailPrice`), not under `prices` like a product's: reading it with
+     * mff_product_prices gave nothing, and reading the raw path gave one tax mode always (#4675). The same in the store
+     * (SDK DTO) and in the preview renderer (JSON). Null without amounts. No tiers: a pack has none.
+     */
+    public static function bundlePrices(mixed $bundle): ?array {
+        return self::bundlePricesIn($bundle, self::taxesIncluded());
+    }
+
+    /** {@see bundlePrices()} for a given tax mode (true = the store sells with taxes included). */
+    public static function bundlePricesIn(mixed $bundle, bool $taxIncluded): ?array {
+        if ($bundle === null) {
+            return null;
+        }
+        $combination = self::read($bundle, 'combinationData') ?? $bundle;
+        $shown = self::bundleAmounts($combination, $taxIncluded ? 'pricesWithTaxes' : 'prices');
+        if ($shown === null) {
+            return null;
+        }
+        [$price, $basePrice] = $shown;
+        $hasOffer = $basePrice > $price + 0.005;
+        $other = self::bundleAmounts($combination, $taxIncluded ? 'prices' : 'pricesWithTaxes');
+        return [
+            'price'       => $price,
+            'basePrice'   => $hasOffer ? $basePrice : $price,
+            'hasOffer'    => $hasOffer,
+            'discountPct' => $hasOffer && $basePrice > 0 ? (int) round((1 - $price / $basePrice) * 100) : 0,
+            'taxIncluded' => $taxIncluded,
+            'alternative' => $other === null ? null
+                : ['price' => $other[0], 'basePrice' => $other[1] > $other[0] + 0.005 ? $other[1] : $other[0]],
+            'tiers'       => [],
+        ];
+    }
+
+    /**
+     * `[retail, base]` of a pack's combination in one tax mode: flat (`<mode>.retailPrice`), as the API sends a pack,
+     * or nested (`<mode>.prices.retailPrice`) as a product's, so a caller handing either reads the same. Null when the
+     * mode brings neither amount.
+     */
+    private static function bundleAmounts(mixed $combination, string $mode): ?array {
+        foreach ([$mode, "{$mode}.prices"] as $path) {
+            $retail = self::num(self::read($combination, "{$path}.retailPrice"));
+            $base   = self::num(self::read($combination, "{$path}.basePrice"));
+            if ($retail !== null || $base !== null) {
+                return [$retail ?? $base, $base ?? $retail];
+            }
+        }
+        return null;
     }
 
     /**

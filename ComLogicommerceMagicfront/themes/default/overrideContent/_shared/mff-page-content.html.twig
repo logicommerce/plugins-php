@@ -27,7 +27,4 @@
     {%- if mffShowAssets|default(false) and mffCustomJs|default('')|length -%}
         <script id="mff-custom-js">{{ mffCustomJs|raw }}</script>
     {%- endif -%}
-    {%- if mffCanvasMode|default(false) and not mffPreviewMode|default(false) -%}
-        <script type="module" src="{{ mffAssetsUrl }}"></script>
-    {%- endif -%}
 {%- endblock jsAssets -%}

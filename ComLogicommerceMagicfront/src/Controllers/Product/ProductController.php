@@ -17,7 +17,7 @@ use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use FWK\ViewHelpers\Product\ProductJsonData;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BundleOptionsResolver;
-use SDK\Core\Dtos\CustomTag;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\ProductCustomTagNames;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Enums\CustomTagType;
@@ -70,9 +70,16 @@ class ProductController extends FWKProductController {
     /** The commerce's PRODUCT custom-tag definitions — the only source of a tag's localized NAME
      *  (the product itself carries `customTagValues` keyed by pId, no names). */
     private function addProductCustomTags(BatchRequests $requests): void {
+        Loader::service(Services::BASKET)->addGetCustomTags($requests, self::CUSTOM_TAGS_KEY, self::productCustomTagsPage(1));
+    }
+
+    /** One page of the PRODUCT custom tag catalogue, at the largest page size the API accepts (#2519). */
+    private static function productCustomTagsPage(int $page): CustomTagsParametersGroup {
         $params = new CustomTagsParametersGroup();
         $params->setType(CustomTagType::PRODUCT);
-        Loader::service(Services::BASKET)->addGetCustomTags($requests, self::CUSTOM_TAGS_KEY, $params);
+        $params->setPerPage(ProductCustomTagNames::PER_PAGE);
+        $params->setPage($page);
+        return $params;
     }
 
     private function addBundleDefinitions(BatchRequests $requests): void {
@@ -99,20 +106,8 @@ class ProductController extends FWKProductController {
     /** pId → `{name, controlType}` of every PRODUCT custom tag, for `page.productCustomTags` (`mff_product_specs`). */
     protected function routeProductCustomTags(): array {
         $tags = $this->getControllerData(self::CUSTOM_TAGS_KEY);
-        if (!$tags instanceof ElementCollection) {
-            return [];
-        }
-        $names = [];
-        foreach ($tags->getItems() as $tag) {
-            if (!$tag instanceof CustomTag) {
-                continue;
-            }
-            $name = $tag->getLanguage()?->getName() ?? '';
-            if ($tag->getPId() !== '' && $name !== '') {
-                $names[$tag->getPId()] = ['name' => $name, 'controlType' => (string) $tag->getControlType()];
-            }
-        }
-        return $names;
+        return ProductCustomTagNames::fromPages($tags instanceof ElementCollection ? $tags : null,
+            static fn(int $page) => Loader::service(Services::BASKET)->getCustomTags(self::productCustomTagsPage($page)));
     }
 
     protected function routeProductBundles(): ?BundleDefinitionsWithGroupings {

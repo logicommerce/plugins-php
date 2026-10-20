@@ -62,6 +62,14 @@ final class WidgetApi {
         return MagicfrontProductFunctions::prices($product);
     }
 
+    /**
+     * `mff_api.bundlePrices(bundle)` = `mff_bundle_prices(bundle)`: what a pack charges, or null. Later than the first
+     * API: a template asks `mff_api.bundlePrices is defined` too.
+     */
+    public function getBundlePrices(mixed $bundle): ?array {
+        return MagicfrontProductFunctions::bundlePrices($bundle);
+    }
+
     /** `mff_api.productStock(product)` = `mff_product_stock(product)`: the stock the shop shows, or null. */
     public function getProductStock(mixed $product): ?array {
         return MagicfrontProductFunctions::stock($product);

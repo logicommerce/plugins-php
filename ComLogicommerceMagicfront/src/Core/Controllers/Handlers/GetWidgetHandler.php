@@ -49,7 +49,24 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     /** Per-request memo of `GET /samples/category`, shared by the widgets of one `getWidgets` batch. */
     private ?array $categorySampleMemo = null;
 
-    /** @var array `shared` container per sorted family set. */
+    /**
+     * #1545: every node of the page, by id, read ONCE for a `getWidgets` batch (null = not read: single `getWidget`,
+     * or the read failed). A batch of the product page asked the API one widget at a time — ~30 calls in a row, the
+     * 15-20 s the merchant waited after switching «Agotado» / «Disponible» in the simulator.
+     *
+     * @var array<string, \Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance>|null
+     */
+    private ?array $instanceIndex = null;
+
+    /**
+     * #1545: templates already read in this request, by type key (`family@N`): a batch asks each type once, not once
+     * per widget that uses it.
+     *
+     * @var array<string, mixed>
+     */
+    private array $templateMemo = [];
+
+    /** @var array<string, array> `shared` container per sorted family set. */
     private array $sharedMemo = [];
 
     public function supports(string $type): bool {
@@ -90,6 +107,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             // per-widget render and does not depend on the widget; the HTML itself is tens of ms. A widget that
             // fails does not sink the others; the answer keeps the order asked.
             $ids      = array_values(array_unique(array_filter(array_map('trim', explode(',', $rawIds)))));
+            $this->instanceIndex = $this->indexPageInstances($service, $pageId, $language);
             $prepared = [];
             $union    = [];
             foreach ($ids as $widgetId) {
@@ -115,13 +133,15 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
      */
     private function prepareOne(WidgetsService $service, string $pageId, string $widgetId, string $language, array $situation): array {
         try {
-            $instance = $service->getPageWidgetInstanceById($pageId, $widgetId, $language);
+            // #1545: from the page read once when the batch has it; a widget it does not hold (an id from
+            // somewhere else) is read by id, as before.
+            $instance = $this->instanceIndex[$widgetId] ?? $service->getPageWidgetInstanceById($pageId, $widgetId, $language);
             $widget   = $instance !== null ? WidgetToPageTransformer::transformSingle($instance) : null;
             $widget   = $this->resolveCatalogRelations($widget);
             $this->attachProductSample($service, $pageId, $language, $widget, $situation);
             $this->attachCategorySample($service, $pageId, $language, $widget, $situation);
             $neededTypes = WidgetTypeCollector::templateKeysFromPages([$widget]);
-            $templates   = $service->getWidgetTemplatesForTypes($neededTypes);
+            $templates   = $this->templatesFor($service, $neededTypes);
             return [
                 'instance'  => $instance,
                 'widget'    => $widget,
@@ -131,6 +151,55 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         } catch (\Throwable $e) {
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * #1545: every node of the page (the same read the whole-page render makes, Studio documents included), indexed
+     * by id with its subtree. Null when the read fails: the batch then reads each widget by id, as before.
+     *
+     * @return array<string, \Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance>|null
+     */
+    private function indexPageInstances(WidgetsService $service, string $pageId, string $language): ?array {
+        try {
+            $index = [];
+            $stack = $service->getPageWidgetInstances($pageId, $language);
+            while ($stack !== []) {
+                $node = array_pop($stack);
+                if (!is_object($node) || !method_exists($node, 'getId')) {
+                    continue;
+                }
+                $index[$node->getId()] ??= $node;
+                foreach ($node->getChildren() as $child) {
+                    $stack[] = $child;
+                }
+            }
+            return $index;
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * #1545: the templates of `$types`, reading from the API only the ones this request has not read yet.
+     *
+     * @param string[] $types
+     * @return array<string, mixed> indexed by type, like {@see WidgetsService::getWidgetTemplatesForTypes()}
+     */
+    private function templatesFor(WidgetsService $service, array $types): array {
+        $missing = array_values(array_diff(array_unique($types), array_keys($this->templateMemo)));
+        if ($missing !== []) {
+            $this->templateMemo += $service->getWidgetTemplatesForTypes($missing);
+            foreach ($missing as $type) {
+                $this->templateMemo[$type] ??= null;   // not found: not asked again in this request
+            }
+        }
+        $out = [];
+        foreach (array_unique($types) as $type) {
+            if (($this->templateMemo[$type] ?? null) !== null) {
+                $out[$type] = $this->templateMemo[$type];
+            }
+        }
+        return $out;
     }
 
     /**

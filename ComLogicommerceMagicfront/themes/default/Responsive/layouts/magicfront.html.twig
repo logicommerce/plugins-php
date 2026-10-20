@@ -41,14 +41,16 @@
            hamburger targets a panel we own and nothing depends on the theme's module contract.
            MFF owns the chrome, so our self-contained panels render whenever we HAVE panel content
            (the merchant designed one) — not gated by the store theme's own offcanvas config. #}
-        {%- if mffMobileMenuPanelPages|default(null) -%}
-            {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffShared|default({}) }) }}
-        {%- endif -%}
-        {%- if mffBasketPanelPages|default(null) -%}
-            {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList, shared: mffShared|default({}) }) }}
-        {%- endif -%}
-        {%- if mffAccountPanelPages|default(null) -%}
-            {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffShared|default({}) }) }}
+        {%- if mffPanelOnly|default(null) is null -%}
+            {%- if mffMobileMenuPanelPages|default(null) -%}
+                {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffShared|default({}) }) }}
+            {%- endif -%}
+            {%- if mffBasketPanelPages|default(null) -%}
+                {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList, shared: mffShared|default({}) }) }}
+            {%- endif -%}
+            {%- if mffAccountPanelPages|default(null) -%}
+                {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffShared|default({}) }) }}
+            {%- endif -%}
         {%- endif -%}
         {# Our header, captured once and reused across the slot/template/single positions below. The
            region JS ships INSIDE only in canvas (so runScripts re-runs it on swap-in); otherwise it
@@ -132,5 +134,12 @@
        Deferred so it runs after the store's deferred commerce 'core' bundle. #}
     {%- if mffDesignJsUrl|default('')|length -%}
         <script src="{{ mffDesignJsUrl }}" defer></script>
+    {%- endif -%}
+    {# The canvas bundle belongs HERE, not in the page template: the three mff-chrome-only-* layouts
+       extend this file directly and never go through overrideContent/, so Personalización mounted the
+       storefront with no canvas and therefore no bridge. `mff-content-only` extends nothing, so the
+       partial swap still never receives it. #}
+    {%- if mffCanvasMode|default(false) and not mffPreviewMode|default(false) and mffAssetsUrl|default('')|length -%}
+        <script type="module" src="{{ mffAssetsUrl }}"></script>
     {%- endif -%}
 {%- endblock jsAssets -%}
