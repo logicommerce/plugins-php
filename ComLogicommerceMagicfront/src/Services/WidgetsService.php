@@ -242,7 +242,7 @@ class WidgetsService extends Service {
      *   3) wrap bare-array list responses into `{items: [...]}` so
      *      `getResponse()` / `getElements()` work on our endpoints.
      */
-    protected function call(Request $request, string $apiUrl = null): array {
+    protected function call(Request $request, ?string $apiUrl = null): array {
         $token = MagicfrontToken::getToken();
         if (!empty($token)) {
             $request->setHeader('Authorization', 'Bearer ' . $token);

@@ -145,7 +145,7 @@ class ComLogicommerceOct8neController extends Controller {
     /**
      * @see \FWK\Core\Controllers\Controller::setType()
      */
-    protected function setType(array $additionalData = [], string $header = null): void {
+    protected function setType(array $additionalData = [], ?string $header = null): void {
         Response::setType(($this->contentType == TwigContentTypes::JSON) ? Response::TYPE_JSON : Response::TYPE_JS);
     }
 
@@ -169,7 +169,7 @@ class ComLogicommerceOct8neController extends Controller {
      * 
      * @see \FWK\Core\Controllers\Controller::render()
      */
-    protected function render(String $content = null, String $layout = null, String $format = 'json'): string {
+    protected function render(?String $content = null, ?String $layout = null, String $format = 'json'): string {
         $layout = 'layouts' . '/basic.' . $this->contentType . '.twig';
         $content = 'Content/' . ucfirst($this->contentType) . '/basic.' . $this->contentType . '.twig';
         return parent::render($content, $layout, $this->contentType);

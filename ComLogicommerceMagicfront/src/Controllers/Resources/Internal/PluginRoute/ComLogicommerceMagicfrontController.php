@@ -103,7 +103,7 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
         $this->handler = $this->resolveHandler($type);
     }
 
-    public function run(array $additionalData = [], string $header = null): void {
+    public function run(array $additionalData = [], ?string $header = null): void {
         // The parent flow does not guarantee initializeAppliedParameters() has
         // been called before run(), so make sure the handler is resolved first.
         if ($this->handler === null) {
