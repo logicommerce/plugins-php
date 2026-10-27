@@ -8,6 +8,7 @@ use FWK\Core\Resources\Loader;
 use FWK\Core\Resources\Session;
 use FWK\Core\Resources\Session\SessionGeneralSettings;
 use FWK\Enums\Services;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontLogger;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use SDK\Application;
@@ -136,7 +137,8 @@ class ContextBuilder {
         } catch (\Throwable $e) {
             // Chrome must never break: swallow to [] (menu shows its empty-state). Logged so a
             // silently-empty category menu in production stays diagnosable.
-            error_log('[MagicFront] header category menu unavailable: ' . $e->getMessage());
+            MagicfrontLogger::record('warning', MagicfrontLogger::HEADER_CATEGORY_MENU_UNAVAILABLE,
+                'Header category menu unavailable', ['errorClass' => $e::class, 'errorMessage' => $e->getMessage()]);
             return [];
         }
     }

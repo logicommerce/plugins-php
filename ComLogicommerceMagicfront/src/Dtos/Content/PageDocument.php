@@ -65,6 +65,11 @@ class PageDocument extends Element {
         return $this->content?->getPageType() ?? '';
     }
 
+    /** @return string[]|null the published account page's sections ({@see PageContent::getAccountSections()}). */
+    public function accountSections(): ?array {
+        return $this->content?->getAccountSections();
+    }
+
     public function widgets(): ?WidgetInstanceCollection {
         return $this->content?->getWidgets();
     }

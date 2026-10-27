@@ -82,14 +82,31 @@ class WidgetContentHandler extends GetWidgetHandler {
             $subtree = [];
             $this->collectSubtree($widget, $subtree);
             $types = [];
+            $pieces = [];
+            $fetched = [];
             foreach ($subtree as $node) {
                 $family = (string) $node->getCustomType();
                 if ($family === '') {
                     continue;
                 }
                 $types[$node->getTemplateKey()] = true;
-                if (DataWidgetRegistry::handles($family)) {
-                    DataWidgetRegistry::fetchInto(new ElementCollection(['items' => [$node]]), $family, $node);
+                $dataType = DataWidgetRegistry::dataTypeOfPiece($family);
+                if ($dataType !== null) {
+                    $pieces[] = [$node, $family, $dataType];
+                } elseif (DataWidgetRegistry::handles($family)) {
+                    // Each data widget fetches its own, as before (its own page size); the first one serves the pieces.
+                    $assignments = DataWidgetRegistry::fetchInto(new ElementCollection(['items' => [$node]]), $family, $node);
+                    $fetched[$family] ??= $assignments;
+                }
+            }
+            // A piece that reads a data widget's data (the account Summary's, E22) reuses that widget's fetch when it
+            // is in the same subtree, and asks once otherwise.
+            foreach ($pieces as [$node, $family, $dataType]) {
+                $items = new ElementCollection(['items' => [$node]]);
+                if (isset($fetched[$dataType])) {
+                    DataWidgetRegistry::attach($items, $fetched[$dataType]);
+                } else {
+                    $fetched[$dataType] = DataWidgetRegistry::fetchInto($items, $family, $node);
                 }
             }
             if ($types === []) {

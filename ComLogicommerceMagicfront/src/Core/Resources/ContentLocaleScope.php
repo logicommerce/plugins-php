@@ -40,7 +40,10 @@ final class ContentLocaleScope {
             self::swap($session, new SessionGeneralSettings(self::settingsFor($settings, $language)));
             return new self($settings);
         } catch (\Throwable $e) {
-            error_log('[MagicFront] content locale ' . $language . ' not applied to the render: ' . get_class($e) . ': ' . $e->getMessage());
+            MagicfrontLogger::record('warning', MagicfrontLogger::CONTENT_LOCALE_NOT_APPLIED,
+                'The canvas language was not applied to the render', [
+                    'language' => $language, 'errorClass' => $e::class, 'errorMessage' => $e->getMessage(),
+                ]);
             return new self(null);
         }
     }

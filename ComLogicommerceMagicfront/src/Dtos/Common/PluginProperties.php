@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Dtos\Common;
 
+use FWK\Core\FilterInput\FilterInputFactory;
 use FWK\Core\Resources\Loader;
+use FWK\Enums\Parameters;
 use FWK\Enums\Services;
 use FWK\Enums\RouteType;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\OrderDetailUrl;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RequestQuery;
 use Plugins\ComLogicommerceMagicfront\Enums\AccountRedirectRoutes;
 use Plugins\ComLogicommerceMagicfront\Enums\AvailablePagesValue;
 use Plugins\ComLogicommerceMagicfront\Enums\PluginPropertiesPropertyNames;
@@ -54,12 +58,31 @@ class PluginProperties extends CorePluginProperties {
     /** Controller takeover routes — strict: only BO `availablepages` (chrome toggles don't broaden). */
     public function getControllerOverridePages(): array {
         if (RenderMode::isPreviewMode()) {
-            return $this->allRouteTypes();
+            return self::withoutOrderPagesTheStoreServes($this->allRouteTypes());
         }
-        return $this->withAccountRedirects(array_values(array_filter(
+        return self::withoutOrderPagesTheStoreServes($this->withAccountRedirects(array_values(array_filter(
             $this->routesFromAvailablepages(),
             fn(string $routeType): bool => !$this->decidesThisRequest($routeType) || $this->specialPagePublished($routeType)
-        )));
+        ))));
+    }
+
+    /**
+     * The address of one order stays LogiCommerce's when LogiCommerce itself asks for it: its «view order» popup (AJAX)
+     * and a guest's order (`?token=`). Taken over, both were redirected to the account page: the popup filled with the
+     * whole page and the guest landed on the login (#4508, {@see OrderDetailUrl::keepsStorePage()}).
+     *
+     * @param string[] $routes
+     * @return string[]
+     */
+    private static function withoutOrderPagesTheStoreServes(array $routes): array {
+        // Built only when the address has a token: the FWK's filter needs the FWK, which the plugins CI does not have.
+        $guestToken = RequestQuery::has(OrderDetailUrl::GUEST_TOKEN)
+            ? RequestQuery::value(OrderDetailUrl::GUEST_TOKEN, FilterInputFactory::getTokenParameter()[Parameters::TOKEN])
+            : null;
+        if (!OrderDetailUrl::keepsStorePage($guestToken)) {
+            return $routes;
+        }
+        return array_values(array_diff($routes, AccountRedirectRoutes::ORDER));
     }
 
     /**

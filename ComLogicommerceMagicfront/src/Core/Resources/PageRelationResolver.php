@@ -11,6 +11,7 @@ use FWK\Enums\Services;
 use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Core\Dtos\Filter\Filter;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Services\BatchService;
 use SDK\Core\Services\Parameters\Groups\ParametersGroup;
@@ -123,6 +124,31 @@ class PageRelationResolver {
             $subItems = $page->getSubpages();
             if (!empty($subItems)) {
                 self::attachProducts(new ElementCollection(['items' => $subItems]), $products);
+            }
+        }
+    }
+
+    /**
+     * Attach the category's own facets to every widget page as `page.categoryFacets`, with the same rule as
+     * {@see attachProducts()}: a widget with its own `categoryId` lists another category, so they are not its facets.
+     * No-op without facets (the buyer did not filter, the list has results, or a non-category route).
+     */
+    public static function attachCategoryFacets(?ElementCollection $pages, ?Filter $facets): void {
+        if ($pages === null || $facets === null) {
+            return;
+        }
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                continue;
+            }
+            $ownCategoryId = $page->getModuleSettings()['categoryId'] ?? null;
+            $hasOwnCategoryId = $ownCategoryId !== null && $ownCategoryId !== '' && (int) $ownCategoryId !== 0;
+            if (!$hasOwnCategoryId) {
+                $page->setCategoryFacets($facets);
+            }
+            $subItems = $page->getSubpages();
+            if (!empty($subItems)) {
+                self::attachCategoryFacets(new ElementCollection(['items' => $subItems]), $facets);
             }
         }
     }

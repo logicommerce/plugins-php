@@ -39,12 +39,16 @@ class MagicfrontToken {
         $cookie = is_string($cookie) && $cookie !== '' ? $cookie : null;
         // The cookie is only persisted inside the canvas iframe, so a standalone preview request (top document)
         // authenticates itself from its own query token.
-        $param = $_GET[self::MF_TOKEN] ?? null;
-        $param = is_string($param) && $param !== '' ? $param : null;
+        $param = self::queryToken();
         if ($cookie === null || $param === null || $cookie === $param) {
             return $param ?? $cookie;
         }
         return self::expiresAt($param) >= self::expiresAt($cookie) ? $param : $cookie;
+    }
+
+    /** The token the URL carries (`?mfToken=`), untouched, or null. */
+    public static function queryToken(): ?string {
+        return RequestQuery::value(self::MF_TOKEN, RequestQuery::exact());
     }
 
     /**

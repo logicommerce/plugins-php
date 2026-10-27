@@ -32,4 +32,13 @@ class VoucherCodesService implements WidgetDataService {
         $items      = $collection instanceof ElementCollection ? $collection->toArray()['items'] : [];
         return ['items' => $items];
     }
+
+    /**
+     * {@see fetchForWidget()} for a piece of the account Summary (E22), or null when the API did not answer: the piece
+     * then gets no `page.voucherCodes` and paints nothing, never a false «no vouchers».
+     */
+    public function fetchForPiece(?PluginPage $widget): ?array {
+        $collection = Loader::service(Services::USER)->getVouchers();
+        return $collection instanceof ElementCollection ? ['items' => $collection->toArray()['items']] : null;
+    }
 }

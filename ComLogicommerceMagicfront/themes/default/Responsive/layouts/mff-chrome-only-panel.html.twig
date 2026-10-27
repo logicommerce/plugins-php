@@ -39,10 +39,14 @@
    separated from its wrapper nor from its markers; its own script still re-anchors wrapper and panel
    to `<body>`, which is harmless.
 
-   The CSS keys on `data-widget-family`, never on the family class: a versioned family emits
-   `widget-accountPanel--v2`, which a `.widget-accountPanel` selector does not match, so the rule died
-   in silence when the panels went to @2. The attribute carries no version, so it cannot rot the same
-   way, and unlike `data-mff-el="section"` it names the panel instead of a role 25 families share.
+   The CSS keys on `data-widget-family` for the versioned panels and on the bare family class for the
+   v1s. A versioned family emits `widget-accountPanel--v2`, which a `.widget-accountPanel` selector does
+   not match, so the rule died in silence when the panels went to @2; the attribute carries no version,
+   so it cannot rot the same way. But the three v1 panels (the ones in production, and the ones the
+   stores keep saved) carry no `data-widget-family`: keyed on it alone, Personalización painted the
+   header under the dim and no panel at all (#7747). Their class carries no version either and is
+   frozen with the published v1, so each one is named. Unlike `data-mff-el="section"`, both name the
+   panel instead of a role 25 families share.
 
    El ASPA del cascarón (`data-mff-lock`) pierde los eventos de puntero: el guarda del lienzo ya
    bloqueaba su `data-bs-dismiss`, así que ofrecía cursor de mano para no hacer nada. Ahora el clic
@@ -71,7 +75,10 @@
             background-color: rgba(0, 0, 0, 0.35);
             pointer-events: none;
         }
-        .offcanvas[data-widget-family] {
+        .offcanvas[data-widget-family],
+        .offcanvas.widget-accountPanel,
+        .offcanvas.widget-basketPanel,
+        .offcanvas.widget-mobileMenuPanel {
             visibility: visible;
             transform: none;
             max-width: 100%;

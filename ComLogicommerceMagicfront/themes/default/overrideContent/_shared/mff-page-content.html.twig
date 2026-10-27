@@ -22,9 +22,9 @@
     </div>
 {%- endblock content -%} 
 
-{%- block jsAssets -%}
+{%- block mffScripts -%}
     {{ parent() }}
     {%- if mffShowAssets|default(false) and mffCustomJs|default('')|length -%}
-        <script id="mff-custom-js">{{ mffCustomJs|raw }}</script>
+        <script type="text/plain" data-mff-js id="mff-custom-js">{{ mffCustomJs|raw }}</script>
     {%- endif -%}
-{%- endblock jsAssets -%}
+{%- endblock mffScripts -%}

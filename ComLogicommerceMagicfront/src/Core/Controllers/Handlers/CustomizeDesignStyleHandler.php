@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers;
 
+use FWK\Enums\Parameters;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\DesignConfig;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RequestQuery;
 use SDK\Core\Dtos\Element;
 
 /**
@@ -14,6 +16,10 @@ use SDK\Core\Dtos\Element;
  * listed in DesignConfig for that pair are emitted.
  *
  * URL: .../plugin_route/com.logicommerce.magicfront?type=customizeDesignCSS&page=category&design=design189
+ *
+ * @deprecated #4390: nothing has requested this type since the trait that linked it was removed (924c233,
+ *             03-08-2026). It is removed once the store's access log shows no request with type=customizeDesignCSS
+ *             for 7 days (the type travels in the URL above).
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers
  */
@@ -37,7 +43,7 @@ class CustomizeDesignStyleHandler implements PluginRouteHandlerInterface {
         if (!DesignConfig::isValidPage($page)) {
             return '';
         }
-        $override = DesignConfig::overrideFromPayload(filter_input(INPUT_GET, \FWK\Enums\Parameters::ADDITIONAL_DATA));
+        $override = DesignConfig::overrideFromPayload(RequestQuery::value(Parameters::ADDITIONAL_DATA, RequestQuery::exact()));
         $baseDir = dirname(__DIR__, 4) . '/assets/css/' . $page . '/';
         $output = '';
         foreach (DesignConfig::cssFiles($page, $design, $override) as $file) {

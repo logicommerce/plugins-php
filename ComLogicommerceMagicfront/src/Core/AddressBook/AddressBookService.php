@@ -32,6 +32,20 @@ class AddressBookService implements WidgetDataService {
     }
 
     /**
+     * {@see fetchForWidget()} for a piece of the account Summary (E22), or null when the API did not answer: the piece
+     * then gets no `page.shippingAddresses` and paints nothing, never a false «no addresses yet».
+     */
+    public function fetchForPiece(?PluginPage $widget): ?array {
+        $account = Loader::service(Services::ACCOUNT);
+        $invoicing = $account->getInvoicingAddresses();
+        $shipping = $account->getShippingAddresses();
+        if (!$invoicing instanceof ElementCollection || !$shipping instanceof ElementCollection) {
+            return null;
+        }
+        return ['invoicing' => $this->items($invoicing), 'shipping' => $this->items($shipping)];
+    }
+
+    /**
      * @return array the collection's items serialized verbatim, or [] when absent
      */
     private function items(mixed $collection): array {

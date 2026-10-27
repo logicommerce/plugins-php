@@ -29,4 +29,5 @@
     {%- block afterWrapper -%}{%- endblock afterWrapper -%}
     <div id="lcNotify" tabindex="-1"></div>
     {%- include version ~ '/snippets/icons.html.twig' -%}
+    {{- block('mffScripts') -}}
 {%- endblock commerceContent -%}

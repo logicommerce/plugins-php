@@ -10,6 +10,7 @@ use FWK\Core\FilterInput\FilterInputHandler;
 use FWK\Core\Resources\Response;
 use FWK\Enums\Parameters;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
+use Plugins\ComLogicommerceMagicfront\Enums\PreviewPageParam;
 use Plugins\ComLogicommerceMagicfront\Enums\SampleSituationParam;
 use FWK\Twig\TwigLoader;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeCssJsHandler;
@@ -18,7 +19,6 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\CustomizeDesignS
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\GetWidgetHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\WidgetContentHandler;
 use Plugins\ComLogicommerceMagicfront\Core\Interfaces\PluginRouteHandlerInterface;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use SDK\Core\Dtos\Element;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
@@ -76,6 +76,7 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             // when the request Referer is missing/stripped and on any page (not just the account area).
             Parameters::P_ID      => new FilterInput($noMod),
             Parameters::PAGE      => new FilterInput($noMod),
+            PreviewPageParam::NAME => new FilterInput($noMod),
             Parameters::TYPE      => new FilterInput($noMod),
             Parameters::LANGUAGE  => new FilterInput($noMod),
             // id: the selected shopping list (or other row-list) the live-reload AJAX operates on.
@@ -90,8 +91,10 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             SampleSituationParam::REVIEWS => new FilterInput($noMod),
             SampleSituationParam::LISTING => new FilterInput($noMod),
             SampleSituationParam::WISHLIST => new FilterInput($noMod),
-            // The preview content-language override, like the whole page.
-            MagicfrontUtils::MFF_LANG => new FilterInput($noMod),
+            // The account page's «Who is looking?» (#4502).
+            SampleSituationParam::VIEWER  => new FilterInput($noMod),
+            SampleSituationParam::ACCOUNT => new FilterInput($noMod),
+            SampleSituationParam::LINK    => new FilterInput($noMod),
             // `getWidgets`: the comma-separated ids of the widgets to render in one request.
             FunctionType::WIDGET_IDS_PARAM => new FilterInput($noMod),
         ];

@@ -6,6 +6,7 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Dtos\Traits;
 
 use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Core\Dtos\Filter\Filter;
 use SDK\Dtos\Catalog\Product\Product;
 
 /**
@@ -20,6 +21,12 @@ trait MagicfrontPageTrait {
     protected array $moduleSettings = [];
 
     protected ?ElementCollection $products = null;
+
+    /**
+     * The category's own facets when the buyer's filter found nothing (`page.categoryFacets`), or null: `products`
+     * keeps the facets LogiCommerce trimmed to the result, and the filters widget chooses which to show (#6588).
+     */
+    protected ?Filter $categoryFacets = null;
 
     /**
      * The single product of a product-detail (ficha) route, attached to EVERY
@@ -55,7 +62,7 @@ trait MagicfrontPageTrait {
     /** Product custom-tag NAMES keyed by pId (the DTO's `customTagValues` carry none) for `mff_product_specs`. */
     protected array $productCustomTags = [];
 
-    /** Login-aware wishlist state for the productAddToCart button ({isLogged, ids, labelAdd, labelDelete}). */
+    /** Login-aware wishlist state for the productAddToCart button ({isLogged, ids}). */
     protected array $wishlist = [];
 
     /** The route product's related-items GROUPS ({name, products[]}) for the productSiblings widget (`mff_product_siblings`). */
@@ -84,8 +91,23 @@ trait MagicfrontPageTrait {
     /** The account's raw reward-point balances for the rewardPoints widget (`page.rewardPoints` = {items:[{language, earned, redeemed, pending, availables}, …]}), or [] otherwise. */
     protected array $rewardPoints = [];
 
+    /**
+     * The order the account's order detail section shows (`page.orderDetail` = LogiCommerce's rich order + id, invoices,
+     * rmas; see {@see \Plugins\ComLogicommerceMagicfront\Core\OrderDetail\OrderDetailService}), or [] when
+     * there is none to show. Whether it came is `'orderDetail' in page.loadedData`, never the emptiness of this.
+     */
+    protected array $orderDetail = [];
+
     /** The account's raw RMA list for the rmas widget (`page.rmas` = {items:[{id, documentNumber, date, status, substatus, returns}, …]}), or [] otherwise. */
     protected array $rmas = [];
+
+    /**
+     * The account's «saved for later» rows for the saveForLater widget (`page.saveForLater` = the base theme's rich
+     * rows, {@see \FWK\Dtos\User\SaveForLaterListRow}: id, quantity, addedDate, reference and item — the product or
+     * the bundle with its products; see {@see \Plugins\ComLogicommerceMagicfront\Core\SaveForLater\SaveForLaterService}),
+     * or [] otherwise.
+     */
+    protected array $saveForLater = [];
 
     /** The account's raw stock-alert subscriptions for the stockAlerts widget (`page.stockAlerts` = {items:[{id, email, subscriptionDate, product}, …]}), or [] otherwise. */
     protected array $stockAlerts = [];
@@ -98,6 +120,23 @@ trait MagicfrontPageTrait {
 
     /** The account's FRESH shipping addresses for the addressBook widget (`page.shippingAddresses`). */
     protected array $shippingAddresses = [];
+
+    /**
+     * The data widgets' data this request really attached (`page.loadedData` = ['orders', 'addressBook', …]), by the
+     * data widget's type. Every getter above has a default, and Twig counts a property as defined as soon as its getter
+     * exists: `page.orders is defined` holds even when nothing was fetched. A piece that must tell «not loaded» (paint
+     * nothing in the store, its own example in the canvas) from «loaded and empty» (its empty text) reads this list:
+     * `page.loadedData is defined and 'orders' in page.loadedData` (the account pieces, E22). With an older plugin the
+     * list does not exist, so the piece paints nothing.
+     */
+    protected array $loadedData = [];
+
+    /**
+     * Who is looking at the account page in the editor canvas (`page.accountViewer` = {firstName, lastName,
+     * account {id, type, name}, salesAgent}, or null for a visit without session), from the sample customer (#4502).
+     * Only the canvas sets it, with 'viewer' in {@see self::$loadedData}; the store reads the session.
+     */
+    protected ?array $accountViewer = null;
 
     /** The account's payment cards grouped by plugin for the paymentCards widget (`page.paymentCards` = {groups:[{pluginId, module, tokens:[…]}, …]}), or [] otherwise. */
     protected array $paymentCards = [];
@@ -248,6 +287,14 @@ trait MagicfrontPageTrait {
         $this->products = $products;
     }
 
+    public function getCategoryFacets(): ?Filter {
+        return $this->categoryFacets;
+    }
+
+    public function setCategoryFacets(?Filter $categoryFacets): void {
+        $this->categoryFacets = $categoryFacets;
+    }
+
     /** The route's product-detail product (raw SDK Product), or null off a product route. */
     public function getProduct(): ?Product {
         return $this->product;
@@ -347,6 +394,25 @@ trait MagicfrontPageTrait {
         $this->comments = $comments;
     }
 
+    /** @return string[] the data types this request really attached ({@see self::$loadedData}). */
+    public function getLoadedData(): array {
+        return array_keys($this->loadedData);
+    }
+
+    /** Marks $type's data as attached in this request. */
+    public function addLoadedData(string $type): void {
+        $this->loadedData[$type] = true;
+    }
+
+    /** Who is looking at the account page in the canvas ({@see self::$accountViewer}), or null. */
+    public function getAccountViewer(): ?array {
+        return $this->accountViewer;
+    }
+
+    public function setAccountViewer(?array $accountViewer): void {
+        $this->accountViewer = $accountViewer;
+    }
+
     /** The logged-in account's serialized order history for the orders widget, or [] otherwise. */
     public function getOrders(): array {
         return $this->orders;
@@ -439,6 +505,24 @@ trait MagicfrontPageTrait {
 
     public function setRmas(array $rmas): void {
         $this->rmas = $rmas;
+    }
+
+    /** The order the account's order detail section shows, or [] when there is none to show. */
+    public function getOrderDetail(): array {
+        return $this->orderDetail;
+    }
+
+    public function setOrderDetail(array $orderDetail): void {
+        $this->orderDetail = $orderDetail;
+    }
+
+    /** The account's «saved for later» rows, resolved, each with its product or bundle in `item`, or [] otherwise. */
+    public function getSaveForLater(): array {
+        return $this->saveForLater;
+    }
+
+    public function setSaveForLater(array $saveForLater): void {
+        $this->saveForLater = $saveForLater;
     }
 
     /** The account's raw stock-alert subscriptions ({items:[…]}) for the stockAlerts widget, or [] otherwise. */

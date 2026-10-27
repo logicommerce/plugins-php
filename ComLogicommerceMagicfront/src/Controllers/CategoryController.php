@@ -8,15 +8,16 @@ use SDK\Core\Resources\Timer;
 use FWK\Core\Resources\Utils;
 use FWK\Controllers\CategoryController as FWKCategoryController;
 use FWK\Core\Controllers\Controller;
-use FWK\Core\FilterInput\FilterInputHandler;
 use FWK\Core\Resources\Loader;
-use FWK\Enums\Parameters;
 use FWK\Enums\Services;
 use FWK\Services\CategoryService;
 use FWK\Services\ProductService;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\CategoryFacets;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\ProductListQuery;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Core\Dtos\Filter\Filter;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Catalog\Category;
 use SDK\Dtos\Catalog\Page\Page;
@@ -43,8 +44,8 @@ use SDK\Services\Parameters\Groups\Product\ProductsParametersGroup;
  * `controllerItem` stays the route Category (FWK view helpers need it).
  *
  * Deliberately does NOT use FiltrableProductListTrait (its getFilterParams() collides with
- * MagicfrontTrait's) nor RendersDesignAssetsTrait (Motor B). Product filters / sort / pagination
- * are a follow-up; this fetches the plain category product list.
+ * MagicfrontTrait's) nor RendersDesignAssetsTrait (Motor B). The buyer's page, sort and filters
+ * come from {@see ProductListQuery}, through the FWK's product-list filters.
  *
  * Editor/docker preview (no route category): `page.category`/`page.products` are null → each
  * widget renders its inline mock.
@@ -67,6 +68,9 @@ class CategoryController extends FWKCategoryController {
 
     private ?int $categoryId = null;
 
+    /** Whether the request carries a product filter (brand, subcategory, price, custom tag or option); sort and page are not. */
+    private bool $buyerFiltered = false;
+
     private ?ProductService $productService = null;
 
     private ?CategoryService $categoryService = null;
@@ -84,107 +88,25 @@ class CategoryController extends FWKCategoryController {
         $templatePage = $this->magicfrontPage();
         Utils::addTimerDebugFlag('cat-magicfrontPage', Timer::END_SUFFIX);
         $this->categoryService->addGetCategoriesByParentId($requests, self::KEY_SUBCATS, $this->categoryId);
-        $productParams = new ProductsParametersGroup();
-        $productParams->setCategoryId($this->categoryId);
-        $productParams->setIncludeSubcategories(true);
-        $productParams->setShowFilters(true);
+        $productParams = $this->baseListParams();
         $perPage = $templatePage instanceof Page ? $this->listingPerPage($templatePage) : null;
         if ($perPage !== null) {
             $productParams->setPerPage($perPage);
         }
         if (!RenderMode::isPreviewMode()) {
-            $this->applyFilterParams($productParams);
+            $this->buyerFiltered = ProductListQuery::apply($productParams);
         }
         $this->productService->addGetProducts($requests, self::KEY_PRODUCTS, $productParams);
         $this->setMagicfrontBatchData($requests);
     }
 
-    /**
-     * Reads the native LogiCommerce product-filter query params and maps each to its SDK setter/adder.
-     * Field-name contract (values arrive as PHP arrays via the widget's `[]` names):
-     *   filterCustomTag_<id>[]                → addFilterCustomTag(id, value)
-     *   filterCustomTagInterval_<id> "min;max"→ addFilterCustomTagInterval(id, min, max)
-     *   filterCustomTagRangeInterval_<id>     → addFilterCustomTagRangeInterval(id, intervalId)
-     *   filterOption_<name>[]                 → addFilterOption(name, value)
-     *   priceRange "min;max"                  → setFromPrice + setToPrice
-     *   brandsList[]                          → setBrandsList(csv)
-     *   sort | orderBy                        → setSort
-     */
-    private function applyFilterParams(ProductsParametersGroup $params): void {
-        $pageNumber = (int) $this->getRequestParam(Parameters::PAGE, false, '0');
-        if ($pageNumber > 1) {
-            $params->setPage($pageNumber);
-        }
-        $sort = $_GET[Parameters::SORT] ?? $_GET['orderBy'] ?? null;
-        if (is_string($sort) && $sort !== '') {
-            $params->setSort($sort);
-        }
-        $brands = $_GET[Parameters::BRANDS_LIST] ?? null;
-        if (is_array($brands) && $brands !== []) {
-            $params->setBrandsList(implode(',', array_map('intval', $brands)));
-        }
-        $categories = $_GET['category'] ?? null;
-        if (is_array($categories) && $categories !== []) {
-            $params->setCategoryIdList(implode(',', array_map('intval', $categories)));
-        }
-        $priceRange = $_GET[Parameters::PRICE_RANGE] ?? null;
-        if (is_string($priceRange) && str_contains($priceRange, ';')) {
-            [$from, $to] = array_pad(explode(';', $priceRange, 2), 2, '');
-            if (is_numeric($from) && is_numeric($to)) {
-                $params->setFromPrice((float) min($from, $to));
-                $params->setToPrice((float) max($from, $to));
-            }
-        }
-        $this->applyDynamicFilterParams($params);
-    }
-
-    /**
-     * Maps the dynamic (id/name-suffixed) filter query params to their SDK adder, mirroring
-     * fwk's {@see FilterInputHandler::getAvailableDinamicParam()} split idiom: each key is
-     * `<paramName><delimiter><identifier>`, so it splits on the first delimiter and dispatches
-     * on the {@see Parameters} prefix. Non-dynamic keys (no delimiter) are ignored here.
-     */
-    private function applyDynamicFilterParams(ProductsParametersGroup $params): void {
-        foreach ($_GET as $key => $value) {
-            $parts = explode(FilterInputHandler::DYNAMIC_NAME_PARAM_DELIMITER, (string) $key, 2);
-            if (count($parts) !== 2 || $parts[1] === '') {
-                continue;
-            }
-            [$name, $identifier] = $parts;
-            switch ($name) {
-                case Parameters::FILTER_CUSTOMTAG_INTERVAL:
-                    if (ctype_digit($identifier) && is_string($value) && str_contains($value, ';')) {
-                        [$from, $to] = array_pad(explode(';', $value, 2), 2, '');
-                        $params->addFilterCustomTagInterval((int) $identifier, (string) min($from, $to), (string) max($from, $to));
-                    }
-                    break;
-                case Parameters::FILTER_CUSTOMTAG_RANGE_INTERVAL:
-                    if (ctype_digit($identifier)) {
-                        foreach ((array) $value as $intervalId) {
-                            if ($intervalId !== '') {
-                                $params->addFilterCustomTagRangeInterval((int) $identifier, (string) $intervalId);
-                            }
-                        }
-                    }
-                    break;
-                case Parameters::FILTER_CUSTOMTAG:
-                    if (ctype_digit($identifier)) {
-                        foreach ((array) $value as $tagValue) {
-                            if ($tagValue !== '') {
-                                $params->addFilterCustomTag((int) $identifier, (string) $tagValue);
-                            }
-                        }
-                    }
-                    break;
-                case Parameters::FILTER_OPTION:
-                    foreach ((array) $value as $optionValue) {
-                        if ($optionValue !== '') {
-                            $params->addFilterOption(rawurldecode($identifier), (string) $optionValue);
-                        }
-                    }
-                    break;
-            }
-        }
+    /** The category's product list as the page asks it before any buyer filter: the category with its subcategories, with facets. */
+    private function baseListParams(): ProductsParametersGroup {
+        $params = new ProductsParametersGroup();
+        $params->setCategoryId($this->categoryId);
+        $params->setIncludeSubcategories(true);
+        $params->setShowFilters(true);
+        return $params;
     }
 
     protected function setData(array $additionalData = []): void {
@@ -198,10 +120,23 @@ class CategoryController extends FWKCategoryController {
         return $category instanceof Category ? $category : null;
     }
 
-    /** The category's product LIST, attached to `page.products` (unified productList source). */
+    /** The category's product LIST, attached to `page.products` (unified productList source), as LogiCommerce returned it. */
     protected function routeProducts(): ?ElementCollection {
         $products = $this->getControllerData(self::KEY_PRODUCTS);
         return $products instanceof ElementCollection ? $products : null;
+    }
+
+    /**
+     * The category's own facets → `page.categoryFacets`, only when the buyer's filter found nothing: one more request,
+     * after the batch, in that case alone ({@see CategoryFacets}). The facets do not depend on the products, so one is
+     * enough.
+     */
+    protected function routeCategoryFacets(): ?Filter {
+        return CategoryFacets::whenEmpty($this->routeProducts(), $this->buyerFiltered, function (): ?ElementCollection {
+            $params = $this->baseListParams();
+            $params->setPerPage(1);
+            return $this->productService->getProducts($params);
+        });
     }
 
     /** The category's child categories, attached to `page.categories` of the subcategoryGrid widget. */

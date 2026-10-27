@@ -30,15 +30,10 @@ class PanelUrl {
     private const ID_PATTERN = '/^[A-Za-z0-9_-]+$/';
 
     /**
-     * The requested section id, sanitised, or $default when absent/invalid. Reads $_GET directly so the
-     * helper stays usable from either renderer without an FWK dependency; widgets normally read the
+     * The requested section id, or $default when absent or not an id. Widgets normally read the
      * `requestParams` global instead and only need {@see self::PARAM}.
      */
     public static function activeSection(string $default = ''): string {
-        $raw = $_GET[self::PARAM] ?? '';
-        if (!is_string($raw) || preg_match(self::ID_PATTERN, $raw) !== 1) {
-            return $default;
-        }
-        return $raw;
+        return RequestQuery::value(self::PARAM, RequestQuery::matching(self::ID_PATTERN)) ?? $default;
     }
 }

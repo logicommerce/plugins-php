@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 
+use FWK\Core\FilterInput\FilterInputFactory;
+use FWK\Enums\Parameters;
 use Plugins\ComLogicommerceMagicfront\Enums\ChromeKind;
 
 /**
@@ -20,6 +22,12 @@ use Plugins\ComLogicommerceMagicfront\Enums\ChromeKind;
 class MagicfrontUtils {
 
     public const MFF_LANG = 'mff_lang';
+
+    /** The chrome region a render is scoped to ({@see self::chromeOnlyRegion()}). */
+    public const MFF_CHROME_ONLY = 'mff_chrome_only';
+
+    /** The «new header» draft a chrome-scoped preview paints ({@see self::chromeDraftId()}). */
+    public const MFF_CHROME_DRAFT = 'mff_chrome_draft';
 
     private const STUDIO_STORE_PREFIX = 'store:';
 
@@ -56,6 +64,39 @@ class MagicfrontUtils {
     }
 
     /**
+     * Whether a script of the page asked for it (XMLHttpRequest / fetch) instead of the browser navigating to it.
+     * LogiCommerce's «view order» popup (`LC.dataEvents.viewDocumentPopup`, lc.plugins.js) loads the order's address this
+     * way and keeps the `div.document` of the answer: redirected to the account page, the popup stayed blank (F-884).
+     *
+     * The browser says it in `Sec-Fetch-Mode`: `navigate` for a navigation (the editor canvas too, which is
+     * `Sec-Fetch-Dest: iframe`), `cors` or `same-origin` for a script that reads the answer. Any other mode (`no-cors`
+     * is an image, a stylesheet, a prefetch) is not one. A browser that does not send it (before Chrome 76, Firefox 90,
+     * Safari 16.4) falls back to jQuery's `X-Requested-With: XMLHttpRequest`; the popup itself does not send that one
+     * (`crossDomain: true`). Without either, it is a navigation, as before.
+     */
+    public static function isScriptRequest(): bool {
+        if (!defined('REQUEST_HEADERS')) {
+            return false;
+        }
+        return self::isScriptRequestFrom(REQUEST_HEADERS);
+    }
+
+    /**
+     * Pure core of {@see isScriptRequest()}, over the request headers keyed in upper case, as the FWK's
+     * `REQUEST_HEADERS` (`array_change_key_case(getallheaders(), CASE_UPPER)`).
+     *
+     * @param array<string, mixed> $headers
+     */
+    public static function isScriptRequestFrom(array $headers): bool {
+        $mode = $headers['SEC-FETCH-MODE'] ?? null;
+        if (is_string($mode) && trim($mode) !== '') {
+            return in_array(strtolower(trim($mode)), ['cors', 'same-origin'], true);
+        }
+        $requestedWith = $headers['X-REQUESTED-WITH'] ?? null;
+        return is_string($requestedWith) && strcasecmp(trim($requestedWith), 'XMLHttpRequest') === 0;
+    }
+
+    /**
      * Detect a MagicFront content-only partial render: an AJAX request (e.g. a userPanel tab
      * swap) that wants ONLY the page's widget body, skipping chrome, the category nav and the
      * asset bundle. Signalled by the `X-MFF-Content-Only: 1` request header the widget JS sends;
@@ -83,8 +124,26 @@ class MagicfrontUtils {
         if (MagicfrontToken::getToken() === null) {
             return null;
         }
-        $region = (string) ($_GET['mff_chrome_only'] ?? '');
-        return ChromeKind::tryFrom($region)?->value;
+        return ChromeKind::tryFrom(RequestQuery::value(self::MFF_CHROME_ONLY, RequestQuery::exact()) ?? '')?->value;
+    }
+
+    /**
+     * `?mff_chrome_draft=<id>` — the «new header» draft (E20) the editor asks to SEE in place of the document of its
+     * kind, while the merchant decides whether to use it. Only on a chrome-scoped preview (`mff_chrome_only`), only
+     * with a preview token, and only an id-shaped value: a visitor can never reach it, and a draft is read-only on the
+     * server. Null otherwise, so the region paints its own document as before.
+     */
+    public static function chromeDraftId(): ?string {
+        $draft = RequestQuery::value(self::MFF_CHROME_DRAFT, RequestQuery::exact());
+        return self::chromeDraftIdFrom(self::chromeOnlyRegion(), $draft);
+    }
+
+    /** Pure core of {@see chromeDraftId()}: the scoped region (null without a token) and the query value as read. */
+    public static function chromeDraftIdFrom(?string $chromeOnlyRegion, mixed $raw): ?string {
+        if ($chromeOnlyRegion === null || !is_string($raw)) {
+            return null;
+        }
+        return preg_match('/^[A-Za-z0-9-]{1,64}$/', $raw) === 1 ? $raw : null;
     }
 
     public static function isStudioDocumentRef(string $pageId): bool {
@@ -100,11 +159,19 @@ class MagicfrontUtils {
      * it feeds can never disagree on the locale.
      */
     public static function contentLanguage(?string $routeLanguage): string {
-        $override = (string) ($_GET[self::MFF_LANG] ?? '');
-        if ($override !== '' && MagicfrontToken::getToken() !== null) {
+        $override = self::requestedLanguage();
+        if ($override !== null && MagicfrontToken::getToken() !== null) {
             return $override;
         }
         return (string) $routeLanguage;
+    }
+
+    /**
+     * The language the editor asked for with `?mff_lang=xx` (ISO 639-1, lower case, as the FWK filters language
+     * codes), or null. Raw signal: whether a preview token lets it rule is the caller's business.
+     */
+    public static function requestedLanguage(): ?string {
+        return RequestQuery::value(self::MFF_LANG, FilterInputFactory::getLanguageCodeParameter()[Parameters::LANGUAGE_CODE]);
     }
 
     /**

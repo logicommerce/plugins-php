@@ -9,8 +9,12 @@
 {%- if mff_isCanvasMode() -%}
     {%- set trackers = { 'items': [] } -%}
 {%- endif -%}
+{%- set mffCspNonce = mff_isCanvasMode() ? random(2147483647) ~ 'n' ~ random(2147483647) : '' -%}
 
 {%- block headContent -%}
+    {%- if mff_isCanvasMode() -%}
+        <meta http-equiv="Content-Security-Policy" content="script-src 'nonce-{{ mffCspNonce }}' 'strict-dynamic'">
+    {%- endif -%}
     {{ parent() }}
     {%- if mffOverrideHeader|default(false) and mffHeaderCss|default('')|length -%}
         <style id="mff-chrome-header-css">{{ mffHeaderCss|raw }}</style>
@@ -43,21 +47,21 @@
            (the merchant designed one) — not gated by the store theme's own offcanvas config. #}
         {%- if mffPanelOnly|default(null) is null -%}
             {%- if mffMobileMenuPanelPages|default(null) -%}
-                {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffShared|default({}) }) }}
+                {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffChromeShared|default(mffShared|default({})) }) }}
             {%- endif -%}
             {%- if mffBasketPanelPages|default(null) -%}
-                {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList, shared: mffShared|default({}) }) }}
+                {{ widgetMacros.widgets({ pages: mffBasketPanelPages, version: version, widgetTemplateList: mffBasketPanelTemplateList, shared: mffChromeShared|default(mffShared|default({})) }) }}
             {%- endif -%}
             {%- if mffAccountPanelPages|default(null) -%}
-                {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffShared|default({}) }) }}
+                {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffChromeShared|default(mffShared|default({})) }) }}
             {%- endif -%}
         {%- endif -%}
         {# Our header, captured once and reused across the slot/template/single positions below. The
            region JS ships INSIDE only in canvas (so runScripts re-runs it on swap-in); otherwise it
-           stays in jsAssets, deferred after the commerce core bundle. #}
+           goes through mffScripts at the end of commerceContent. #}
         {%- set ourHeader -%}
-            {{ widgetMacros.widgets({ pages: mffHeaderPages, version: version, widgetTemplateList: mffHeaderTemplateList, shared: mffShared|default({}) }) }}
-            {%- if mff_isCanvasMode() and mffHeaderJs|default('')|length -%}<script>{{ mffHeaderJs|raw }}</script>{%- endif -%}
+            {{ widgetMacros.widgets({ pages: mffHeaderPages, version: version, widgetTemplateList: mffHeaderTemplateList, shared: mffChromeShared|default(mffShared|default({})) }) }}
+            {%- if mff_isCanvasMode() and mffHeaderJs|default('')|length -%}<script nonce="{{ mffCspNonce }}">{{ mffHeaderJs|raw }}</script>{%- endif -%}
         {%- endset -%}
         {%- if mff_isCanvasMode() -%}
             {# Canvas: both variants — active live in the slot, the other stashed in a <template> — so
@@ -80,8 +84,8 @@
 {%- block footer -%}
     {%- if mffOverrideFooter|default(false) -%}
         {%- set ourFooter -%}
-            {{ widgetMacros.widgets({ pages: mffFooterPages, version: version, widgetTemplateList: mffFooterTemplateList, shared: mffShared|default({}) }) }}
-            {%- if mff_isCanvasMode() and mffFooterJs|default('')|length -%}<script>{{ mffFooterJs|raw }}</script>{%- endif -%}
+            {{ widgetMacros.widgets({ pages: mffFooterPages, version: version, widgetTemplateList: mffFooterTemplateList, shared: mffChromeShared|default(mffShared|default({})) }) }}
+            {%- if mff_isCanvasMode() and mffFooterJs|default('')|length -%}<script nonce="{{ mffCspNonce }}">{{ mffFooterJs|raw }}</script>{%- endif -%}
         {%- endset -%}
         {%- if mff_isCanvasMode() -%}
             {%- set footerMff = mffFooter|default('0') -%}
@@ -99,47 +103,48 @@
     {%- endif -%}
 {%- endblock footer -%}
 
-{%- block jsAssets -%}
-    {%- if mff_isCanvasMode() -%}
-        {# resources.js too: it only defines helpers (readCookie, writeCookie…), and the FWK's inline
-           lcCommerceData block calls readCookie on every visibilitychange — without it the canvas logged
-           «readCookie is not defined» each time the editor tab came back to the front. #}
-        {{- includeJsAssets([
-            TOOLS_CORE_PATH ~ '/jquery-3.7.0.min.js', 
-            TOOLS_CORE_PATH ~ '/bootstrap/5.3.1/bootstrap.bundle.min.js',
-            TOOLS_CORE_PATH ~ '/resources.js',
-        ]) -}}
-        {{- includeJsAssets(ASSETS_ENVIRONMENT_COMMERCE, 'default') -}} 
-    {%- else -%}
-        {{ parent() }}
-    {%- endif -%}
-    {# In canvas preview the region JS ships INSIDE the <template> so runScripts re-runs it on
-       swap-in; emitting it here too would run it at load against the not-yet-live DOM. #}
-    {%- if mffOverrideHeader|default(false) and mffHeaderJs|default('')|length and not mff_isCanvasMode() -%}
-        <script id="mff-chrome-header-js">{{ mffHeaderJs|raw }}</script>
-    {%- endif -%}
-    {%- if mffOverrideFooter|default(false) and mffFooterJs|default('')|length and not mff_isCanvasMode() -%}
-        <script id="mff-chrome-footer-js">{{ mffFooterJs|raw }}</script>
-    {%- endif -%}
-    {%- if mffAccountPanelJs|default('')|length -%}
-        <script id="mff-account-panel-js">{{ mffAccountPanelJs|raw }}</script>
-    {%- endif -%}
-    {%- if mffBasketPanelJs|default('')|length -%}
-        <script id="mff-basket-panel-js">{{ mffBasketPanelJs|raw }}</script>
-    {%- endif -%}
-    {%- if mffMobileMenuPanelJs|default('')|length -%}
-        <script id="mff-mobile-menu-panel-js">{{ mffMobileMenuPanelJs|raw }}</script>
-    {%- endif -%}
-    {# Per-design page JS, set by RendersDesignAssetsTrait on designable pages.
-       Deferred so it runs after the store's deferred commerce 'core' bundle. #}
-    {%- if mffDesignJsUrl|default('')|length -%}
-        <script src="{{ mffDesignJsUrl }}" defer></script>
-    {%- endif -%}
-    {# The canvas bundle belongs HERE, not in the page template: the three mff-chrome-only-* layouts
-       extend this file directly and never go through overrideContent/, so Personalización mounted the
-       storefront with no canvas and therefore no bridge. `mff-content-only` extends nothing, so the
-       partial swap still never receives it. #}
-    {%- if mffCanvasMode|default(false) and not mffPreviewMode|default(false) and mffAssetsUrl|default('')|length -%}
-        <script type="module" src="{{ mffAssetsUrl }}"></script>
-    {%- endif -%}
-{%- endblock jsAssets -%}
+{%- block commerceContent -%}
+    {{ parent() }}
+    {%- block mffScripts -%}
+        {%- if mff_isCanvasMode() -%}
+            {# resources.js too: it only defines helpers (readCookie, writeCookie…), and the FWK's inline
+               lcCommerceData block calls readCookie on every visibilitychange — without it the canvas logged
+               «readCookie is not defined» each time the editor tab came back to the front. #}
+            {%- set mffToolsCorePath = getAssetsPath(constant('FWK\\Core\\Resources\\Assets::ENVIRONMENT_CORE')) ~ '/tools' -%}
+            <script nonce="{{ mffCspNonce }}" src="{{ mffToolsCorePath }}/jquery-3.7.0.min.js"></script>
+            <script nonce="{{ mffCspNonce }}" src="{{ mffToolsCorePath }}/bootstrap/5.3.1/bootstrap.bundle.min.js"></script>
+            <script nonce="{{ mffCspNonce }}" src="{{ mffToolsCorePath }}/resources.js"></script>
+            <script nonce="{{ mffCspNonce }}">{{ source('mffCanvas/swiper-bundle.min.js.twig') }}</script>
+        {%- endif -%}
+        <script type="module"{% if mffCspNonce %} nonce="{{ mffCspNonce }}"{% endif %}>{{ source('mffJs/script-runner.js.twig') }}</script>
+        {# In canvas preview the region JS ships INSIDE the <template> so runScripts re-runs it on
+           swap-in; emitting it here too would run it at load against the not-yet-live DOM. #}
+        {%- if mffOverrideHeader|default(false) and mffHeaderJs|default('')|length and not mff_isCanvasMode() -%}
+            <script type="text/plain" data-mff-js id="mff-chrome-header-js">{{ mffHeaderJs|raw }}</script>
+        {%- endif -%}
+        {%- if mffOverrideFooter|default(false) and mffFooterJs|default('')|length and not mff_isCanvasMode() -%}
+            <script type="text/plain" data-mff-js id="mff-chrome-footer-js">{{ mffFooterJs|raw }}</script>
+        {%- endif -%}
+        {%- if mffAccountPanelJs|default('')|length -%}
+            <script type="text/plain" data-mff-js id="mff-account-panel-js">{{ mffAccountPanelJs|raw }}</script>
+        {%- endif -%}
+        {%- if mffBasketPanelJs|default('')|length -%}
+            <script type="text/plain" data-mff-js id="mff-basket-panel-js">{{ mffBasketPanelJs|raw }}</script>
+        {%- endif -%}
+        {%- if mffMobileMenuPanelJs|default('')|length -%}
+            <script type="text/plain" data-mff-js id="mff-mobile-menu-panel-js">{{ mffMobileMenuPanelJs|raw }}</script>
+        {%- endif -%}
+        {# Per-design page JS, set by RendersDesignAssetsTrait on designable pages.
+           Deferred so it runs after the store's deferred commerce 'core' bundle. #}
+        {%- if mffDesignJsUrl|default('')|length -%}
+            <script type="text/plain" data-mff-js data-mff-js-src="{{ mffDesignJsUrl }}" data-mff-js-late></script>
+        {%- endif -%}
+        {# The canvas bundle belongs in this layout, not in the page template: the three mff-chrome-only-* layouts
+           extend this file directly and never go through overrideContent/, so Personalización mounted the
+           storefront with no canvas and therefore no bridge. `mff-content-only` extends nothing, so the
+           partial swap still never receives it. #}
+        {%- if mffCanvasMode|default(false) and not mffPreviewMode|default(false) and mffAssetsUrl|default('')|length -%}
+            <script type="text/plain" data-mff-js data-mff-js-type="module" data-mff-js-src="{{ mffAssetsUrl }}" data-mff-js-late></script>
+        {%- endif -%}
+    {%- endblock mffScripts -%}
+{%- endblock commerceContent -%}

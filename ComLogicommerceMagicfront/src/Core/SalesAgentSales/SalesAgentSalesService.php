@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\SalesAgentSales;
 
+use FWK\Core\FilterInput\FilterInputFactory;
 use FWK\Core\Resources\Loader;
+use FWK\Enums\Parameters;
 use FWK\Enums\Services;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PaginationHelper;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RequestQuery;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
 use SDK\Core\Dtos\SalesAgentSales as SalesAgentSalesCollection;
 use SDK\Services\Parameters\Groups\User\SalesAgentSalesParametersGroup;
@@ -15,7 +18,8 @@ use Plugins\ComLogicommerceMagicfront\Core\Providers\WidgetDataService;
 /**
  * Sales-agent sales data CARRIER for the `salesAgentSales` widget. Mirrors
  * {@see \FWK\Controllers\Account\RegisteredUserSalesAgentSalesController}: reads the request date
- * range (fromDate / toDate / page — dates default to the last 7 days when absent) and calls
+ * range through {@see RequestQuery} (fromDate / toDate / page — dates default to the last 7 days when
+ * absent or invalid) and calls
  * {@see \FWK\Services\AccountService::getSalesAgentSales} (Resource ACCOUNT_SALES_AGENT_SALES,
  * paginable). The result is a {@see SalesAgentSalesCollection} carrying BOTH the paged sale rows
  * (`items`) AND the summary totals (`salesAgentTotals`). Pure transport — raw `toArray()['items']`
@@ -32,17 +36,7 @@ class SalesAgentSalesService implements WidgetDataService {
     public function fetchForWidget(?PluginPage $widget): array {
         $fromDate = $this->resolveFromDate();
         $toDate   = $this->resolveToDate();
-
-        $params = new SalesAgentSalesParametersGroup();
-        $params->setFromDate($fromDate);
-        $params->setToDate($toDate);
-        $perPage = PaginationHelper::perPage($widget);
-        if ($perPage !== null && $perPage > 0) {
-            $params->setPerPage($perPage);
-        }
-        if (isset($_GET['page']) && is_numeric($_GET['page'])) {
-            $params->setPage((int) $_GET['page']);
-        }
+        $params   = $this->buildParams($fromDate, $toDate, PaginationHelper::perPage($widget));
 
         $collection = Loader::service(Services::ACCOUNT)->getSalesAgentSales($params);
         $items      = $collection instanceof SalesAgentSalesCollection ? $collection->toArray()['items'] : [];
@@ -64,17 +58,30 @@ class SalesAgentSalesService implements WidgetDataService {
         ];
     }
 
-    private function resolveFromDate(): \DateTime {
-        if (!empty($_GET['fromDate'])) {
-            return (new \DateTime((string) $_GET['fromDate']))->setTime(0, 0, 0);
+    private function buildParams(\DateTime $fromDate, \DateTime $toDate, ?int $perPage): SalesAgentSalesParametersGroup {
+        $params = new SalesAgentSalesParametersGroup();
+        $params->setFromDate($fromDate);
+        $params->setToDate($toDate);
+        if ($perPage !== null && $perPage > 0) {
+            $params->setPerPage($perPage);
         }
-        return (new \DateTime('now', new \DateTimeZone(date_default_timezone_get())))->modify('-7 days')->setTime(0, 0, 0);
+        $page = RequestQuery::value(Parameters::PAGE, FilterInputFactory::getPaginableItemsParameter()[Parameters::PAGE]);
+        if ($page !== null) {
+            $params->setPage((int) $page);
+        }
+        return $params;
     }
 
+    /** The requested start date, or seven days ago when absent or not a date. */
+    private function resolveFromDate(): \DateTime {
+        $fromDate = RequestQuery::date(Parameters::FROM_DATE)
+            ?? (new \DateTime('now', new \DateTimeZone(date_default_timezone_get())))->modify('-7 days');
+        return $fromDate->setTime(0, 0, 0);
+    }
+
+    /** The requested end date, or today when absent or not a date. */
     private function resolveToDate(): \DateTime {
-        if (!empty($_GET['toDate'])) {
-            return (new \DateTime((string) $_GET['toDate']))->setTime(23, 59, 59);
-        }
-        return (new \DateTime('now', new \DateTimeZone(date_default_timezone_get())))->setTime(23, 59, 59);
+        $toDate = RequestQuery::date(Parameters::TO_DATE) ?? new \DateTime('now', new \DateTimeZone(date_default_timezone_get()));
+        return $toDate->setTime(23, 59, 59);
     }
 }

@@ -19,7 +19,8 @@ interface WidgetDataService {
      * Fetch this widget's data for the current request.
      *
      * @param PluginPage|NULL $widget widget instance (for per-instance params e.g. pagination), or null
-     * @return array payload whose keys map to Page setters per the registry entry
+     * @return array|NULL payload whose keys map to Page setters per the registry entry, or null when the API did not
+     *                    answer and the widget must not be marked as loaded in `page.loadedData` (saveForLater)
      */
-    public function fetchForWidget(?PluginPage $widget): array;
+    public function fetchForWidget(?PluginPage $widget): ?array;
 }

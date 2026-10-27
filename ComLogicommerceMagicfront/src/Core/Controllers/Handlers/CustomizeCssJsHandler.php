@@ -12,6 +12,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Enums\FunctionType;
+use Plugins\ComLogicommerceMagicfront\Enums\PreviewPageParam;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 
 /**
@@ -52,7 +53,8 @@ class CustomizeCssJsHandler extends AbstractCustomizeHandler {
         WidgetsService::getInstance()->disableCache();
         Response::addHeader('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 
-        $pageId   = $controller->getRequestParamValue(Parameters::PAGE, false);
+        // #4353: `mfPage` first, the old `page` while editors still send it — the same page the canvas painted.
+        $pageId   = PreviewPageParam::fromRequest($controller);
         $language = $controller->getRequestParamValue(Parameters::LANGUAGE, false)
             ?? Language::getInstance()->getLanguage();
 

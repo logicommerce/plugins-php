@@ -10,6 +10,9 @@ use FWK\Core\Controllers\Controller;
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
 use FWK\Twig\PluginTwigInitializer;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedDataProvider;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedNeeds;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
@@ -53,8 +56,14 @@ class TwigInitializer implements PluginTwigInitializer {
 
     private const PREVIEW_FOOTER_PARAM = 'mfFooter';
 
+    /** The current template of each anchored panel root, by panels document, asked for once (publishedPanelForEditor). */
+    private array $currentPanelRoots = [];
+
     /** Ids already re-injected in this request, grouped so one group cannot starve another (see reinjectLcIds). */
     private array $lcIdsEmitted = [];
+
+    /** @var string[] widget types of the chrome emitted in this request (see emit), for the `shared` they need. */
+    private array $chromeTypes = [];
 
     /** Memoized generic mff_CHROME document (fetched at most once per request via genericChrome()). */
     private ?ChromeDocument $genericChromeCache = null;
@@ -65,6 +74,9 @@ class TwigInitializer implements PluginTwigInitializer {
     private ?ChromeDocument $panelsCache = null;
 
     private bool $panelsLoaded = false;
+
+    /** @var string[] the templates of every region emitted in this request, for {@see self::emitChromeShared()} */
+    private array $chromeTemplates = [];
 
     public function apply(
         Environment $main,
@@ -165,9 +177,15 @@ class TwigInitializer implements PluginTwigInitializer {
         $pageChromeBlob = $editor ? null : self::pageChromeBlob($controllerData);
 
         Utils::addTimerDebugFlag('ti-chrome', Timer::START_SUFFIX);
+        // E20: «Ver cómo queda» paints the draft of the new header/footer in place of its document. Without this the
+        // param was ignored and the region showed the CURRENT header while the editor said «you are seeing the new one».
+        $chromeDraftId = MagicfrontUtils::chromeDraftId();
         foreach ($kinds as $kind) {
+            $chromeId = ($chromeDraftId !== null && $chromeOnly === $kind->value)
+                ? $chromeDraftId
+                : ($pageChrome[$kind->value] ?? null);
             $assets = $editor
-                ? $this->chromeFromApi($kind, $language, $pageChrome[$kind->value] ?? null)
+                ? $this->chromeFromApi($kind, $language, $chromeId)
                 : $this->chromeFromBlob($kind, $this->resolveChromeBlob($kind, $pageChromeBlob));
             $this->emit($main, $kind, $this->reinjectLcIds($assets, 'chrome'));
         }
@@ -191,12 +209,43 @@ class TwigInitializer implements PluginTwigInitializer {
             $panels = $this->storefrontPanels();
             foreach (ChromeKind::panels() as $kind) {
                 $doc = ($panels !== null && $panels->hasKind($kind)) ? $panels : null;
-                $this->emit($main, $kind, $this->reinjectLcIds($this->chromeFromBlob($kind, $doc), 'panels'));
+                $this->emit($main, $kind, $this->reinjectLcIds($editor
+                    ? $this->publishedPanelForEditor($kind, $doc)
+                    : $this->chromeFromBlob($kind, $doc), 'panels'));
             }
         }
 
+        // A page whose controller is not MagicFront's has no `shared` of its own: the chrome gets one built here, by
+        // the same builder as the per-widget render. As a global, so the page's own (a MagicFront page) still wins.
+        Utils::addTimerDebugFlag('ti-shared', Timer::START_SUFFIX);
+        $shared = ProviderRegistry::sharedForChrome($controllerData, $this->chromeTypes, null, SharedNeeds::of($this->chromeTemplates));
+        if ($shared !== null) {
+            $main->addGlobal(MagicfrontControllerData::SHARED, $shared);
+        }
+        // A MagicFront page has its own `shared`, built for its templates: the chrome adds what only it reads.
+        $this->emitChromeShared($main, $controllerData);
+        Utils::addTimerDebugFlag('ti-shared', Timer::END_SUFFIX);
+
         // Overlay layout — blocks fall back to merchant's parent() when a region is empty.
         return self::overlayLayout($chromeOnly, $panelOnly);
+    }
+
+    /**
+     * The header, footer and panels paint with the page's `shared` (mffShared), which the controller builds with
+     * the countries and locations only when a template OF THE PAGE reads them (#4251). When a block of theirs reads
+     * one the page did not need — a merchant's own block in the header that asks for the countries — they get the
+     * page's container plus that key, as mffChromeShared (the layout prefers it). Without a page container (a
+     * region rendered alone in the editor) nothing changes: they paint with none, as before.
+     */
+    private function emitChromeShared(Environment $main, array $controllerData): void {
+        $page = $controllerData[MagicfrontControllerData::SHARED] ?? null;
+        if (!is_array($page) || $this->chromeTemplates === []) {
+            return;
+        }
+        $missing = array_values(array_diff(SharedNeeds::of($this->chromeTemplates), array_keys($page)));
+        if ($missing !== []) {
+            $main->addGlobal(MagicfrontControllerData::CHROME_SHARED, $page + (new SharedDataProvider())->onDemandShared($missing));
+        }
     }
 
     /**
@@ -220,8 +269,12 @@ class TwigInitializer implements PluginTwigInitializer {
         return $kind !== null && $kind->isPanel() ? $kind : null;
     }
 
-    /** Maps a built region onto its Twig globals (keys owned by the ChromeKind). */
+    /** Maps a built region onto its Twig globals (keys owned by the ChromeKind), noting the widget types it paints. */
     private function emit(Environment $main, ChromeKind $kind, ChromeAssets $assets): void {
+        array_push($this->chromeTypes, ...array_keys($assets->templateList));
+        foreach ($assets->templateList as $template) {
+            $this->chromeTemplates[] = $template;
+        }
         $main->addGlobal($kind->pagesGlobalKey(), $assets->pages);
         $main->addGlobal($kind->templatesGlobalKey(), $assets->templateList);
         $main->addGlobal($kind->cssGlobalKey(), $assets->css);
@@ -259,6 +312,52 @@ class TwigInitializer implements PluginTwigInitializer {
             return ChromeAssets::empty();
         }
         return ChromeAssets::fromWidgets($chrome->widgetsFor($kind), $chrome->templatesById());
+    }
+
+    /**
+     * The published panel the editor paints next to the header, with the CURRENT template of every panel's own root
+     * (#6270): the one of the version each is anchored to (accountPanel@2…), as the editor paints the header and the page.
+     * The published document freezes each template's CSS when Paneles is published: a store that published its panels
+     * before C562 kept, in the header's canvas, the rule that lays a panel open under the header when the canvas paints
+     * one region alone, until the merchant published Paneles again, and nothing told them. Each panel's sheet carries the
+     * CSS of EVERY template of the document (mergeTemplateCss), so the account panel's sheet also holds the basket
+     * panel's rule and opens it (#6408): the current templates are those of all the panel roots, the same in the three
+     * sheets. Only the roots (their CSS decides how a panel opens): the pieces keep the published copy. Only a root
+     * anchored to its version: the API answers a bare family with its latest version, which would paint an older panel
+     * with another version's markup. The storefront keeps the published copy of everything; if the API does not answer,
+     * so does the editor.
+     */
+    private function publishedPanelForEditor(ChromeKind $kind, ?ChromeDocument $doc): ChromeAssets {
+        $roots = $doc?->widgetsFor($kind);
+        if ($doc === null || $roots === null) {
+            return $this->chromeFromBlob($kind, $doc);
+        }
+        return ChromeAssets::fromWidgets($roots, $this->currentPanelRoots($doc) + $doc->templatesById());
+    }
+
+    /** One request for the three panels: the current template of each anchored root of the document, by its key. */
+    private function currentPanelRoots(ChromeDocument $doc): array {
+        $id = spl_object_id($doc);
+        if (isset($this->currentPanelRoots[$id])) {
+            return $this->currentPanelRoots[$id];
+        }
+        $anchored = [];
+        foreach (ChromeKind::panels() as $kind) {
+            foreach (WidgetTypeCollector::templateKeysFromWidgets($doc->widgetsFor($kind)?->getItems() ?? []) as $key) {
+                if (str_contains($key, '@')) {
+                    $anchored[$key] = $key;
+                }
+            }
+        }
+        $current = [];
+        if ($anchored !== []) {
+            try {
+                $current = WidgetsService::getInstance()->getWidgetTemplatesForTypes(array_values($anchored));
+            } catch (\Throwable) {
+                $current = [];
+            }
+        }
+        return $this->currentPanelRoots[$id] = $current;
     }
 
     /**

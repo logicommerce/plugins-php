@@ -27,7 +27,16 @@ class ProviderContext {
         private readonly \Closure $dataResolver,
         private readonly mixed $routeEntity = null,
         private readonly bool $canvasMode = false,
+        private readonly ?array $sharedNeeds = null,
     ) {
+    }
+
+    /**
+     * Whether a template of this render reads the costly `shared.$key` ({@see SharedNeeds}, #4251). Without the
+     * templates (null) every key is needed: a caller that cannot say keeps the full container.
+     */
+    public function needsShared(string $key): bool {
+        return $this->sharedNeeds === null || in_array($key, $this->sharedNeeds, true);
     }
 
     public function route(): ?Route {

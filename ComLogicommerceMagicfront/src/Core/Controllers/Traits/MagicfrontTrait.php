@@ -13,11 +13,13 @@ use FWK\Enums\Parameters;
 use FWK\Enums\RouteType;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\OrderDetailUrl;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PanelUrl;
 use Plugins\ComLogicommerceMagicfront\Dtos\Common\PluginProperties;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BreadcrumbResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\AccountSample;
 use Plugins\ComLogicommerceMagicfront\Dtos\Content\PageDocument;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetAssetsBuilder;
@@ -25,10 +27,12 @@ use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Widgets\WidgetInstance;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontPageType;
+use Plugins\ComLogicommerceMagicfront\Enums\PreviewPageParam;
 use Plugins\ComLogicommerceMagicfront\Enums\SampleSituationParam;
 use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
 use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Core\Dtos\Filter\Filter;
 use SDK\Services\Parameters\Groups\RelatedItemsParametersGroup;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Resources\Environment;
@@ -40,6 +44,7 @@ use SDK\Dtos\Common\Route;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\WidgetDataProvider;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderContext;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedNeeds;
 
 /**
  * Mixes MagicFront-aware batch/data hooks into HTML controllers (Home,
@@ -59,9 +64,6 @@ use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
 trait MagicfrontTrait {
 
     public const MFF_PREVIEW = 'mff_preview';
-
-    /** Optional content-language override for preview (storefront-contract: mff_lang). Forces the MFF widget content locale, e.g. the template gallery previews in English. */
-    public const MFF_LANG = MagicfrontUtils::MFF_LANG;
 
     /**
      * The Studio DOCUMENT to paint instead of a page: `store:<slug>@N` or a draft `draft:<id>`, one store widget
@@ -128,10 +130,13 @@ trait MagicfrontTrait {
         return [
             MagicfrontToken::MF_TOKEN => new FilterInput($noMod),
             Parameters::PAGE         => new FilterInput($noMod),
+            PreviewPageParam::NAME   => new FilterInput($noMod),
             self::MFF_PREVIEW        => new FilterInput($noMod),
-            self::MFF_LANG           => new FilterInput($noMod),
             self::MFF_STORE_WIDGET   => new FilterInput($noMod),
             PanelUrl::PARAM          => new FilterInput($noMod),
+            // The order the account's order detail section shows (#4508): the widget tells «not found» (asked, not
+            // loaded) from «pick an order» (not asked) with it; the data itself is page.orderDetail.
+            OrderDetailUrl::PARAM    => new FilterInput($noMod),
             // Raw request `id` (e.g. the selected shopping list) exposed to widgets via requestParams —
             // request state, not API data; widgets apply their own selection rule from it.
             Parameters::ID           => new FilterInput($noMod),
@@ -141,6 +146,10 @@ trait MagicfrontTrait {
             SampleSituationParam::REVIEWS => new FilterInput($noMod),
             SampleSituationParam::LISTING => new FilterInput($noMod),
             SampleSituationParam::WISHLIST => new FilterInput($noMod),
+            // The account page's «Who is looking?» (#4502).
+            SampleSituationParam::VIEWER  => new FilterInput($noMod),
+            SampleSituationParam::ACCOUNT => new FilterInput($noMod),
+            SampleSituationParam::LINK    => new FilterInput($noMod),
         ];
     }
 
@@ -156,7 +165,11 @@ trait MagicfrontTrait {
         }
         $this->redirectToContentLanguage($route);
         $this->widgetsService = WidgetsService::getInstance();
-        $this->pageId = $this->getRequestParam(Parameters::PAGE, false, null);
+        // #465: `mfPage` first; the old `page` only when it is not a number (a number is pagination).
+        $this->pageId = PreviewPageParam::resolve(
+            $this->getRequestParam(PreviewPageParam::NAME, false, null),
+            $this->getRequestParam(Parameters::PAGE, false, null)
+        );
         $storeWidget = $this->getRequestParam(self::MFF_STORE_WIDGET, false, null);
         if (is_string($storeWidget) && MagicfrontUtils::isStudioDocumentRef($storeWidget)) {
             $this->pageId         = $storeWidget;
@@ -180,9 +193,8 @@ trait MagicfrontTrait {
         foreach ($route->getAvailableLanguages() as $available) {
             $languageUrls[$available->getCode()] = $available->getUrl();
         }
-        $asked  = $_GET[self::MFF_LANG] ?? null;
         $target = MagicfrontUtils::languageRedirectUrl(
-            is_string($asked) ? $asked : null,
+            MagicfrontUtils::requestedLanguage(),
             MagicfrontToken::getToken() !== null,
             $route->getLanguage(),
             $languageUrls,
@@ -303,6 +315,8 @@ trait MagicfrontTrait {
         // Unified product LIST → `page.products` for the productList widget, regardless of route:
         // category routes supply the category listing, product routes the related-products list.
         PageRelationResolver::attachProducts($this->pages, $this->routeProducts());
+        // Category routes whose buyer filter found nothing attach the category's own facets → page.categoryFacets.
+        PageRelationResolver::attachCategoryFacets($this->pages, $this->routeCategoryFacets());
         PageRelationResolver::attachBreadcrumb($this->pages, $this->sampleCategoryBreadcrumb()
             ?? $this->sampleProductBreadcrumb()
             ?? BreadcrumbResolver::build($this->getRoute(), $this->magicfrontPage()));
@@ -311,6 +325,8 @@ trait MagicfrontTrait {
         Utils::addTimerDebugFlag('mf-providerAttach', Timer::START_SUFFIX);
         $this->dispatchProviderAttach();
         Utils::addTimerDebugFlag('mf-providerAttach', Timer::END_SUFFIX);
+        // The account page in the editor canvas: the sample customer instead of the account data it never fetches.
+        $this->attachAccountSample();
         // Product-detail routes attach the bundle definitions → page.productBundles. No-op elsewhere.
         PageRelationResolver::attachProductBundles($this->pages, $this->routeProductBundles());
         // Product-detail routes attach related-items groups → page.relatedItems. No-op elsewhere.
@@ -328,7 +344,7 @@ trait MagicfrontTrait {
         PageRelationResolver::attachCommentForm($this->pages, $this->routeCommentForm());
         if (MagicfrontUtils::chromeOnlyRegion() === null) {
             Utils::addTimerDebugFlag('mf-providerShared', Timer::START_SUFFIX);
-            $this->dispatchProviderShared();
+            $this->dispatchProviderShared($templates);
             Utils::addTimerDebugFlag('mf-providerShared', Timer::END_SUFFIX);
         }
         $this->setDataValue(PageRelationResolver::PAGES, $this->pages);
@@ -406,8 +422,8 @@ trait MagicfrontTrait {
 
     /**
      * Per-widget-type data providers run by {@see self::dispatchProviderAttach()}. Keyed by widget
-     * TYPE (not route), so their data attaches wherever the widget is placed. Phase 0: only the
-     * account/session group; the route-entity groups (product/category) still attach directly in
+     * TYPE (not route), so their data attaches wherever the widget is placed: the account/session
+     * group and the basket (basketContent); the route-entity groups (product/category) still attach directly in
      * emitMagicfrontData and will migrate here incrementally.
      *
      * @return WidgetDataProvider[]
@@ -417,7 +433,7 @@ trait MagicfrontTrait {
     }
 
     /** Immutable context a provider reads: route + session + present widget types + a data resolver. */
-    private function buildProviderContext(mixed $routeEntity = null): ProviderContext {
+    private function buildProviderContext(mixed $routeEntity = null, ?array $sharedNeeds = null): ProviderContext {
         return new ProviderContext(
             $this->route,
             $this->getSession(),
@@ -425,6 +441,7 @@ trait MagicfrontTrait {
             fn(string $key): mixed => $this->getControllerData($key),
             $routeEntity,
             RenderMode::isCanvasMode(),
+            $sharedNeeds,
         );
     }
 
@@ -556,9 +573,21 @@ trait MagicfrontTrait {
         }
     }
 
-    /** Merge applicable providers' sharedData() over the always-on base into the page-level `shared` container (mffShared). */
-    private function dispatchProviderShared(): void {
-        $ctx = $this->buildProviderContext();
+    /**
+     * Merge applicable providers' sharedData() over the always-on base into the page-level `shared` container
+     * (mffShared). The costly keys only when a template of the page reads them ({@see SharedNeeds}, #4251); the
+     * header, footer and panels add theirs in {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\TwigInitializer}.
+     *
+     * @param array $templates the page's widget templates (objects with getTemplateHtml(), or their HTML)
+     */
+    private function dispatchProviderShared(array $templates): void {
+        $html = [];
+        foreach ($templates as $template) {
+            $html[] = is_object($template) && method_exists($template, 'getTemplateHtml')
+                ? $template->getTemplateHtml()
+                : $template;
+        }
+        $ctx = $this->buildProviderContext(null, SharedNeeds::of($html));
         $this->setDataValue(MagicfrontControllerData::SHARED, ProviderRegistry::collectShared($this->providers(), $ctx));
     }
 
@@ -663,6 +692,25 @@ trait MagicfrontTrait {
         return is_array($trail) && $trail !== [] ? array_values(array_filter($trail, 'is_array')) : null;
     }
 
+    /**
+     * The editor canvas paints the account page with MagicFront's sample customer (#4502), in the situation chosen in
+     * «Who is looking?» (`mfSampleViewer`, `mfSampleAccount`, `mfSampleLink`): attached to `page.*` with the store's
+     * setters and marked in `page.loadedData`, so each account piece reads the same variable in the canvas as in the
+     * store. The canvas fetches no real account data ({@see SharedDataProvider::attach()}); the standalone preview tab
+     * does, so it gets no sample.
+     */
+    private function attachAccountSample(): void {
+        if ($this->pageType !== MagicfrontPageType::USER_AREA || !RenderMode::isCanvasMode()
+            || !$this->widgetsService instanceof WidgetsService) {
+            return;
+        }
+        AccountSample::attach($this->pages, $this->widgetsService->getSample(
+            MagicfrontPageType::SAMPLE_KIND[MagicfrontPageType::USER_AREA],
+            $this->resolveContentLanguage(),
+            SampleSituationParam::fromRequest(fn(string $p): mixed => $this->getRequestParam($p, false, null))
+        ));
+    }
+
     private function paintsSampleCategory(): bool {
         return $this->pageType === MagicfrontPageType::CATEGORY
             && (string) $this->getRoute()?->getType() !== RouteType::CATEGORY
@@ -747,6 +795,12 @@ trait MagicfrontTrait {
         return $this->sampleCollection('products', Product::class);
     }
 
+    /** The category's own facets for `page.categoryFacets`. Only CategoryController overrides this, when the buyer's
+     *  filter found nothing; the editor's sample category is never filtered, so the default is null everywhere. */
+    protected function routeCategoryFacets(): ?Filter {
+        return null;
+    }
+
     /** Product-related lists keyed by pId, attached to `page.productRelated`. Only ProductController
      *  overrides this (fetching each block by pId); other controllers keep the empty default so
      *  `attachProductRelated` is a no-op.
@@ -800,31 +854,6 @@ trait MagicfrontTrait {
         }
         return $this->relatedItemsCache[$key];
     }
-
-    /* pId-based related-block filtering temporarily disabled — kept for re-enabling later.
-    private const RELATED_ITEMS_LIMIT_MAX = 50;
-
-    private function collectRelatedBlocks(array $pages): array {
-        $blocks = [];
-        foreach ($pages as $page) {
-            if (!$page instanceof Page) {
-                continue;
-            }
-            if ($page->getCustomType() === 'productList') {
-                $settings = $page->getModuleSettings();
-                $pId = $settings['relatedId'] ?? '';
-                if (is_string($pId) && $pId !== '') {
-                    $limit = (int) ($settings['productCount'] ?? 0);
-                    $blocks[$pId] = max($blocks[$pId] ?? 0, $limit);
-                }
-            }
-            foreach ($this->collectRelatedBlocks($page->getSubpages() ?? []) as $childPId => $childLimit) {
-                $blocks[$childPId] = max($blocks[$childPId] ?? 0, $childLimit);
-            }
-        }
-        return $blocks;
-    }
-    */
 
     /**
      * The `productCount` (products per page) of the route-listing productList widget in a template
@@ -943,7 +972,7 @@ trait MagicfrontTrait {
     }
 
     /**
-     * The product-detail route's login-aware wishlist state ({isLogged, ids, labelAdd, labelDelete}),
+     * The product-detail route's login-aware wishlist state ({isLogged, ids}),
      * attached to every widget page as `page.wishlist` so the productAddToCart wishlist button emits
      * the right LC hook (data-wishlist-account_required when anonymous, -add / -delete when logged in).
      * Only ProductController overrides this; other controllers keep the [] default (no-op).

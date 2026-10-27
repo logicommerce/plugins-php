@@ -37,6 +37,10 @@ abstract class MagicfrontControllerData extends Enum {
      *  countries/countryNames/locationData/companyRoles/customTags). Assembled by the providers. */
     public const SHARED               = 'mffShared';
 
+    /** The header, footer and panels' `shared` when one of their templates reads a costly key the page's own
+     *  templates did not (#4251): {@see self::SHARED} plus that key. Absent otherwise: they get {@see self::SHARED}. */
+    public const CHROME_SHARED        = 'mffChromeShared';
+
     /** True when the render is a Studio DOCUMENT (one store widget, `mff_store_widget`), not a page: the
      *  layout drops the chrome and paints the widget alone ({@see \Plugins\ComLogicommerceMagicfront\Core\Twig\TwigInitializer}). */
     public const STUDIO_DOCUMENT      = 'mffStudioDocument';

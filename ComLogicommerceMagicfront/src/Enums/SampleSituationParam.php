@@ -7,9 +7,9 @@ namespace Plugins\ComLogicommerceMagicfront\Enums;
 use SDK\Core\Enums\Enum;
 
 /**
- * The editor's product simulator: the canvas URL (and the per-widget refresh) carries the situation the
- * SAMPLE product and category must be painted in, and the plugin forwards it to `GET /samples/{kind}` as
- * `stock` / `offer` / `reviews` / `listing`. The backend owns the meaning and the defaults (an unknown or missing
+ * The editor's simulator: the canvas URL (and the per-widget refresh) carries the situation the SAMPLE product,
+ * category and account customer must be painted in, and the plugin forwards it to `GET /samples/{kind}` as
+ * `stock` / `offer` / `reviews` / `listing` / `viewer` / `account` / `link`. The backend owns the meaning and the defaults (an unknown or missing
  * value is the sample as it ships); this side only copies what it got. A real product is never affected.
  * `wishlist` is not sample data but the simulated SHOPPER: it stays here, read by `mff_product_wishlist()`.
  *
@@ -32,8 +32,28 @@ abstract class SampleSituationParam extends Enum {
     /** `in` — the simulated shopper is logged in and has the sample product in their favourites. Canvas only. */
     public const WISHLIST = 'mff_sample_wishlist';
 
+    /**
+     * The account page's «Who is looking?» (E22, #4502): `customer` | `company` | `agent` | `guest`. `mf` + camelCase,
+     * like every new MagicFront param; the product ones above keep their published snake_case names.
+     */
+    public const VIEWER = 'mfSampleViewer';
+
+    /** `full` | `empty` — the sample customer's account with or without orders, addresses, points and vouchers. */
+    public const ACCOUNT = 'mfSampleAccount';
+
+    /** `valid` | `expired` — the e-mail link of the new-password and verify pages. */
+    public const LINK = 'mfSampleLink';
+
     /** Request param → backend query param of `GET /samples/{kind}`. */
-    public const BACKEND = [self::STOCK => 'stock', self::OFFER => 'offer', self::REVIEWS => 'reviews', self::LISTING => 'listing'];
+    public const BACKEND = [
+        self::STOCK   => 'stock',
+        self::OFFER   => 'offer',
+        self::REVIEWS => 'reviews',
+        self::LISTING => 'listing',
+        self::VIEWER  => 'viewer',
+        self::ACCOUNT => 'account',
+        self::LINK    => 'link',
+    ];
 
     /**
      * The backend query params for what the request carries, read through `$read(paramName)`; only the

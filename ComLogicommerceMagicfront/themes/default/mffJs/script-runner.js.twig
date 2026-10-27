@@ -1,0 +1,25 @@
+document.querySelectorAll('script[data-mff-js]').forEach(function (o) {
+    var s = document.createElement('script');
+    var src = o.getAttribute('data-mff-js-src');
+    var t = o.getAttribute('data-mff-js-type');
+    if (o.id) {
+        s.id = o.id;
+    }
+    if (t) {
+        s.type = t;
+    }
+    if (src) {
+        s.src = src;
+        s.async = false;
+    } else {
+        s.text = o.textContent;
+    }
+    var run = function () {
+        o.parentNode.replaceChild(s, o);
+    };
+    if (o.hasAttribute('data-mff-js-late')) {
+        document.addEventListener('DOMContentLoaded', run);
+    } else {
+        run();
+    }
+});

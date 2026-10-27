@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Providers;
 
 use FWK\Core\Controllers\Traits\AddDefaultCountryAndLocationsTrait;
+use FWK\Core\Resources\DateTimeFormatter;
 use FWK\Core\Resources\Language;
 use FWK\Core\Resources\RoutePaths;
 use FWK\Core\Resources\Session;
 use FWK\Core\Resources\Utils;
 use FWK\Services\LmsService;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\WeekStart;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetLocator;
 use SDK\Application;
 use SDK\Core\Dtos\ElementCollection;
@@ -41,9 +43,12 @@ class SharedDataProvider implements WidgetDataProvider {
     /** @var array|null */
     private ?array $countrySettingsItems = null;
 
-    /** The widget types whose business data this provider fetches (into `page.*`) via {@see DataWidgetRegistry}. */
+    /**
+     * The widget types whose business data this provider fetches (into `page.*`) via {@see DataWidgetRegistry}: the
+     * data widgets and the pieces that read their data.
+     */
     public function handledTypes(): array {
-        return DataWidgetRegistry::types();
+        return array_merge(DataWidgetRegistry::types(), DataWidgetRegistry::pieceTypes());
     }
 
     /** Always applies: `shared.*` is universal env data for ANY widget, built on every render. */
@@ -70,24 +75,63 @@ class SharedDataProvider implements WidgetDataProvider {
         foreach (DataWidgetRegistry::types() as $type) {
             if ($ctx->hasAnyType([$type])) {
                 DataWidgetRegistry::fetchInto($pages, $type, WidgetLocator::findByType($pages, $type));
+                continue;
+            }
+            // No data widget in the panel, but a piece that reads its data (the account Summary's, E22): the piece
+            // asks for it. With the widget there too, the widget's fetch above already serves the piece.
+            foreach (DataWidgetRegistry::piecesReading($type) as $piece) {
+                if ($ctx->hasAnyType([$piece])) {
+                    DataWidgetRegistry::fetchInto($pages, $piece, WidgetLocator::findByType($pages, $piece));
+                    break;
+                }
             }
         }
     }
 
     /**
-     * @return array `shared.*` extras (session/countries/countryNames/locationData/companyRoles/customTags)
+     * @return array `shared.*` extras (session/countries/countryNames/locationData/companyRoles/customTags). The
+     *         countries and the locations only when a template of the render reads them ({@see SharedNeeds}, #4251):
+     *         they cost API calls on every page and only the blocks that ask for an address or a place use them.
      */
     public function sharedData(ProviderContext $ctx): array {
         return [
             'session'      => $this->buildSessionShared(),
             'settings'     => $this->buildSettingsShared(),
-            'countries'    => $this->buildCountries(),
-            'countryNames' => $this->buildCountryNames(),
-            'locationData' => $this->buildLocationData(),
             'companyRoles' => $this->serialize($ctx->getData('companyRoles')),
             'customTags'   => $this->serialize($ctx->getData('customTags')),
             'paths'        => $this->buildPaths(),
-        ];
+            'calendar'     => self::buildCalendar(),
+        ] + $this->onDemandShared(array_filter(SharedNeeds::ON_DEMAND, [$ctx, 'needsShared']));
+    }
+
+    /**
+     * The costly `shared.*` keys asked for ({@see SharedNeeds::ON_DEMAND}); any other key is ignored. Also what the
+     * header, footer and panels get on top of the page's container when one of their blocks reads a key the page
+     * did not need.
+     *
+     * @param string[] $keys
+     * @return array
+     */
+    public function onDemandShared(array $keys): array {
+        $shared = [];
+        foreach (array_intersect(SharedNeeds::ON_DEMAND, $keys) as $key) {
+            $shared[$key] = match ($key) {
+                'countries'    => $this->buildCountries(),
+                'countryNames' => $this->buildCountryNames(),
+                'locationData' => $this->buildLocationData(),
+            };
+        }
+        return $shared;
+    }
+
+    /**
+     * `shared.calendar`: the commerce's calendar as the widgets' date pickers read it — `firstDayOfWeek` (0 = Sunday …
+     * 6 = Saturday, {@see WeekStart}). Empty when LogiCommerce has no calendar: a widget then keeps its own default
+     * (#5064: the account's birthday pickers stay on Monday, as before).
+     */
+    private static function buildCalendar(): array {
+        $firstDayOfWeek = WeekStart::fromCalendar(DateTimeFormatter::getCalendar());
+        return $firstDayOfWeek === null ? [] : ['firstDayOfWeek' => $firstDayOfWeek];
     }
 
     /** @return array<string, string> */
@@ -142,6 +186,15 @@ class SharedDataProvider implements WidgetDataProvider {
         return $settings !== null ? $this->mirrorObject($settings) : [];
     }
 
+    /**
+     * Getters the mirror never calls, at ANY depth, because calling them writes on the platform. FWK
+     * `SessionShoppingList::getDefaultOneId()` CREATES the account's default shopping list when the session
+     * holds no id: mirroring `shared.session` fired that POST on every page view (403 for a visitor, a new
+     * «Favoritos» list for a customer without one). The default list still travels in
+     * `shared.session.shoppingList.shoppingLists`, each list with its `defaultOne` flag.
+     */
+    private const WRITING_GETTERS = ['getDefaultOneId'];
+
     /** Recursion depth for mirroring nested plain (non-JsonSerializable) objects — bounds Route/Theme trees. */
     private const MIRROR_DEPTH = 3;
 
@@ -171,7 +224,7 @@ class SharedDataProvider implements WidgetDataProvider {
             if ($method->isStatic() || $method->getNumberOfRequiredParameters() > 0) {
                 continue;
             }
-            if (strncmp($name, 'get', 3) !== 0 || in_array($name, $skip, true)) {
+            if (strncmp($name, 'get', 3) !== 0 || in_array($name, $skip, true) || in_array($name, self::WRITING_GETTERS, true)) {
                 continue;
             }
             try {

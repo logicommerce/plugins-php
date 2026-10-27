@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Orders;
 
+use FWK\Core\FilterInput\FilterInputFactory;
 use FWK\Core\Resources\Loader;
 use FWK\Enums\Parameters;
 use FWK\Enums\Services;
@@ -12,15 +13,18 @@ use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Services\BatchService;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PaginationHelper;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RequestQuery;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
 use SDK\Enums\AccountKey;
+use SDK\Enums\OrderSort;
+use SDK\Enums\OrderStatus;
 use SDK\Services\Parameters\Groups\Account\AccountOrderParametersGroup;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\WidgetDataService;
 
 /**
  * Order-history data for the `orders` widget. Fetches the logged-in account's orders for the
- * current request's filter/sort/page params ($_GET) and maps them to the flat `page.orders` shape
- * the widget renders. Shared by the full-page render ({@see \Plugins\ComLogicommerceMagicfront\Core\Providers\SharedDataProvider})
+ * current request's filter/sort/page params (read through {@see RequestQuery}: a value LogiCommerce
+ * would reject is ignored) and maps them to the flat `page.orders` shape the widget renders. Shared by the full-page render ({@see \Plugins\ComLogicommerceMagicfront\Core\Providers\SharedDataProvider})
  * and the widget's own AJAX endpoint ({@see \Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\WidgetContentHandler} via {@see \Plugins\ComLogicommerceMagicfront\Core\Providers\DataWidgetRegistry}).
  *
  * FWK/SDK-side (not in the docker/PHAR subset): uses the FWK Loader + SDK account service.
@@ -47,14 +51,35 @@ class OrdersService implements WidgetDataService {
     }
 
     /**
+     * The account's most recent order, for a piece that shows only that one (`lastOrder`, the account Summary's, E22):
+     * one order sorted by date, newest first, asked to the API. The list's page, sort and filters in the URL belong to
+     * the orders list and do not apply here. Same payload shape as {@see fetchForWidget()}, or null when the API did
+     * not answer: the piece then gets no `page.orders` and paints nothing, never a false «no orders yet».
+     */
+    public function fetchLatest(?PluginPage $widget): ?array {
+        $params = new AccountOrderParametersGroup();
+        $params->setPerPage(1);
+        $params->setSort(OrderSort::DATE . '.' . OrderSort::SORT_DIRECTION_DESC);
+        return $this->send($params);
+    }
+
+    /**
      * @return array
      */
     private function fetch(?int $perPage, ?string $defaultSort): array {
+        return $this->send($this->buildParams($perPage, $defaultSort))
+            ?? ['orders' => [], 'accountNames' => [], 'pagination' => ['page' => 1, 'totalPages' => 1]];
+    }
+
+    /**
+     * @return array|null the orders, or null when the API did not answer
+     */
+    private function send(AccountOrderParametersGroup $params): ?array {
         $requests = new BatchRequests();
-        Loader::service(Services::ACCOUNT)->addGetOrders($requests, self::KEY, AccountKey::USED, $this->buildParams($perPage, $defaultSort));
+        Loader::service(Services::ACCOUNT)->addGetOrders($requests, self::KEY, AccountKey::USED, $params);
         $collection = BatchService::getInstance()->send($requests)[self::KEY] ?? null;
         if (!$collection instanceof ElementCollection) {
-            return ['orders' => [], 'accountNames' => [], 'pagination' => ['page' => 1, 'totalPages' => 1]];
+            return null;
         }
         $pagination = $collection->getPagination();
         return [
@@ -71,28 +96,39 @@ class OrdersService implements WidgetDataService {
         if ($perPage !== null && $perPage > 0) {
             $params->setPerPage($perPage);
         }
-        if (isset($_GET[Parameters::PAGE]) && is_numeric($_GET[Parameters::PAGE])) {
-            $params->setPage((int) $_GET[Parameters::PAGE]);
+        $page = RequestQuery::value(Parameters::PAGE, FilterInputFactory::getPaginableItemsParameter()[Parameters::PAGE]);
+        if ($page !== null) {
+            $params->setPage((int) $page);
         }
-        if (!empty($_GET[Parameters::SORT])) {
-            $params->setSort(strtoupper((string) $_GET[Parameters::SORT]));
+        $sort = RequestQuery::value(Parameters::SORT, FilterInputFactory::getSortableItemsParameters('OrderSort')[Parameters::SORT]);
+        if ($sort !== null) {
+            $params->setSort($sort);
         } elseif (!empty($defaultSort)) {
             $params->setSort(strtoupper($defaultSort));
         }
-        if (!empty($_GET[Parameters::ADDED_FROM])) {
-            $params->setAddedFrom((new \DateTime((string) $_GET[Parameters::ADDED_FROM]))->setTime(0, 0, 0));
+        $addedFrom = RequestQuery::date(Parameters::ADDED_FROM);
+        if ($addedFrom !== null) {
+            $params->setAddedFrom($addedFrom->setTime(0, 0, 0));
         }
-        if (!empty($_GET[Parameters::ADDED_TO])) {
-            $params->setAddedTo((new \DateTime((string) $_GET[Parameters::ADDED_TO]))->setTime(23, 59, 59));
+        $addedTo = RequestQuery::date(Parameters::ADDED_TO);
+        if ($addedTo !== null) {
+            $params->setAddedTo($addedTo->setTime(23, 59, 59));
         }
-        if (isset($_GET[Parameters::ONLY_CREATED_BY_ME]) && $_GET[Parameters::ONLY_CREATED_BY_ME] !== '') {
-            $params->setOnlyCreatedByMe((bool) (int) $_GET[Parameters::ONLY_CREATED_BY_ME]);
+        $onlyCreatedByMe = RequestQuery::value(Parameters::ONLY_CREATED_BY_ME, RequestQuery::flag());
+        if ($onlyCreatedByMe !== null) {
+            $params->setOnlyCreatedByMe(filter_var($onlyCreatedByMe, FILTER_VALIDATE_BOOLEAN));
         }
-        if (isset($_GET[Parameters::INCLUDE_SUBCOMPANY_STRUCTURE]) && $_GET[Parameters::INCLUDE_SUBCOMPANY_STRUCTURE] !== '') {
-            $params->setIncludeSubCompanyStructure((bool) (int) $_GET[Parameters::INCLUDE_SUBCOMPANY_STRUCTURE]);
+        $includeSubCompanyStructure = RequestQuery::value(Parameters::INCLUDE_SUBCOMPANY_STRUCTURE, RequestQuery::flag());
+        if ($includeSubCompanyStructure !== null) {
+            $params->setIncludeSubCompanyStructure(filter_var($includeSubCompanyStructure, FILTER_VALIDATE_BOOLEAN));
         }
-        if (!empty($_GET[Parameters::STATUS_ID_LIST])) {
-            $params->setStatusIdList((string) $_GET[Parameters::STATUS_ID_LIST]);
+        $statusIdList = RequestQuery::value(
+            Parameters::STATUS_ID_LIST,
+            // Status names, as the order widgets send them and the FWK's account form declares them.
+            RequestQuery::oneOf(OrderStatus::getServiceValidStatuses())
+        );
+        if ($statusIdList !== null) {
+            $params->setStatusIdList($statusIdList);
         }
         return $params;
     }

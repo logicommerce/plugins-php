@@ -67,6 +67,13 @@ abstract class AccountRedirectRoutes extends Enum {
     ];
 
     /** @return string[] the route types folded into the MFF account page. */
+    /**
+     * The store's address of ONE order. It goes to the order detail section when the published account page has it,
+     * and LogiCommerce keeps serving it for its «view order» popup and a guest's order
+     * ({@see \Plugins\ComLogicommerceMagicfront\Core\Resources\OrderDetailUrl}, #4508).
+     */
+    public const ORDER = [RouteType::USER_ORDER, RouteType::ACCOUNT_ORDER];
+
     public static function types(): array {
         return array_keys(self::PANEL);
     }

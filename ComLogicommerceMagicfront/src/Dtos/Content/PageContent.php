@@ -24,6 +24,9 @@ class PageContent extends Element {
     /** The family's page type as the backend writes it (`HOME`, `LANDING`, `PRODUCT`, …); '' on older blobs. */
     protected string $pageType = '';
 
+    /** @var string[]|null */
+    protected ?array $accountSections = null;
+
     protected function setWidgets(array $widgets): void {
         $this->widgets = new WidgetInstanceCollection(['items' => $widgets]);
     }
@@ -38,5 +41,23 @@ class PageContent extends Element {
 
     public function getPageType(): string {
         return $this->pageType;
+    }
+
+    /**
+     * `content.accountSections` of a published account page (#4504): the sectionKey of every section it paints, or null
+     * when the blob does not carry it (published before the list existed, or not an account page). A value that is
+     * not a list reads as absent.
+     *
+     * @param mixed $accountSections
+     */
+    protected function setAccountSections($accountSections): void {
+        $this->accountSections = is_array($accountSections)
+            ? array_values(array_filter($accountSections, 'is_string'))
+            : null;
+    }
+
+    /** @return string[]|null */
+    public function getAccountSections(): ?array {
+        return $this->accountSections;
     }
 }

@@ -9,16 +9,19 @@ use FWK\Core\Resources\Utils;
 use SDK\Core\Resources\Timer;
 use FWK\Core\Theme\Theme;
 use FWK\Enums\Parameters;
+use Plugins\ComLogicommerceMagicfront\Enums\PreviewPageParam;
 use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\WidgetTwigRenderingTrait;
-use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderContext;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
+use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedNeeds;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\ContentLocaleScope;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\AccountSample;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
 use Plugins\ComLogicommerceMagicfront\Core\Services\WidgetToPageTransformer;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
@@ -49,6 +52,9 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     /** Per-request memo of `GET /samples/category`, shared by the widgets of one `getWidgets` batch. */
     private ?array $categorySampleMemo = null;
 
+    /** Per-request memo of `GET /samples/account`, shared by the widgets of one `getWidgets` batch. */
+    private ?array $accountSampleMemo = null;
+
     /**
      * #1545: every node of the page, by id, read ONCE for a `getWidgets` batch (null = not read: single `getWidget`,
      * or the read failed). A batch of the product page asked the API one widget at a time — ~30 calls in a row, the
@@ -66,9 +72,6 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
      */
     private array $templateMemo = [];
 
-    /** @var array<string, array> `shared` container per sorted family set. */
-    private array $sharedMemo = [];
-
     public function supports(string $type): bool {
         return $type === FunctionType::GET_WIDGET || $type === FunctionType::GET_WIDGETS;
     }
@@ -82,10 +85,19 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     }
 
     public function getRawResponseContent(ComLogicommerceMagicfrontController $controller): ?string {
-        $pageId    = $controller->getRequestParamValue(Parameters::PAGE, true);
+        // #465: `mfPage` first; the old `page` while editors still send it. One of the two names the page.
+        $pageId    = PreviewPageParam::resolve(
+            $controller->getRequestParamValue(PreviewPageParam::NAME, false),
+            $controller->getRequestParamValue(Parameters::PAGE, false)
+        );
+        if ($pageId === null) {
+            // Neither names a page: the same «required parameter» answer as before the rename.
+            $pageId = (string) $controller->getRequestParamValue(Parameters::PAGE, true);
+        }
         // The same content locale the whole-page render uses: the `mff_lang` preview override first (the template
-        // gallery previews in English), then the route language.
-        $override  = $controller->getRequestParamValue(MagicfrontUtils::MFF_LANG, false);
+        // gallery previews in English), then the route language. Read with the same filter as the whole page
+        // (lower case, two letters): `mff_lang=EN` was `en` there and `EN` here.
+        $override  = MagicfrontUtils::requestedLanguage();
         $language  = is_string($override) && $override !== '' ? $override : Language::getInstance()->getLanguage();
         // The prices of the render follow that language too: FWK writes them with the session locale, which
         // on the plugin route is the store's default one. In memory, for this response only.
@@ -140,6 +152,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             $widget   = $this->resolveCatalogRelations($widget);
             $this->attachProductSample($service, $pageId, $language, $widget, $situation);
             $this->attachCategorySample($service, $pageId, $language, $widget, $situation);
+            $this->attachAccountSample($service, $pageId, $language, $widget, $situation);
             $neededTypes = WidgetTypeCollector::templateKeysFromPages([$widget]);
             $templates   = $this->templatesFor($service, $neededTypes);
             return [
@@ -316,6 +329,24 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         PageRelationResolver::attachBreadcrumb($collection, PageRelationResolver::sampleTrail($sample));
     }
 
+    /**
+     * Same rule as the full editor render (MagicfrontTrait::attachAccountSample) for an account piece refreshed alone:
+     * on the account page, in the canvas, it gets the sample customer, so it does not fall back to its own example
+     * (or to the empty text) after every edit. Never outside the canvas: the store's section load
+     * ({@see WidgetContentHandler}) shares this path and fetches the real account.
+     */
+    private function attachAccountSample(WidgetsService $service, string $pageId, string $language, ?PluginPage $widget, array $situation = []): void {
+        if ($widget === null || !RenderMode::isCanvasMode()) {
+            return;
+        }
+        $this->pageTypeMemo ??= $service->getPageFacts($pageId)->getPageType();
+        if ($this->pageTypeMemo !== MagicfrontPageType::USER_AREA) {
+            return;
+        }
+        $this->accountSampleMemo ??= $service->getSample(MagicfrontPageType::SAMPLE_KIND[MagicfrontPageType::USER_AREA], $language, $situation);
+        AccountSample::attach(new ElementCollection(['items' => [$widget]]), $this->accountSampleMemo);
+    }
+
     // ─── Rendering ────────────────────────────────────────────────────────────
 
     /** The whole-page macro's default permission map (widgets.html.twig). */
@@ -338,7 +369,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         $lookupKey  = $widget->getTemplateKey();
 
         $twigEnv ??= $this->buildTwigEnvironment($controller, $widgetTemplateList);
-        $shared = $this->buildSharedForTypes(array_keys($widgetTemplateList));
+        $shared = ProviderRegistry::sharedForTypes(array_keys($widgetTemplateList), SharedNeeds::of($widgetTemplateList));
         $html    = $this->renderWidgetHtml($twigEnv, $lookupKey, $widgetTemplateList, [
             'page'            => $widget,
             'moduleType'      => $widgetType,
@@ -370,33 +401,11 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         array $widgetTemplateList
     ): \Twig\Environment {
         $twigEnv = $this->buildBaseTwigEnvironment($controller, $widgetTemplateList);
-        $twigEnv->addGlobal(MagicfrontControllerData::SHARED, $this->buildSharedForTypes(array_keys($widgetTemplateList)));
+        $twigEnv->addGlobal(
+            MagicfrontControllerData::SHARED,
+            ProviderRegistry::sharedForTypes(array_keys($widgetTemplateList), SharedNeeds::of($widgetTemplateList))
+        );
         return $twigEnv;
-    }
-
-    /**
-     * Rebuild the `shared` container for a per-widget AJAX render by running the same providers the
-     * controller uses on the full page, gated to the widget types present. No session/route needed:
-     * the account provider's sharedData draws countries/locations from Application + LMS.
-     *
-     * @param string[] $presentTypes
-     * @return array
-     */
-    private function buildSharedForTypes(array $presentTypes): array {
-        $families = array_values(array_unique(array_map(
-            [WidgetTypeCollector::class, 'familyOf'],
-            $presentTypes
-        )));
-        sort($families);
-        // Memoized per request and per family set: the providers are the expensive part of a per-widget render
-        // (countries, locations… — in a local shop that is a round of geolocation calls), and a render asked for
-        // them TWICE (Twig global + template local); `getWidgets` would ask once per widget.
-        $key = implode(',', $families);
-        if (!array_key_exists($key, $this->sharedMemo)) {
-            $ctx = new ProviderContext(null, null, $families, static fn(string $key): mixed => null);
-            $this->sharedMemo[$key] = ProviderRegistry::collectShared(ProviderRegistry::all(), $ctx);
-        }
-        return $this->sharedMemo[$key];
     }
 
     /**

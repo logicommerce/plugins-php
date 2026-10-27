@@ -36,6 +36,6 @@ class RenderMode {
      * and a lingering cookie must not turn a plain storefront tab into a preview.
      */
     public static function isPreviewMode(): bool {
-        return MagicfrontUtils::isIframeRequest() || !empty($_GET[MagicfrontToken::MF_TOKEN]);
+        return MagicfrontUtils::isIframeRequest() || MagicfrontToken::queryToken() !== null;
     }
 }

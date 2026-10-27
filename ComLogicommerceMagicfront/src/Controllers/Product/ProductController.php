@@ -10,16 +10,17 @@ use FWK\Core\Resources\Loader;
 use FWK\Core\Resources\RoutePaths;
 use FWK\Core\Resources\Session;
 use FWK\Core\Resources\Utils;
-use FWK\Enums\LanguageLabels;
 use FWK\Enums\RouteTypes\InternalProduct;
 use FWK\Enums\Services;
 use FWK\Services\Dtos\BundleDefinitionsWithGroupings;
 use FWK\ViewHelpers\Product\ProductJsonData;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BundleOptionsResolver;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\WeekStart;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\ProductCustomTagNames;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
+use SDK\Core\Services\BatchService;
 use SDK\Enums\CustomTagType;
 use SDK\Services\Parameters\Groups\CustomTagsParametersGroup;
 use SDK\Dtos\Catalog\Product\Product;
@@ -82,6 +83,28 @@ class ProductController extends FWKProductController {
         return $params;
     }
 
+    /**
+     * The pages given of the PRODUCT custom tag catalogue, in ONE batch call (FWK's getAllElementCollectionItems does
+     * the same): they went one by one, a call per page (#4360). Keyed by page number; a page the API did not answer is
+     * missing or not an ElementCollection.
+     *
+     * @param list<int> $pages
+     *
+     * @return array<int, mixed>
+     */
+    private static function productCustomTagsPages(array $pages): array {
+        $requests = new BatchRequests();
+        foreach ($pages as $page) {
+            Loader::service(Services::BASKET)->addGetCustomTags($requests, self::CUSTOM_TAGS_KEY . $page, self::productCustomTagsPage($page));
+        }
+        $answers = BatchService::getInstance()->send($requests);
+        $byPage = [];
+        foreach ($pages as $page) {
+            $byPage[$page] = $answers[self::CUSTOM_TAGS_KEY . $page] ?? null;
+        }
+        return $byPage;
+    }
+
     private function addBundleDefinitions(BatchRequests $requests): void {
         if (!self::getTheme()->getConfiguration()->getCommerce()->getShowBundles()) {
             return;
@@ -107,7 +130,7 @@ class ProductController extends FWKProductController {
     protected function routeProductCustomTags(): array {
         $tags = $this->getControllerData(self::CUSTOM_TAGS_KEY);
         return ProductCustomTagNames::fromPages($tags instanceof ElementCollection ? $tags : null,
-            static fn(int $page) => Loader::service(Services::BASKET)->getCustomTags(self::productCustomTagsPage($page)));
+            static fn(array $pages): array => self::productCustomTagsPages($pages));
     }
 
     protected function routeProductBundles(): ?BundleDefinitionsWithGroupings {
@@ -140,7 +163,7 @@ class ProductController extends FWKProductController {
         if (!$this->routeProduct() instanceof Product) {
             return [];
         }
-        $weekStart = $this->commerceCalendar ? $this->commerceCalendar->getFirstDayOfWeek() - 1 : 0;
+        $weekStart = WeekStart::fromCalendar($this->commerceCalendar) ?? 0;
         return BundleOptionsResolver::build($this->getLanguageSheet(), $this->getRoute(), $weekStart);
     }
 
@@ -157,13 +180,10 @@ class ProductController extends FWKProductController {
         if (!$product instanceof Product) {
             return [];
         }
-        $sheet = $this->getLanguageSheet();
         $wishlist = Session::getInstance()->getAggregateData()->getWishlist();
         return [
             'isLogged'    => Utils::isSessionLoggedIn(),
             'ids'         => $wishlist ? $wishlist->getItemIdList() : [],
-            'labelAdd'    => $sheet[LanguageLabels::ADD_TO_WISHLIST] ?? '',
-            'labelDelete' => $sheet[LanguageLabels::DELETE_FROM_WISHLIST] ?? '',
         ];
     }
 

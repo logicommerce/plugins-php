@@ -7,6 +7,7 @@ namespace Plugins\ComLogicommerceMagicfront\Controllers\Account;
 use FWK\Controllers\Account\AccountController as FWKAccountController;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\MagicfrontTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BundleOptionsResolver;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\WeekStart;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Dtos\Common\Route;
 
@@ -52,9 +53,11 @@ class AccountController extends FWKAccountController {
      * Account-area widgets that embed a buyProductForm (e.g. the shoppingList/Favoritos rows) need the
      * same option labels/constants the product page uses — `page.bundleLabels` (attachMaxSize, upload/
      * date/boolean labels). Mirror ProductController: build them from the language sheet so the buy-form
-     * option renderers (ATTACHMENT max size, DATE picker, …) work in the account area too.
+     * option renderers (ATTACHMENT max size, DATE picker, …) work in the account area too, with the commerce's first
+     * day of the week, as on the product page (#5064: it was always Sunday here).
      */
     protected function routeBundleLabels(): array {
-        return BundleOptionsResolver::build($this->getLanguageSheet(), $this->getRoute());
+        $weekStart = WeekStart::fromCalendar($this->commerceCalendar) ?? 0;
+        return BundleOptionsResolver::build($this->getLanguageSheet(), $this->getRoute(), $weekStart);
     }
 }

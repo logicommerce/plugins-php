@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Twig\Functions;
 
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RequestQuery;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
 use Twig\Environment;
 use Twig\Markup;
@@ -402,11 +403,12 @@ class MagicfrontProductFunctions {
         $none = ['logged' => false, 'inList' => false];
         // The editor's simulated shopper (canvas only): logged in with this product in their favourites, so every
         // widget that reads it paints the «in the list» state the store would paint.
-        // Literal param name and a guarded RenderMode: this file also runs in the docker renderer (plugin-src), which
-        // loads Core/Twig and Enums but neither Core/Resources nor the SDK Enum that SampleSituationParam extends —
-        // referencing either class there broke every widget that calls this function (28-09).
-        if ($product !== null && ($_GET['mff_sample_wishlist'] ?? '') === 'in'
-            && class_exists(RenderMode::class) && RenderMode::isCanvasMode()) {
+        // Literal param name, and RequestQuery and RenderMode only behind the class_exists guard: this file also runs
+        // in the docker renderer (plugin-src), which loads Core/Twig and Enums but neither Core/Resources nor the SDK
+        // Enum that SampleSituationParam extends — referencing either class there broke every widget that calls this
+        // function (28-09).
+        if ($product !== null && class_exists(RenderMode::class)
+            && RequestQuery::value('mff_sample_wishlist', RequestQuery::exact()) === 'in' && RenderMode::isCanvasMode()) {
             return ['logged' => true, 'inList' => true];
         }
         $sessionClass = '\\FWK\\Core\\Resources\\Session';
