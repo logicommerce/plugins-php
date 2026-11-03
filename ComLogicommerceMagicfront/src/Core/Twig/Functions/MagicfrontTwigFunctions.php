@@ -6,6 +6,7 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Twig\Functions;
 
 use FWK\Core\Resources\Language;
 use FWK\Core\Resources\Session;
+use FWK\Core\Resources\Utils;
 use FWK\Enums\LanguageLabels;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder;
 use Plugins\ComLogicommerceMagicfront\Core\Twig\WidgetApi;
@@ -165,13 +166,15 @@ class MagicfrontTwigFunctions {
     }
 
     /** `mff_getAccount()` → minimal session login state for the accountPage state switch.
-     *  Anonymous (isLogged false) when no registered session. Full account DATA is attached
-     *  per-route to `page.account` (product/category pattern), not exposed here. */
+     *  Anonymous (isLogged false) when no registered session, and also while the account still waits for
+     *  its email verification or activation: the store's login form does the same (REGISTERED and no
+     *  userWarnings) and LC.LoginForm shows the waiting message from `userWarnings`. Full account DATA is
+     *  attached per-route to `page.account` (product/category pattern), not exposed here. */
     private static function mffGetAccount(): TwigFunction {
         return new TwigFunction(
             'mff_getAccount',
             static function (): array {
-                $anonymous = ['isLogged' => false, 'nick' => '', 'name' => '', 'image' => ''];
+                $anonymous = ['isLogged' => false, 'nick' => '', 'name' => '', 'image' => '', 'userWarnings' => []];
                 if (!class_exists(Session::class)) {
                     return $anonymous;
                 }
@@ -179,12 +182,17 @@ class MagicfrontTwigFunctions {
                 if (!$session->isLogged()) {
                     return $anonymous;
                 }
-                $user = $session->getUser();
+                $userWarnings = class_exists(Utils::class) ? Utils::getUserWarnings() : [];
+                if ($userWarnings !== []) {
+                    return array_merge($anonymous, ['userWarnings' => array_values(array_map('strval', $userWarnings))]);
+                }
+                $registeredUser = $session->getBasket()->getRegisteredUser();
                 return [
+                    'userWarnings' => [],
                     'isLogged' => true,
-                    'nick' => $user->getNick(),
-                    'name' => $user->getNick(),
-                    'image' => $user->getImage(),
+                    'nick' => $registeredUser?->getUsername() ?? '',
+                    'name' => $registeredUser?->getUsername() ?? '',
+                    'image' => $registeredUser?->getImage() ?? '',
                 ];
             },
         );

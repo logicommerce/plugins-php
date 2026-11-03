@@ -6,487 +6,113 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Twig;
 
 use SDK\Core\Resources\Timer;
 use FWK\Core\Resources\Utils;
-use FWK\Core\Controllers\Controller;
-use FWK\Core\Resources\Loader;
-use FWK\Enums\Services;
 use FWK\Twig\PluginTwigInitializer;
-use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
-use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedDataProvider;
-use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedNeeds;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\CaptchaSiteKey;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
-use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
-use Plugins\ComLogicommerceMagicfront\Dtos\Chrome\ChromeAssets;
-use Plugins\ComLogicommerceMagicfront\Dtos\Chrome\ChromeDocument;
-use Plugins\ComLogicommerceMagicfront\Dtos\Common\PluginProperties;
 use Plugins\ComLogicommerceMagicfront\Enums\ChromeKind;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
 use Plugins\ComLogicommerceMagicfront\Enums\SpecialPagePId;
-use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
-use SDK\Core\Dtos\ElementCollection;
-use SDK\Dtos\Catalog\Page\Page;
 use Twig\Environment;
 
 /**
- * fwk Twig hook. Returns the overlay layout and pre-loads chrome (header/footer) widget data
- * into Twig globals when the overlay is enabled in BO.
+ * This is the FWK Twig hook of MagicFront: it returns the layout of the page and puts our header, footer and panels
+ * into Twig globals. It only calls:
+ *   - EditorChrome: what the editor paints (drafts, preview tab, Personalización).
+ *   - PublishedChrome: what the storefront paints (what is published).
+ *   - ChromeGlobals: the Twig globals, the same for both.
  *
- * Chrome source per kind:
- *   - editor request (canvas iframe / mfToken URL param) → magicfront-backend (page.chrome doc refs).
- *   - storefront → the page's OWN embedded chrome (its controllerItem blob's content.header /
- *     content.footer) when present, else the generic mff_CHROME page fetched via the LC FOB.
- * Absent chrome → empty ChromeAssets → the theme renders its own header/footer (parent()).
+ * @see EditorChrome
+ * @see PublishedChrome
+ * @see ChromeGlobals
  *
  * @package Plugins\ComLogicommerceMagicfront\Core\Twig
  */
 class TwigInitializer implements PluginTwigInitializer {
 
-    private const PLUGIN_MODULE = 'com.logicommerce.magicfront';
+    private const LAYOUT = 'layouts/magicfront.html.twig';
 
-    /** Twig globals: which chrome starts live per region in canvas preview ('1' = ours, '0' = store). */
-    private const HEADER_MFF_GLOBAL = 'mffHeader';
+    // Disabled: no code has ever sent X-MFF-Content-Only (userPanel uses the widgetContent endpoint). Delete in the cleanup.
+    // private const CONTENT_ONLY_LAYOUT = 'layouts/mff-content-only.html.twig';
 
-    private const FOOTER_MFF_GLOBAL = 'mffFooter';
-
-    /** Standalone-preview URL params carrying the toolbar toggle choice per region ('1' = our
-     *  chrome, '0' = the store's own). Named with the `mf` prefix to sit alongside `mfToken` —
-     *  only honoured when that token is present. */
-    private const PREVIEW_HEADER_PARAM = 'mfHeader';
-
-    private const PREVIEW_FOOTER_PARAM = 'mfFooter';
-
-    /** The current template of each anchored panel root, by panels document, asked for once (publishedPanelForEditor). */
-    private array $currentPanelRoots = [];
-
-    /** Ids already re-injected in this request, grouped so one group cannot starve another (see reinjectLcIds). */
-    private array $lcIdsEmitted = [];
-
-    /** @var string[] widget types of the chrome emitted in this request (see emit), for the `shared` they need. */
-    private array $chromeTypes = [];
-
-    /** Memoized generic mff_CHROME document (fetched at most once per request via genericChrome()). */
-    private ?ChromeDocument $genericChromeCache = null;
-
-    private bool $genericChromeLoaded = false;
-
-    /** Memoized mff_PANELS document (fetched at most once per request via storefrontPanels()). */
-    private ?ChromeDocument $panelsCache = null;
-
-    private bool $panelsLoaded = false;
-
-    /** @var string[] the templates of every region emitted in this request, for {@see self::emitChromeShared()} */
-    private array $chromeTemplates = [];
-
-    public function apply(
-        Environment $main,
-        Environment $core,
-        string $routeType,
-        array $controllerData
-    ): ?string {
-        $contentOnly = MagicfrontUtils::isContentOnlyRequest();
-        // Blob pId of the page being rendered: singleton routes map to their stable mff_* pId, others to
-        // the numeric page id. Exposed to widgets as the `mff_pagePId` global (see ContextBuilder) so a
-        // widget's AJAX can address its own blob without depending on the request Referer.
-        $pagePId = SpecialPagePId::forRouteType($routeType)
-            ?? (string) ($controllerData[MagicfrontControllerData::PAGE] ?? '');
+    /**
+     * This method returns the layout of the page and adds our header, footer and panels to the Twig globals.
+     *
+     * @param Environment $main
+     * @param Environment $core
+     * @param string $routeType
+     * @param array $controllerData
+     *
+     * @return string|NULL 
+     */
+    public function apply(Environment $main, Environment $core, string $routeType, array $controllerData): ?string {
+        // Disabled: no code has ever sent X-MFF-Content-Only. Delete in the cleanup.
+        // $contentOnly = MagicfrontUtils::isContentOnlyRequest();
+        $pagePId = SpecialPagePId::forRouteType($routeType) ?? (string) ($controllerData[MagicfrontControllerData::PAGE] ?? '');
         Utils::addTimerDebugFlag('ti-context', Timer::START_SUFFIX);
-        $ctx = ContextBuilder::fromSession(!$contentOnly, $pagePId);
+        $ctx = ContextBuilder::fromSession(true, $pagePId);
         Utils::addTimerDebugFlag('ti-context', Timer::END_SUFFIX);
         PluginTwigBootstrap::apply($main, $ctx);
+        // Widgets render in $core (the FWK widget macro), which is locked by now: functions only, through late binding.
         PluginTwigBootstrap::applyLazyFunctions($core, $ctx);
+        // The browser half of the captcha (setCaptchaToken), for every storefront page with our layout: the canvas never
+        // sends a form, so it asks LogiCommerce nothing there.
+        $main->addGlobal(MagicfrontControllerData::CAPTCHA_SITE_KEY, RenderMode::isCanvasMode() ? '' : CaptchaSiteKey::get());
 
-        // Content-only partial render (userPanel tab swap): emit ONLY the page widget body via a
-        // bare layout — no chrome fetch/emit, no category nav. Widget CSS is already in the document
-        // from the initial full load, so the AJAX response needs the HTML alone.
-        if ($contentOnly) {
-            return 'layouts/mff-content-only.html.twig';
+        // Disabled: no code has ever sent X-MFF-Content-Only. Delete in the cleanup.
+        // if ($contentOnly) {
+        //     return self::CONTENT_ONLY_LAYOUT;
+        // }
+        // Studio (the editor's widget designer): the widget alone, without header, footer or panels.
+        if (EditorChrome::isStudioDocument($controllerData)) {
+            return EditorChrome::STUDIO_LAYOUT;
         }
-        // Studio document (one store widget, `mff_store_widget`): a full document with the brand and the widget
-        // assets but no chrome — no header/footer fetch, no panels. The widget is what is being designed.
-        if (!empty($controllerData[MagicfrontControllerData::STUDIO_DOCUMENT])) {
-            return 'layouts/mff-studio.html.twig';
+
+        $published = PublishedChrome::create();
+        $chromeOnly = EditorChrome::getChromeOnly();
+        $panelOnly = EditorChrome::getPanelOnly($chromeOnly);
+        $headerOn = EditorChrome::isRegionShown(ChromeKind::Header, $chromeOnly, $published);
+        $footerOn = EditorChrome::isRegionShown(ChromeKind::Footer, $chromeOnly, $published);
+        $globals = new ChromeGlobals($main);
+        $globals->addRegionFlags($headerOn, $footerOn, $chromeOnly, $panelOnly);
+        // Nothing of ours to paint: the theme keeps its own header and footer.
+        if (!$headerOn && !$footerOn && $panelOnly === null) {
+            return EditorChrome::getLayout(self::LAYOUT, $chromeOnly);
         }
 
-        $properties = self::pluginProperties();
-        // Canvas preview renders BOTH chrome variants per region (our widgets + the store's own) so
-        // the editor toolbar can swap them in place with no reload — see magicfront.html.twig. In
-        // canvas we prepare our chrome for both regions regardless of the BO toggle; production
-        // (real visitors) stays gated by the BO toggle alone and only ever renders one variant.
-        $canvasMode = RenderMode::isCanvasMode();
-        $boHeader = $properties !== null && $properties->isHeaderOverlayEnabled();
-        $boFooter = $properties !== null && $properties->isFooterOverlayEnabled();
-        // Canvas swaps both variants live via the bridge; the standalone preview tab (token but not
-        // an iframe) has no toolbar/bridge, so it honours the toggle choice carried as ?mffHeader/
-        // ?mffFooter. Production (no token) ignores the params → BO toggle alone.
-        // Production gate: our chrome overrides only when the mff_CHROME page is published; until then
-        // producción keeps the commerce's own header/footer. The editor (canvasMode / preview token)
-        // is never gated so chrome can be authored before publish.
-        $chromePublished = $canvasMode || ($properties !== null && $properties->pageExists(SpecialPagePId::CHROME));
-        $headerOn = $canvasMode || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_HEADER_PARAM) ?? $boHeader));
-        $footerOn = $canvasMode || ($chromePublished && (self::previewChromeOverride(self::PREVIEW_FOOTER_PARAM) ?? $boFooter));
-        $chromeOnly = MagicfrontUtils::chromeOnlyRegion();
-        // A scoped panel renders no footer and no page body, but it DOES render the header behind it:
-        // a panel is an overlay the visitor opens FROM the header, and painting it alone turned the
-        // editor into a second window with no sign of where the panel came from. The header rides
-        // along as context only — the layout marks its whole wrapper `inert` — so what is edited is
-        // still the panel alone.
-        $panelOnly = $chromeOnly !== null ? self::panelKind($chromeOnly) : null;
-        if ($chromeOnly !== null) {
-            $headerOn = $headerOn && $chromeOnly !== ChromeKind::Footer->value;
-            $footerOn = $footerOn && $chromeOnly === ChromeKind::Footer->value;
-        }
-        // Which variant starts LIVE in canvas per region — '1' = our chrome, '0' = the store's own.
-        // The editor's choice when the canvas URL carries it (`mfHeader`/`mfFooter`, the same params the
-        // preview tab reads), and OURS otherwise — never the BO toggle: that one decides what real visitors
-        // see, and the editor only replayed its own choice once the canvas said it was ready, 15-25 s into a
-        // slow store page, so every full reload (a language switch) showed the store's header all that time.
-        // Personalización (`mff_chrome_only`) edits OUR header/footer and never swaps the variant: always ours.
-        $main->addGlobal(self::HEADER_MFF_GLOBAL, self::canvasInitialVariant(self::PREVIEW_HEADER_PARAM, $chromeOnly === ChromeKind::Header->value));
-        $main->addGlobal(self::FOOTER_MFF_GLOBAL, self::canvasInitialVariant(self::PREVIEW_FOOTER_PARAM, $chromeOnly === ChromeKind::Footer->value));
-
-        $main->addGlobal(MagicfrontControllerData::OVERRIDE_HEADER, $headerOn);
-        $main->addGlobal(MagicfrontControllerData::OVERRIDE_FOOTER, $footerOn);
-        $main->addGlobal(MagicfrontControllerData::PANEL_ONLY, $panelOnly?->value);
-
-        $kinds = [];
+        $regions = [];
         if ($headerOn) {
-            $kinds[] = ChromeKind::Header;
+            $regions[] = ChromeKind::Header;
         }
         if ($footerOn) {
-            $kinds[] = ChromeKind::Footer;
-        }
-        if ($kinds === [] && $panelOnly === null) {
-            return self::overlayLayout($chromeOnly, null);
+            $regions[] = ChromeKind::Footer;
         }
 
-        // 2-letter ISO ("es","en","ca") — the magicfront-backend LOCALIZED filter does exact equality.
-        $language = MagicfrontUtils::contentLanguage($ctx->language);
-
-        // Editor: each page points at a header/footer chrome doc id via page.chrome.{kind}
-        // (its own fork, or the shared default); exposed by the trait as PAGE_CHROME.
-        $pageChrome = $controllerData[MagicfrontControllerData::PAGE_CHROME] ?? [];
-        if (!is_array($pageChrome)) {
-            $pageChrome = [];
-        }
-
-        $editor = RenderMode::isPreviewMode();
-        // El panel no pinta cuerpo de página, pero sí la cabecera que le sirve de contexto: su blob se
-        // resuelve igual que en un render normal, o la cabecera de contexto saldría distinta de la que
-        // el visitante ve en esa página.
-        $pageChromeBlob = $editor ? null : self::pageChromeBlob($controllerData);
-
-        Utils::addTimerDebugFlag('ti-chrome', Timer::START_SUFFIX);
-        // E20: «Ver cómo queda» paints the draft of the new header/footer in place of its document. Without this the
-        // param was ignored and the region showed the CURRENT header while the editor said «you are seeing the new one».
-        $chromeDraftId = MagicfrontUtils::chromeDraftId();
-        foreach ($kinds as $kind) {
-            $chromeId = ($chromeDraftId !== null && $chromeOnly === $kind->value)
-                ? $chromeDraftId
-                : ($pageChrome[$kind->value] ?? null);
-            $assets = $editor
-                ? $this->chromeFromApi($kind, $language, $chromeId)
-                : $this->chromeFromBlob($kind, $this->resolveChromeBlob($kind, $pageChromeBlob));
-            $this->emit($main, $kind, $this->reinjectLcIds($assets, 'chrome'));
-        }
-        Utils::addTimerDebugFlag('ti-chrome', Timer::END_SUFFIX);
-
-        // Login / basket / mobile-menu panels: the self-contained MFF panels (published mff_PANELS
-        // blob) replace the commerce login/basket offcanvas and the theme's own mobile-menu nav so our
-        // header's triggers open them; LC JS binds to their re-injected ids + data-lc hooks. Emitted
-        // wherever our header can show — including the editor canvas (fetched via the LC FOB, works
-        // with the preview token). Without this the account/cart/hamburger triggers do nothing.
-        if ($panelOnly !== null) {
-            // Scoped to ONE panel. Same source rule as the header and the footer above: the editor
-            // reads the DRAFT through the API, anything else degrades to the published blob. Reading
-            // the blob in the editor left the merchant editing one thing and looking at another; going
-            // to the API outside the editor would turn an unusable token into a blank screen.
-            $assets = $editor
-                ? $this->chromeFromApi($panelOnly, $language, null)
-                : $this->chromeFromBlob($panelOnly, $this->storefrontPanels());
-            $this->emit($main, $panelOnly, $this->reinjectLcIds($assets, 'panels'));
-        } elseif ($headerOn && ($editor || ($properties !== null && $properties->pageExists(SpecialPagePId::PANELS)))) {
-            $panels = $this->storefrontPanels();
-            foreach (ChromeKind::panels() as $kind) {
-                $doc = ($panels !== null && $panels->hasKind($kind)) ? $panels : null;
-                $this->emit($main, $kind, $this->reinjectLcIds($editor
-                    ? $this->publishedPanelForEditor($kind, $doc)
-                    : $this->chromeFromBlob($kind, $doc), 'panels'));
+        if (RenderMode::isPreviewMode()) {
+            $editor = EditorChrome::create($ctx->language, $controllerData, $chromeOnly);
+            Utils::addTimerDebugFlag('ti-chrome', Timer::START_SUFFIX);
+            foreach ($regions as $kind) {
+                $globals->addRegion($kind, $editor->getRegion($kind));
+            }
+            Utils::addTimerDebugFlag('ti-chrome', Timer::END_SUFFIX);
+            foreach ($editor->getPanels($headerOn, $panelOnly) as $kind) {
+                $globals->addPanel($kind, $editor->getPanel($kind, $published));
+            }
+        } else {
+            $pageChrome = PublishedChrome::getPageChrome($controllerData);
+            Utils::addTimerDebugFlag('ti-chrome', Timer::START_SUFFIX);
+            foreach ($regions as $kind) {
+                $globals->addRegion($kind, $published->getRegion($kind, $pageChrome));
+            }
+            Utils::addTimerDebugFlag('ti-chrome', Timer::END_SUFFIX);
+            foreach ($published->getPanels($headerOn, $panelOnly) as $kind) {
+                $globals->addPanel($kind, $published->getPanel($kind));
             }
         }
 
-        // A page whose controller is not MagicFront's has no `shared` of its own: the chrome gets one built here, by
-        // the same builder as the per-widget render. As a global, so the page's own (a MagicFront page) still wins.
         Utils::addTimerDebugFlag('ti-shared', Timer::START_SUFFIX);
-        $shared = ProviderRegistry::sharedForChrome($controllerData, $this->chromeTypes, null, SharedNeeds::of($this->chromeTemplates));
-        if ($shared !== null) {
-            $main->addGlobal(MagicfrontControllerData::SHARED, $shared);
-        }
-        // A MagicFront page has its own `shared`, built for its templates: the chrome adds what only it reads.
-        $this->emitChromeShared($main, $controllerData);
+        $globals->addShared($controllerData);
         Utils::addTimerDebugFlag('ti-shared', Timer::END_SUFFIX);
-
-        // Overlay layout — blocks fall back to merchant's parent() when a region is empty.
-        return self::overlayLayout($chromeOnly, $panelOnly);
-    }
-
-    /**
-     * The header, footer and panels paint with the page's `shared` (mffShared), which the controller builds with
-     * the countries and locations only when a template OF THE PAGE reads them (#4251). When a block of theirs reads
-     * one the page did not need — a merchant's own block in the header that asks for the countries — they get the
-     * page's container plus that key, as mffChromeShared (the layout prefers it). Without a page container (a
-     * region rendered alone in the editor) nothing changes: they paint with none, as before.
-     */
-    private function emitChromeShared(Environment $main, array $controllerData): void {
-        $page = $controllerData[MagicfrontControllerData::SHARED] ?? null;
-        if (!is_array($page) || $this->chromeTemplates === []) {
-            return;
-        }
-        $missing = array_values(array_diff(SharedNeeds::of($this->chromeTemplates), array_keys($page)));
-        if ($missing !== []) {
-            $main->addGlobal(MagicfrontControllerData::CHROME_SHARED, $page + (new SharedDataProvider())->onDemandShared($missing));
-        }
-    }
-
-    /**
-     * The overlay layout, or its chrome-scoped variant when the editor asked for one region alone
-     * (`?mff_chrome_only=`). The scoped variants are the SAME overlay with the page body and the other
-     * region left unrendered, so what the merchant edits is what the storefront paints.
-     */
-    private static function overlayLayout(?string $region, ?ChromeKind $panelOnly): string {
-        if ($region === null) {
-            return 'layouts/magicfront.html.twig';
-        }
-        // The three panels share one layout: what changes is WHICH panel was emitted, not how it paints.
-        return $panelOnly !== null
-            ? 'layouts/mff-chrome-only-panel.html.twig'
-            : 'layouts/mff-chrome-only-' . $region . '.html.twig';
-    }
-
-    /** The ChromeKind of a scoped region when that region is one of the side panels, else null. */
-    private static function panelKind(string $region): ?ChromeKind {
-        $kind = ChromeKind::tryFrom($region);
-        return $kind !== null && $kind->isPanel() ? $kind : null;
-    }
-
-    /** Maps a built region onto its Twig globals (keys owned by the ChromeKind), noting the widget types it paints. */
-    private function emit(Environment $main, ChromeKind $kind, ChromeAssets $assets): void {
-        array_push($this->chromeTypes, ...array_keys($assets->templateList));
-        foreach ($assets->templateList as $template) {
-            $this->chromeTemplates[] = $template;
-        }
-        $main->addGlobal($kind->pagesGlobalKey(), $assets->pages);
-        $main->addGlobal($kind->templatesGlobalKey(), $assets->templateList);
-        $main->addGlobal($kind->cssGlobalKey(), $assets->css);
-        $main->addGlobal($kind->jsGlobalKey(), $assets->js);
-    }
-
-    /**
-     * Editor source: fetch the chrome doc from magicfront-backend by id (the page's own fork or the shared
-     * default), or — when the page carries no ref — the commerce default of the kind
-     * (`GET /chrome/{kind}?default=true`, backend lazy-seeds it).
-     */
-    private function chromeFromApi(ChromeKind $kind, string $language, ?string $chromeId): ChromeAssets {
-        $service = WidgetsService::getInstance();
-        $widgets = ($chromeId !== null && $chromeId !== '')
-            ? $service->getChromeDoc($chromeId, $language)
-            : $service->getChromeDoc($kind->value, $language, true);
-        if ($widgets === []) {
-            return ChromeAssets::empty();
-        }
-        // E20: by the version each node is anchored to (header@2 in bands vs master header@1), like the published blob
-        // and the page path; by family it painted a migrated chrome with the CURRENT version of each family.
-        $types = WidgetTypeCollector::templateKeysFromWidgets(WidgetTypeCollector::flatten($widgets));
-        $templates = $types !== [] ? $service->getWidgetTemplatesForTypes($types) : [];
-        // getChromeDoc already returns hydrated WidgetInstance objects — wrap them in a base
-        // ElementCollection (direct assign, no re-hydration) so fromWidgets takes one shape.
-        return ChromeAssets::fromWidgets(new ElementCollection(['items' => $widgets]), $templates);
-    }
-
-    /**
-     * Storefront source: build the region from the resolved chrome document (page-own or generic
-     * mff_CHROME). A null document → empty region.
-     */
-    private function chromeFromBlob(ChromeKind $kind, ?ChromeDocument $chrome): ChromeAssets {
-        if ($chrome === null) {
-            return ChromeAssets::empty();
-        }
-        return ChromeAssets::fromWidgets($chrome->widgetsFor($kind), $chrome->templatesById());
-    }
-
-    /**
-     * The published panel the editor paints next to the header, with the CURRENT template of every panel's own root
-     * (#6270): the one of the version each is anchored to (accountPanel@2…), as the editor paints the header and the page.
-     * The published document freezes each template's CSS when Paneles is published: a store that published its panels
-     * before C562 kept, in the header's canvas, the rule that lays a panel open under the header when the canvas paints
-     * one region alone, until the merchant published Paneles again, and nothing told them. Each panel's sheet carries the
-     * CSS of EVERY template of the document (mergeTemplateCss), so the account panel's sheet also holds the basket
-     * panel's rule and opens it (#6408): the current templates are those of all the panel roots, the same in the three
-     * sheets. Only the roots (their CSS decides how a panel opens): the pieces keep the published copy. Only a root
-     * anchored to its version: the API answers a bare family with its latest version, which would paint an older panel
-     * with another version's markup. The storefront keeps the published copy of everything; if the API does not answer,
-     * so does the editor.
-     */
-    private function publishedPanelForEditor(ChromeKind $kind, ?ChromeDocument $doc): ChromeAssets {
-        $roots = $doc?->widgetsFor($kind);
-        if ($doc === null || $roots === null) {
-            return $this->chromeFromBlob($kind, $doc);
-        }
-        return ChromeAssets::fromWidgets($roots, $this->currentPanelRoots($doc) + $doc->templatesById());
-    }
-
-    /** One request for the three panels: the current template of each anchored root of the document, by its key. */
-    private function currentPanelRoots(ChromeDocument $doc): array {
-        $id = spl_object_id($doc);
-        if (isset($this->currentPanelRoots[$id])) {
-            return $this->currentPanelRoots[$id];
-        }
-        $anchored = [];
-        foreach (ChromeKind::panels() as $kind) {
-            foreach (WidgetTypeCollector::templateKeysFromWidgets($doc->widgetsFor($kind)?->getItems() ?? []) as $key) {
-                if (str_contains($key, '@')) {
-                    $anchored[$key] = $key;
-                }
-            }
-        }
-        $current = [];
-        if ($anchored !== []) {
-            try {
-                $current = WidgetsService::getInstance()->getWidgetTemplatesForTypes(array_values($anchored));
-            } catch (\Throwable) {
-                $current = [];
-            }
-        }
-        return $this->currentPanelRoots[$id] = $current;
-    }
-
-    /**
-     * Re-inject the real element ids LC keys off. The markup ships only data-lc-id so harvested
-     * id-scoped CSS never out-specifies the editable instance CSS; here the id comes back.
-     *
-     * <p>Panels need it so #smallLoginOffcanvas and #miniBasketOffcanvas open. The header and the
-     * footer need it too, for the other half of the same contract: COMMERCE.miniBasket resolves the
-     * trigger with document.querySelector('#mini-basket-button') and reads its data-bs-target, so
-     * without that id the mini basket never opens itself after an add-to-cart — the theme callback
-     * dies on a null element.</p>
-     *
-     * <p>An id belongs to ONE element, so each one is injected at most once per GROUP. The registry
-     * keys on the id itself and the rewrite happens on the TEMPLATE list (type =&gt; templateHtml),
-     * which the macro renders once per instance: so the guarantee is one id per id per group, across
-     * the regions that share that group. The header and the footer share the `chrome` group and are
-     * emitted one after the other, so a type present in both carries the id only in the first —
-     * which is what a document-unique id requires. Two instances of the SAME type inside one region
-     * share a single templateList entry and are therefore beyond this rewrite's reach.</p>
-     *
-     * <p>The panels carry their OWN group. They are emitted after the header and the footer, and a
-     * shared registry would let those two starve a panel of the id that opens it: an offcanvas with
-     * no #smallLoginOffcanvas never opens, and the screen looks dead. Their ids are disjoint from
-     * the triggers' by design, so keeping the registries apart costs nothing and removes the
-     * ordering hazard entirely.</p>
-     */
-    private function reinjectLcIds(ChromeAssets $assets, string $group): ChromeAssets {
-        $emitted = &$this->lcIdsEmitted[$group];
-        if (!is_array($emitted)) {
-            $emitted = [];
-        }
-        $templateList = [];
-        foreach ($assets->templateList as $type => $html) {
-            $templateList[$type] = preg_replace_callback(
-                '/data-lc-id="([^"]+)"/',
-                function (array $match) use (&$emitted): string {
-                    if (isset($emitted[$match[1]])) {
-                        return $match[0];
-                    }
-                    $emitted[$match[1]] = true;
-                    return 'id="' . $match[1] . '" ' . $match[0];
-                },
-                $html
-            );
-        }
-        return new ChromeAssets($assets->pages, $templateList, $assets->css, $assets->js);
-    }
-
-    /**
-     * Picks the storefront chrome document for one kind: the page's own embedded chrome when it
-     * carries that kind, else the generic mff_CHROME (fetched lazily, once).
-     */
-    private function resolveChromeBlob(ChromeKind $kind, ?ChromeDocument $pageChrome): ?ChromeDocument {
-        if ($pageChrome !== null && $pageChrome->hasKind($kind)) {
-            return $pageChrome;
-        }
-        return $this->genericChrome();
-    }
-
-    /**
-     * The current page's OWN chrome, read from the controllerItem when it is a MagicFront blob
-     * page (home / magic page). Its content.header / content.footer, if present, override the
-     * generic mff_CHROME per kind. Null for non-blob pages (e.g. commerce category / product,
-     * whose controllerItem is a Category / Product DTO, not a Page).
-     *
-     * @param array $controllerData
-     */
-    private static function pageChromeBlob(array $controllerData): ?ChromeDocument {
-        $page = $controllerData[Controller::CONTROLLER_ITEM] ?? null;
-        if (!$page instanceof Page) {
-            return null;
-        }
-        return ChromeDocument::fromJson($page->getLanguage()?->getPageContent());
-    }
-
-    /**
-     * The generic mff_CHROME document, fetched lazily and once — only reached when a shown kind is
-     * not supplied by the page's own blob. Synchronous by pId via the LC FOB, so customers (who are
-     * unauthenticated for magicfront-backend) never hit that API.
-     */
-    private function genericChrome(): ?ChromeDocument {
-        if (!$this->genericChromeLoaded) {
-            $this->genericChromeLoaded = true;
-            $this->genericChromeCache = $this->loadStorefrontChrome();
-        }
-        return $this->genericChromeCache;
-    }
-
-    private function loadStorefrontChrome(): ?ChromeDocument {
-        return $this->loadBlobPage(SpecialPagePId::CHROME);
-    }
-
-    /** The mff_PANELS document, fetched lazily and once via the LC FOB (same as the chrome page). */
-    private function storefrontPanels(): ?ChromeDocument {
-        if (!$this->panelsLoaded) {
-            $this->panelsLoaded = true;
-            $this->panelsCache = $this->loadBlobPage(SpecialPagePId::PANELS);
-        }
-        return $this->panelsCache;
-    }
-
-    private function loadBlobPage(string $pId): ?ChromeDocument {
-        $page = PluginProperties::loadSpecialPage($pId);
-        return $page === null ? null : ChromeDocument::fromJson($page->getLanguage()?->getPageContent());
-    }
-
-    /**
-     * Standalone-preview per-region override from the toolbar's "open preview" URL. Returns true
-     * when `$param` is 'mff', false when 'store', null when absent. Gated on the preview token so a
-     * real visitor's request (no token) can never toggle chrome via the query string.
-     */
-    private static function previewChromeOverride(string $param): ?bool {
-        if (MagicfrontToken::getToken() === null || !isset($_GET[$param])) {
-            return null;
-        }
-        return $_GET[$param] === '1';
-    }
-
-    /** The chrome variant a canvas region starts with: '1' (ours) unless the editor asked for the store's own. */
-    private static function canvasInitialVariant(string $param, bool $chromeOnly): string {
-        if ($chromeOnly) {
-            return '1';
-        }
-        return (self::previewChromeOverride($param) ?? true) ? '1' : '0';
-    }
-
-    private static function pluginProperties(): ?PluginProperties {
-        $pluginService = Loader::service(Services::PLUGIN);
-        $properties = $pluginService->getRoutePluginProperties(self::PLUGIN_MODULE);
-        return $properties instanceof PluginProperties ? $properties : null;
+        return EditorChrome::getLayout(self::LAYOUT, $chromeOnly);
     }
 }

@@ -11,18 +11,25 @@ use FWK\Core\Resources\RoutePaths;
 use FWK\Core\Resources\Session;
 use FWK\Core\Resources\Utils;
 use FWK\Services\LmsService;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\BasketWidgetData;
+use Plugins\ComLogicommerceMagicfront\Services\WidgetsService;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontUtils;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
+use Plugins\ComLogicommerceMagicfront\Controllers\Resources\Internal\PluginRoute\ComLogicommerceMagicfrontController;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WeekStart;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetLocator;
+use Plugins\ComLogicommerceMagicfront\Core\Twig\Functions\MagicfrontProductFunctions;
 use SDK\Application;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Resources\BatchRequests;
+use SDK\Dtos\Basket\Basket;
 use SDK\Enums\PostalCodeType;
 
 /**
  * Provides the platform-neutral `shared.*` container consumed by ANY widget (not just account) — the
  * FWK `session`/`settings` globals mirrored whole (`shared.session`, `shared.settings`) plus derived
  * env data (`countries`, `countryNames`, `locationData`, `companyRoles`, `customTags`); base `licenses`
- * come from {@see ProviderRegistry::baseShared()}. A widget reads uniform `shared.*` keys regardless of
+ * come from {@see \Plugins\ComLogicommerceMagicfront\Dtos\Common\BaseShared}. A widget reads uniform `shared.*` keys regardless of
  * platform — porting = re-fill these in the plugin, widget JSON untouched.
  *
  * `shared.*` is UNIVERSAL — {@see self::appliesTo()} always returns true, so it is built on every
@@ -69,12 +76,16 @@ class SharedDataProvider implements WidgetDataProvider {
         if ($ctx->canvasMode()) {
             return;
         }
-        if (empty($ctx->session()?->getBasket()?->getAccount()?->getId())) {
-            return;
-        }
+        $logged = !empty($ctx->session()?->getBasket()?->getAccount()?->getId());
         foreach (DataWidgetRegistry::types() as $type) {
             if ($ctx->hasAnyType([$type])) {
+                if ((!$logged && DataWidgetRegistry::requiresAccount($type)) || DataWidgetRegistry::isDeferred($type)) {
+                    continue;
+                }
                 DataWidgetRegistry::fetchInto($pages, $type, WidgetLocator::findByType($pages, $type));
+                continue;
+            }
+            if (!$logged) {
                 continue;
             }
             // No data widget in the panel, but a piece that reads its data (the account Summary's, E22): the piece
@@ -89,9 +100,9 @@ class SharedDataProvider implements WidgetDataProvider {
     }
 
     /**
-     * @return array `shared.*` extras (session/countries/countryNames/locationData/companyRoles/customTags). The
-     *         countries and the locations only when a template of the render reads them ({@see SharedNeeds}, #4251):
-     *         they cost API calls on every page and only the blocks that ask for an address or a place use them.
+     * @return array `shared.*` extras (session/settings/countries/countryNames/locationData/basket/companyRoles/customTags/paths/calendar).
+     *         The countries, the locations and the basket only when a template of the render reads them ({@see SharedNeeds}, #4251):
+     *         they cost API calls (or writing out every row) on every page and only the blocks that ask for them use them.
      */
     public function sharedData(ProviderContext $ctx): array {
         return [
@@ -119,9 +130,99 @@ class SharedDataProvider implements WidgetDataProvider {
                 'countries'    => $this->buildCountries(),
                 'countryNames' => $this->buildCountryNames(),
                 'locationData' => $this->buildLocationData(),
+                'basket'           => self::sessionBasketShared(),
+                'categoryDropdown' => self::categoryDropdownShared(),
             };
         }
         return $shared;
+    }
+
+    /** Memo of the sample basket for this request: one call however many pieces paint. */
+    private static ?array $sampleBasket = null;
+
+    /** MagicFront's sample basket in the language being edited, or null when the backend does not answer one. */
+    private static function sampleBasket(): ?array {
+        if (self::$sampleBasket !== null) {
+            return self::$sampleBasket;
+        }
+        try {
+            $language = MagicfrontUtils::contentLanguage(Language::getInstance()->getLanguage());
+            $sample = WidgetsService::getInstance()->getSample('basket', $language);
+        } catch (\Throwable) {
+            return null;
+        }
+        if (!is_array($sample) || !isset($sample['items']) || !is_array($sample['items'])) {
+            return null;
+        }
+        $sample['mffSample'] = true;
+        return self::$sampleBasket = $sample;
+    }
+
+    /** Memo of the sample category of the header's dropdown for this request: one call however many pieces paint. */
+    private static ?array $sampleCategoryDropdown = null;
+
+    /**
+     * `shared.categoryDropdown`: in the canvas, MagicFront's sample category (`GET /samples/category-dropdown`, the
+     * furniture of the sample store, in the language being edited), with the shape of an entry of mff_getCategories():
+     * the dropdown's pieces paint it FIRST, ahead of the store's own categories, so the merchant designs the dropdown on
+     * a full branch (picture, description, two levels) whatever the catalogue has, and hovering the real bar still opens
+     * the real category (02-11-2026). Outside the canvas, or when the backend does not answer, empty: nothing changes.
+     */
+    private static function categoryDropdownShared(): array {
+        if (!RenderMode::isCanvasMode()) {
+            return [];
+        }
+        if (self::$sampleCategoryDropdown !== null) {
+            return self::$sampleCategoryDropdown;
+        }
+        try {
+            $language = MagicfrontUtils::contentLanguage(Language::getInstance()->getLanguage());
+            $sample = WidgetsService::getInstance()->getSample('category-dropdown', $language);
+        } catch (\Throwable) {
+            return [];
+        }
+        if (!is_array($sample) || !isset($sample['id'], $sample['subcategories']) || !is_array($sample['subcategories'])) {
+            return [];
+        }
+        unset($sample['$comment']);
+        return self::$sampleCategoryDropdown = $sample;
+    }
+
+    /**
+     * `shared.basket`: the shopper's basket as basketContent reads `page.basket` ({@see BasketWidgetData}: the SDK basket
+     * untouched, plus each option's text and the warnings with LogiCommerce's own words), and in a field of its own,
+     * `mffTaxesIncluded`, whether the store shows its prices with taxes, read as LogiCommerce reads it
+     * ({@see MagicfrontProductFunctions::taxesIncluded()}): the amounts the pieces paint follow it. The pieces of the
+     * basket panel read it: they paint in the header of every page, where no controller attaches `page.basket`, and they
+     * are repainted alone through `widgetContent` after every change of the basket. Without a basket, only the tax flag.
+     */
+    public static function basketShared(?Basket $basket, bool $taxesIncluded, ?BasketWidgetData $data = null): array {
+        $shared = $basket === null ? [] : ($data ?? new BasketWidgetData())->of($basket);
+        $shared['mffTaxesIncluded'] = $taxesIncluded;
+        return $shared;
+    }
+
+    /**
+     * The session's basket for {@see basketShared()}. A session that has none yet (its typed property unset) or a basket
+     * that cannot be written out leaves it without rows instead of taking the whole page render down: the pieces then
+     * paint an empty basket, as the theme's own mini basket would.
+     */
+    private static function sessionBasketShared(): array {
+        // In the canvas the basket pieces paint MagicFront's sample basket (`GET /samples/basket`, the furniture of the
+        // sample store, in the language being edited), as a product page paints the sample product: not the editor's
+        // own session basket, and not a demo written inside each template (02-11-2026). Marked `mffSample`.
+        if (RenderMode::isCanvasMode()) {
+            $sample = self::sampleBasket();
+            if ($sample !== null) {
+                return $sample;
+            }
+        }
+        $taxesIncluded = MagicfrontProductFunctions::taxesIncluded();
+        try {
+            return self::basketShared(Session::getInstance()->getBasket(), $taxesIncluded);
+        } catch (\Throwable) {
+            return self::basketShared(null, $taxesIncluded);
+        }
     }
 
     /**
@@ -130,9 +231,18 @@ class SharedDataProvider implements WidgetDataProvider {
      * (#5064: the account's birthday pickers stay on Monday, as before).
      */
     private static function buildCalendar(): array {
+        $calendar = ['datePattern' => Utils::getJSDatePatternByLocale(Session::getInstance()->getGeneralSettings()->getLocale())];
         $firstDayOfWeek = WeekStart::fromCalendar(DateTimeFormatter::getCalendar());
-        return $firstDayOfWeek === null ? [] : ['firstDayOfWeek' => $firstDayOfWeek];
+        return $firstDayOfWeek === null ? $calendar : $calendar + ['firstDayOfWeek' => $firstDayOfWeek];
     }
+
+    /**
+     * Synthetic `shared.paths` key for the plugin's own AJAX route. It is not a FWK RouteType, so it is
+     * not in {@see RoutePaths::getRouteTypePaths()}; publishing it here lets a widget build the endpoint
+     * from `shared.paths` like every other action URL instead of hardcoding `/lc_ecom_internal/...`,
+     * which breaks on any commerce whose INTERNAL_PREFIX or internal URL prefix differs.
+     */
+    public const PLUGIN_ROUTE_KEY = 'MFF_PLUGIN_ROUTE';
 
     /** @return array<string, string> */
     private function buildPaths(): array {
@@ -147,6 +257,7 @@ class SharedDataProvider implements WidgetDataProvider {
                 continue;
             }
         }
+        $paths[self::PLUGIN_ROUTE_KEY] = '/' . INTERNAL_PREFIX . '/resources/plugin_route/' . ComLogicommerceMagicfrontController::PLUGIN_MODULE;
         return $paths;
     }
 
@@ -155,9 +266,18 @@ class SharedDataProvider implements WidgetDataProvider {
      * are sensitive / are not session DATA (framework objects). Everything else is carried verbatim.
      */
     private const SESSION_SKIP = [
-        'getInstance', 'getValue', 'getValues', 'getOrders', 'getOrder', 'getBasketGridProducts',
-        'getLockedStocksAggregateData', 'getExpressCheckoutPlugins', 'getBasketToken',
-        'getDefaultTheme', 'getDefaultRoute', 'getNavigationHash', 'getWarnings',
+        'getInstance',
+        'getValue',
+        'getValues',
+        'getOrders',
+        'getOrder',
+        'getBasketGridProducts',
+        'getExpressCheckoutPlugins',
+        'getBasketToken',
+        'getDefaultTheme',
+        'getDefaultRoute',
+        'getNavigationHash',
+        'getWarnings',
     ];
 
     /**

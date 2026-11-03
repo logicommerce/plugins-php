@@ -82,6 +82,19 @@ abstract class MagicfrontControllerData extends Enum {
     public const MOBILE_MENU_PANEL_TEMPLATE_LIST = 'mffMobileMenuPanelTemplateList';
     public const MOBILE_MENU_PANEL_CSS           = 'mffMobileMenuPanelCss';
     public const MOBILE_MENU_PANEL_JS            = 'mffMobileMenuPanelJs';
+    public const CATEGORY_DROPDOWN_PAGES         = 'mffCategoryDropdownPages';
+    public const CATEGORY_DROPDOWN_TEMPLATE_LIST = 'mffCategoryDropdownTemplateList';
+    public const CATEGORY_DROPDOWN_CSS           = 'mffCategoryDropdownCss';
+    public const CATEGORY_DROPDOWN_JS            = 'mffCategoryDropdownJs';
+    /** True when this document carries the category dropdown panel: categoryMenu@3's bar then opens it instead of painting
+     *  its own dropdown inside each category (it reads it with `is defined`, so an older plugin keeps the inline one). */
+    public const CATEGORY_DROPDOWN_ON            = 'mffCategoryDropdownOn';
+    /** What this plugin can paint that an older one could not ({@see PluginCapability::declared()}), only in the editor:
+     *  the `content` of `<meta name="mff-plugin-capabilities">`, which tells the editor what to offer for this store. */
+    public const PLUGIN_CAPABILITIES             = 'mffPluginCapabilities';
+
+    /** Public key of the store's captcha plugin, for the storefront's reCAPTCHA loader ('' = no captcha, or the canvas). */
+    public const CAPTCHA_SITE_KEY                = 'mffCaptchaSiteKey';
 
     /** Globals emitted by {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\ContextBuilder::toGlobals()}. */
     public const CONTEXT_CANVAS_MODE  = 'canvasMode';

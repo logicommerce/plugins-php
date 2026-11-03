@@ -9,7 +9,12 @@ use FWK\Core\Resources\Loader;
 use FWK\Enums\Parameters;
 use FWK\Enums\Services;
 use FWK\Enums\RouteType;
+use FWK\Enums\RouteTypes\InternalAccount;
+use FWK\Enums\RouteTypes\InternalCheckout;
+use FWK\Enums\RouteTypes\InternalUser;
+use Plugins\ComLogicommerceMagicfront\Core\Checkout\CheckoutRoute;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\OrderDetailUrl;
+use Plugins\ComLogicommerceMagicfront\Core\Theme\CaptchaRule;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RequestQuery;
 use Plugins\ComLogicommerceMagicfront\Enums\AccountRedirectRoutes;
@@ -20,6 +25,8 @@ use SDK\Core\Dtos\PluginProperties as CorePluginProperties;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Dtos\Traits\ElementTrait;
 use SDK\Core\Registry;
+use SDK\Core\Resources\BatchRequests;
+use SDK\Core\Services\BatchService;
 use SDK\Dtos\Catalog\Page\Page;
 use SDK\Services\Parameters\Groups\PageParametersGroup;
 
@@ -36,6 +43,9 @@ class PluginProperties extends CorePluginProperties {
      * @var array
      */
     private static array $specialPages = [];
+
+    /** Name of each special page in a batch call ({@see self::loadSpecialPages()}), followed by its pId. */
+    private const SPECIAL_PAGE_BATCH_KEY = 'mffSpecialPage_';
 
     protected array $properties = [];
 
@@ -83,6 +93,26 @@ class PluginProperties extends CorePluginProperties {
             return $routes;
         }
         return array_values(array_diff($routes, AccountRedirectRoutes::ORDER));
+    }
+
+    /**
+     * Theme configuration takeover routes, read by FWK PluginOverrideTrait::getActiveTcModifiers() for
+     * {@see \Plugins\ComLogicommerceMagicfront\Core\Theme\TcModifier}: the submits of the forms MagicFront
+     * renders on the pages the merchant enabled in BO, and the checkout routes FWK steers by the one step
+     * checkout setting. Kept apart from the layout and controller lists so these internal routes never get the
+     * chrome/Twig initializer; each rule reads the PUBLISHED page itself, so while the page is unpublished it
+     * changes nothing. Plus the submits of every form LogiCommerce protects with its captcha, where the MagicFront
+     * widget that sent the form decides it ({@see CaptchaRule}): those forms can sit on any page, so always.
+     *
+     * @return string[]
+     */
+    public function getTcOverridePages(): array {
+        $routes = $this->routesFromAvailablepages();
+        return array_values(array_unique(array_merge(
+            in_array(RouteType::CHECKOUT, $routes, true) ? [InternalCheckout::ADD_CUSTOMER, InternalCheckout::OSC_RECALCULATE, InternalCheckout::NEXT_STEP, InternalUser::SET_ADDRESS_BOOK, ...CheckoutRoute::oneStepRoutes()] : [],
+            in_array(RouteType::ACCOUNT, $routes, true) ? [InternalUser::ADD_USER, InternalAccount::UPDATE_ACCOUNT, InternalAccount::UPDATE_REGISTERED_USER] : [],
+            CaptchaRule::routes()
+        )));
     }
 
     /**
@@ -136,7 +166,8 @@ class PluginProperties extends CorePluginProperties {
      * Whether a MagicFront page with the given stable pId exists (is published). Per-request memoized,
      * shared by controller takeover AND chrome/panel injection so an unpublished special page keeps
      * producción on the commerce's own rendering. Public so {@see \Plugins\ComLogicommerceMagicfront\Core\Twig\TwigInitializer}
-     * gates mff_CHROME / mff_PANELS through the same single query+cache. Always asked in THIS request, never
+     * gates mff_HEADER / mff_FOOTER and the legacy mff_CHROME / mff_PANELS through the same memo, filled for the four
+     * in one batch call ({@see self::loadSpecialPages()}). Always asked in THIS request, never
      * remembered from an earlier one: a page unpublished a second ago is already gone here, so a route never takes
      * over to paint a page that is not there.
      */
@@ -153,17 +184,53 @@ class PluginProperties extends CorePluginProperties {
         if (!array_key_exists($pId, self::$specialPages)) {
             $page = null;
             try {
-                $params = new PageParametersGroup();
-                $params->setPId($pId);
-                $collection = Loader::service(Services::PAGE)->getPages($params);
-                $first = $collection instanceof ElementCollection ? ($collection->getItems()[0] ?? null) : null;
-                $page = $first instanceof Page ? $first : null;
+                $page = self::firstPage(Loader::service(Services::PAGE)->getPages(self::specialPageParams($pId)));
             } catch (\Throwable) {
                 $page = null;
             }
             self::$specialPages[$pId] = $page;
         }
         return self::$specialPages[$pId];
+    }
+
+    /**
+     * Brings into the same per-request memo, in ONE batch call, those of `$pIds` this request has not asked for yet:
+     * the chrome pages (the header, the footer and their legacy pages) are read together, so a store keeps one call
+     * however many of them it has. Nothing is asked when every one is already known. A failed call, or a failed
+     * answer, counts as not published for this request, as in {@see self::loadSpecialPage()}.
+     *
+     * @param string[] $pIds
+     */
+    public static function loadSpecialPages(array $pIds): void {
+        $missing = array_values(array_unique(array_filter($pIds,
+            static fn(string $pId): bool => !array_key_exists($pId, self::$specialPages))));
+        if ($missing === []) {
+            return;
+        }
+        try {
+            $requests = new BatchRequests();
+            foreach ($missing as $pId) {
+                Loader::service(Services::PAGE)->addGetPages($requests, self::SPECIAL_PAGE_BATCH_KEY . $pId, self::specialPageParams($pId));
+            }
+            $answers = BatchService::getInstance()->send($requests);
+        } catch (\Throwable) {
+            $answers = [];
+        }
+        foreach ($missing as $pId) {
+            self::$specialPages[$pId] = self::firstPage($answers[self::SPECIAL_PAGE_BATCH_KEY . $pId] ?? null);
+        }
+    }
+
+    private static function specialPageParams(string $pId): PageParametersGroup {
+        $params = new PageParametersGroup();
+        $params->setPId($pId);
+        return $params;
+    }
+
+    /** The page an answer of the page service brings, or null when it brings none (not published, or an error). */
+    private static function firstPage(mixed $collection): ?Page {
+        $first = $collection instanceof ElementCollection ? ($collection->getItems()[0] ?? null) : null;
+        return $first instanceof Page ? $first : null;
     }
 
     /** @return string[] */

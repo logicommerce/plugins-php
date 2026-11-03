@@ -16,7 +16,7 @@ use SDK\Dtos\Common\Route;
  * this controller only wires the trait's batch/data hooks into the FWK lifecycle. FWK's home never
  * populates `controllerItem`, so it is set to the mff_HOME page here (reusing the memoized resolve, no
  * extra query) — its content.header/footer per-page chrome overrides the generic mff_CHROME
- * (see TwigInitializer::pageChromeBlob), matching every other blob page.
+ * (see PublishedChrome::getPageChrome), matching every other blob page.
  *
  * @see FWKHomeController
  *

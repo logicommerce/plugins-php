@@ -34,6 +34,8 @@ class ChromeContent extends Element {
 
     protected ?WidgetInstanceCollection $mobileMenuPanel = null;
 
+    protected ?WidgetInstanceCollection $categoryDropdown = null;
+
     protected function setHeader(array $header): void {
         $this->header = new WidgetInstanceCollection(['items' => $header]);
     }
@@ -54,6 +56,10 @@ class ChromeContent extends Element {
         $this->mobileMenuPanel = new WidgetInstanceCollection(['items' => $mobileMenuPanel]);
     }
 
+    protected function setCategoryDropdown(array $categoryDropdown): void {
+        $this->categoryDropdown = new WidgetInstanceCollection(['items' => $categoryDropdown]);
+    }
+
     public function widgetsFor(ChromeKind $kind): ?WidgetInstanceCollection {
         return match ($kind) {
             ChromeKind::Header => $this->header,
@@ -61,6 +67,7 @@ class ChromeContent extends Element {
             ChromeKind::AccountPanel => $this->accountPanel,
             ChromeKind::BasketPanel => $this->basketPanel,
             ChromeKind::MobileMenuPanel => $this->mobileMenuPanel,
+            ChromeKind::CategoryDropdown => $this->categoryDropdown,
         };
     }
 }

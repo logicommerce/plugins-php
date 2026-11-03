@@ -21,8 +21,14 @@ namespace Plugins\ComLogicommerceMagicfront\Core\Providers;
  */
 final class SharedNeeds {
 
-    /** The `shared.*` keys built only when a template reads them; every other key is cheap and always built. */
-    public const ON_DEMAND = ['countries', 'countryNames', 'locationData'];
+    /**
+     * The `shared.*` keys built only when a template reads them; every other key is cheap and always built. `basket` is
+     * the shopper's basket as the basket panel's pieces read it ({@see SharedDataProvider::basketShared()}): no API call,
+     * but every row is written out with LogiCommerce's texts, so only a render that paints one of them pays for it.
+     * `categoryDropdown` is MagicFront's sample category the header's category dropdown paints first in the canvas
+     * ({@see SharedDataProvider::categoryDropdownShared()}): a backend call, so only the dropdown's pieces ask for it.
+     */
+    public const ON_DEMAND = ['countries', 'countryNames', 'locationData', 'basket', 'categoryDropdown'];
 
     private const TWIG_CODE = '/\{\{.*?\}\}|\{%.*?%\}/s';
 

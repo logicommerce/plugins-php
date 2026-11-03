@@ -57,7 +57,22 @@ class ProductInfoService extends BaseService {
     private function getProducts($productIds): array {
         $this->productService = Loader::service(Services::PRODUCT);
         $products = $this->productService->getProductsByIdList($productIds);
-        $productsDTO = new ProductMapper($products->getItems(), $this->pluginProperties);
+        $includes = $this->getIncludes();
+        $productsDTO = new ProductMapper($products->getItems(), $this->pluginProperties, $includes);
         return $productsDTO->map();
+    }
+
+    /**
+     * Parses the comma-separated "includes" request parameter (e.g.
+     * "stock,metafields,price,variations") into an array of include names.
+     *
+     * @return string[]
+     */
+    private function getIncludes(): array {
+        $includes = $this->getRequestParam(PluginRouteParameters::PARAMETER_INCLUDES, '');
+        if (empty($includes)) {
+            return [];
+        }
+        return array_map('trim', explode(',', $includes));
     }
 }

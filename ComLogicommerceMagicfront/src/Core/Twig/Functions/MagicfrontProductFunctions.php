@@ -80,7 +80,11 @@ class MagicfrontProductFunctions {
             && (bool) $commerce->getShowStockAlert();
     }
 
-    private static function taxesIncluded(): bool {
+    /**
+     * Whether the store shows its prices with taxes, read as LogiCommerce reads it (the commerce's B2C/B2B setting, never
+     * a widget's). Also what the basket panel's pieces get as `shared.basket.mffTaxesIncluded` (SharedDataProvider).
+     */
+    public static function taxesIncluded(): bool {
         if (class_exists('\FWK\Core\ViewHelpers\ViewHelper') && method_exists('\FWK\Core\ViewHelpers\ViewHelper', 'getApplicationTaxesIncluded')) {
             return (bool) \FWK\Core\ViewHelpers\ViewHelper::getApplicationTaxesIncluded();
         }

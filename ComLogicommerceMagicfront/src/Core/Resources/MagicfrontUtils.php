@@ -103,12 +103,13 @@ class MagicfrontUtils {
      * a header (not a query param) so no Varnish query-whitelist entry is needed and account
      * pages stay uncached. Strictly additive: absent header → normal full render, byte-identical.
      */
-    public static function isContentOnlyRequest(): bool {
-        if (!defined('REQUEST_HEADERS')) {
-            return false;
-        }
-        return (string) (REQUEST_HEADERS['X-MFF-CONTENT-ONLY'] ?? '') === '1';
-    }
+    // Disabled: no code has ever sent X-MFF-Content-Only (userPanel uses the widgetContent endpoint). Delete in the cleanup.
+    // public static function isContentOnlyRequest(): bool {
+    //     if (!defined('REQUEST_HEADERS')) {
+    //         return false;
+    //     }
+    //     return (string) (REQUEST_HEADERS['X-MFF-CONTENT-ONLY'] ?? '') === '1';
+    // }
 
     /**
      * The chrome region a render must be scoped to, or null for a normal full page. Signalled by
@@ -120,11 +121,15 @@ class MagicfrontUtils {
      * <p>The three panels are scoped too: they are overlays the visitor opens, so inside a whole shop
      * page the merchant could not see the one being edited at all.</p>
      */
-    public static function chromeOnlyRegion(): ?string {
+    public static function chromeOnlyRegion(): ?ChromeKind {
         if (MagicfrontToken::getToken() === null) {
             return null;
         }
-        return ChromeKind::tryFrom(RequestQuery::value(self::MFF_CHROME_ONLY, RequestQuery::exact()) ?? '')?->value;
+        $region = RequestQuery::value(self::MFF_CHROME_ONLY, RequestQuery::exact());
+        if ($region === null) {
+            return null;
+        }
+        return ChromeKind::tryFrom($region);
     }
 
     /**
@@ -139,7 +144,7 @@ class MagicfrontUtils {
     }
 
     /** Pure core of {@see chromeDraftId()}: the scoped region (null without a token) and the query value as read. */
-    public static function chromeDraftIdFrom(?string $chromeOnlyRegion, mixed $raw): ?string {
+    public static function chromeDraftIdFrom(?ChromeKind $chromeOnlyRegion, mixed $raw): ?string {
         if ($chromeOnlyRegion === null || !is_string($raw)) {
             return null;
         }

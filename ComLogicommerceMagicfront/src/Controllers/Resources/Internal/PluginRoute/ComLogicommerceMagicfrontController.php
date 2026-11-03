@@ -95,8 +95,12 @@ class ComLogicommerceMagicfrontController extends BaseJsonController {
             SampleSituationParam::VIEWER  => new FilterInput($noMod),
             SampleSituationParam::ACCOUNT => new FilterInput($noMod),
             SampleSituationParam::LINK    => new FilterInput($noMod),
+            SampleSituationParam::AUTH    => new FilterInput($noMod),
+            SampleSituationParam::BASKET  => new FilterInput($noMod),
             // `getWidgets`: the comma-separated ids of the widgets to render in one request.
             FunctionType::WIDGET_IDS_PARAM => new FilterInput($noMod),
+            // `widgetContent`: the chrome kind whose published document holds the widget (the basket panel's pieces).
+            FunctionType::CHROME_PARAM => new FilterInput($noMod),
         ];
     }
 

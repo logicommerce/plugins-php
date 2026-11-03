@@ -24,6 +24,7 @@ final class MagicfrontLogger extends LoggerAdapter {
 
     /** The header's category tree could not be read: the menu shows its empty state. */
     public const HEADER_CATEGORY_MENU_UNAVAILABLE = 'header_category_menu_unavailable';
+    public const OAUTH_TEMPLATE_MISSING = 'oauth_template_missing';
 
     protected const REQUIRED_PARAMS = ['code'];
 

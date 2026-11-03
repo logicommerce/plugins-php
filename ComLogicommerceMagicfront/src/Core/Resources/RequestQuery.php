@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Resources;
 
+use FWK\Core\Controllers\BaseJsonController;
 use FWK\Core\FilterInput\FilterInput;
 use FWK\Core\FilterInput\FilterInputHandler;
 use SDK\Core\Resources\Date;
@@ -151,6 +152,27 @@ final class RequestQuery {
             return null;
         }
         return $date;
+    }
+
+    /**
+     * Whether a form the store posts as JSON in `data` (the LC submits, {@see FilterInputHandler::PARAMS_FROM_POST_DATA_OBJECT})
+     * carries $name switched on: the plugin reads such a field only where FWK keeps no filter for it.
+     */
+    public static function postedFlag(string $name): bool {
+        $raw = $_POST[BaseJsonController::DATA] ?? null;
+        $data = is_string($raw) ? json_decode($raw, true) : null;
+        return is_array($data) && !empty($data[$name]);
+    }
+
+    /**
+     * A text field of a form the store posts as JSON in `data` (or, for a plain form post, the field itself), filtered by
+     * $filter; null when it is absent or filters to nothing. As {@see postedFlag()}, for a field FWK keeps no filter for.
+     */
+    public static function postedValue(string $name, FilterInput $filter): ?string {
+        $raw = $_POST[BaseJsonController::DATA] ?? null;
+        $data = is_string($raw) ? json_decode($raw, true) : null;
+        $value = is_array($data) && array_key_exists($name, $data) ? $data[$name] : ($_POST[$name] ?? null);
+        return self::filtered($value, $filter);
     }
 
     private static function filtered(mixed $raw, FilterInput $filter): ?string {

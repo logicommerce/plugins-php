@@ -1,0 +1,44 @@
+/* The browser half of LogiCommerce's captcha on a MagicFront page. LC.Form and our forms call the global
+   setCaptchaToken(callback) before sending a form that carries the `captchaToken` field; LogiCommerce then checks the
+   token on the server (FWK's CheckCaptcha: reCAPTCHA v3, action 'submit'). The store theme used to define it; a page
+   whose theme does not left the call failing and the sign-in refused. A theme that defines it keeps its own.
+   Google's script is loaded only on a page with such a field (on load, and on each mff:content:loaded). */
+(function (script) {
+  var key = script && script.getAttribute('data-mff-captcha-key');
+  if (!key) { return; }
+  var loading = null;
+  function load() {
+    if (!loading) {
+      loading = new Promise(function (resolve, reject) {
+        if (window.grecaptcha && window.grecaptcha.execute) { window.grecaptcha.ready(resolve); return; }
+        var tag = document.createElement('script');
+        tag.src = 'https://www.google.com/recaptcha/api.js?render=' + encodeURIComponent(key);
+        tag.async = true;
+        tag.onload = function () { window.grecaptcha.ready(resolve); };
+        tag.onerror = function () { loading = null; reject(new Error('reCAPTCHA did not load')); };
+        document.head.appendChild(tag);
+      });
+    }
+    return loading;
+  }
+  function ours(callback) {
+    load().then(function () {
+      return window.grecaptcha.execute(key, { action: 'submit' });
+    }).then(callback, function () {
+      /* Without a token the form still goes: LogiCommerce answers it with its own captcha message. */
+      callback('');
+    });
+  }
+  ours.mff = true;
+  function defined() {
+    return typeof window.setCaptchaToken === 'function' && !window.setCaptchaToken.mff;
+  }
+  function scan() {
+    if (defined()) { return; }
+    window.setCaptchaToken = ours;
+    if (document.querySelector('input[name="captchaToken"]')) { load().catch(function () {}); }
+  }
+  if (!defined()) { window.setCaptchaToken = ours; }
+  if (document.readyState === 'complete') { scan(); } else { window.addEventListener('load', scan); }
+  document.addEventListener('mff:content:loaded', scan);
+})(document.currentScript);

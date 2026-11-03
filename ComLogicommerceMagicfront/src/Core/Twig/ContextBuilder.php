@@ -48,7 +48,7 @@ class ContextBuilder {
         /** Each entry: ['code','symbol','name','codeNumber','usdValue','id','isActive']. Consumer: mff_getMoney(). */
         public readonly array $currencies = [],
         /** Top categories (parentId 0) each with one level of subcategories.
-         *  Each entry: ['id','name','url','subcategories'=>[['id','name','url'],...]]. Consumer: mff_getCategories(). */
+         *  Each entry: ['id','name','url','image','description','subcategories'=>[...]]. Consumer: mff_getCategories(). */
         public readonly array $categories = [],
         /** Stable blob pId of the page being rendered (mff_* for singleton routes, else the numeric page id).
          *  Exposed as the `mff_pagePId` Twig global so a widget can echo it (data-mff-page-pid) and its AJAX
@@ -86,11 +86,16 @@ class ContextBuilder {
      *
      * `$withNav` builds the header category tree ({@see self::buildCategoriesFromArea}, an AREA
      * service call); a content-only partial render skips it (the nav is chrome, not rendered).
+     *
+     * `$canvasMode` overrides the sniffed value for entry points that KNOW they serve the canvas.
+     * {@see RenderMode::isCanvasMode} needs `Sec-Fetch-Dest: iframe`, which an XHR never sends, so
+     * the canvas' own widget-refresh endpoint must declare itself or its widgets would take the
+     * storefront branch and render real (often absent) data instead of their mock.
      */
-    public static function fromSession(bool $withNav = true, string $pagePId = ''): self {
+    public static function fromSession(bool $withNav = true, string $pagePId = '', ?bool $canvasMode = null): self {
         $settings = Session::getInstance()->getGeneralSettings();
         return new self(
-            canvasMode: RenderMode::isCanvasMode(),
+            canvasMode: $canvasMode ?? RenderMode::isCanvasMode(),
             previewMode: RenderMode::isPreviewMode(),
             coreMode: self::DEFAULT_CORE_MODE,
             language: $settings->getLanguage(),
@@ -160,6 +165,10 @@ class ContextBuilder {
             'id'            => $category->getId(),
             'name'          => $language->getName(),
             'url'           => $language->getLink(),
+            // What the header dropdown shows of a category (categoryMenu@3, `dropdown` mode): its catalogue picture and
+            // short description. A template reads them with `is defined`, so a plugin without them paints no picture.
+            'image'         => $language->getSmallImage(),
+            'description'   => $language->getShortDescription(),
             'subcategories' => [],
         ];
         if ($depth > 1) {

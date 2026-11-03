@@ -414,7 +414,9 @@ class PageRelationResolver {
     }
 
     protected static function prepareBatchRequestsRecursive(ElementCollection &$pages, BatchRequests $batchRequests): void {
-        $pages = DtosElementCollection::fillFromParentCollection($pages, Page::class);
+        if (!self::onlyPages($pages)) {
+            $pages = DtosElementCollection::fillFromParentCollection($pages, Page::class);
+        }
         foreach ($pages->getItems() as $page) {
             if (!$page instanceof Page) {
                 continue;
@@ -429,6 +431,20 @@ class PageRelationResolver {
                 $page->setFWKSubpages($subPages->getItems());
             }
         }
+    }
+
+    /**
+     * Whether every item is already a plugin {@see Page}: then there is nothing to normalise. The FWK round trip
+     * (toArray → new Page) rebuilds the item's whole subtree, and run at every level it cost a 464-widget checkout
+     * page ~200 MB of the 256 MB a request has.
+     */
+    private static function onlyPages(ElementCollection $pages): bool {
+        foreach ($pages->getItems() as $page) {
+            if (!$page instanceof Page) {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected static function applyBatchResultsRecursive(array $batchResults, ?ElementCollection $pages): void {

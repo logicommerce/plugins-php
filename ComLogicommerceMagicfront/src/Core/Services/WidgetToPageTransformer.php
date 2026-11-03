@@ -104,9 +104,10 @@ class WidgetToPageTransformer {
      * string `id` (and its `draftId` alias) from the constructor and set
      * the UUID via {@see Page::setDraftId} after instantiation.
      */
-    private static function buildPageFromArray(array $pageArray): Page {
+    private static function buildPageFromArray(array $pageArray, array $ancestorTypes = []): Page {
         $uuid     = $pageArray['draftId'] ?? '';
         $subpages = $pageArray['subpages'] ?? [];
+        $type     = (string) ($pageArray['customType'] ?? '');
 
         $page = new Page([
             'id'              => 0,
@@ -146,8 +147,10 @@ class WidgetToPageTransformer {
         if (isset($pageArray['revision'])) {
             $page->setWidgetRevision((int) $pageArray['revision']);
         }
+        $page->setAncestorTypes($ancestorTypes);
         if (!empty($subpages)) {
-            $page->setFWKSubpages(array_map([self::class, 'buildPageFromArray'], $subpages));
+            $childAncestors = $type !== '' ? [...$ancestorTypes, $type] : $ancestorTypes;
+            $page->setFWKSubpages(array_map(static fn(array $subpage): Page => self::buildPageFromArray($subpage, $childAncestors), $subpages));
         }
         return $page;
     }

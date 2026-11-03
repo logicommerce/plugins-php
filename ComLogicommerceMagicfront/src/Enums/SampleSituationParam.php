@@ -32,6 +32,12 @@ abstract class SampleSituationParam extends Enum {
     /** `in` — the simulated shopper is logged in and has the sample product in their favourites. Canvas only. */
     public const WISHLIST = 'mff_sample_wishlist';
 
+    /** `anonymous` | `logged` — the sample checkout's shopper is a guest or a signed-in account. */
+    public const AUTH = 'mfSampleAuth';
+
+    /** `full` | `empty` — the sample checkout's basket with or without rows. */
+    public const BASKET = 'mfSampleBasket';
+
     /**
      * The account page's «Who is looking?» (E22, #4502): `customer` | `company` | `agent` | `guest`. `mf` + camelCase,
      * like every new MagicFront param; the product ones above keep their published snake_case names.
@@ -53,6 +59,8 @@ abstract class SampleSituationParam extends Enum {
         self::VIEWER  => 'viewer',
         self::ACCOUNT => 'account',
         self::LINK    => 'link',
+        self::AUTH    => 'auth',
+        self::BASKET  => 'basket',
     ];
 
     /**

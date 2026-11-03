@@ -19,6 +19,7 @@ use Plugins\ComLogicommerceMagicfront\Dtos\Common\PluginProperties;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\BreadcrumbResolver;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\PageRelationResolver;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\CheckoutSample;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\AccountSample;
 use Plugins\ComLogicommerceMagicfront\Dtos\Content\PageDocument;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
@@ -117,6 +118,9 @@ trait MagicfrontTrait {
     /** Memoized `GET /samples/category` (array as the backend returns it); null until first asked. */
     private ?array $categorySampleCache = null;
 
+    /** Memoized `GET /samples/checkout` (array as the backend returns it); null until first asked. */
+    private ?array $checkoutSampleCache = null;
+
     private array $relatedItemsCache = [];
 
     private bool $magicfrontPageResolved = false;
@@ -150,6 +154,8 @@ trait MagicfrontTrait {
             SampleSituationParam::VIEWER  => new FilterInput($noMod),
             SampleSituationParam::ACCOUNT => new FilterInput($noMod),
             SampleSituationParam::LINK    => new FilterInput($noMod),
+            SampleSituationParam::AUTH    => new FilterInput($noMod),
+            SampleSituationParam::BASKET  => new FilterInput($noMod),
         ];
     }
 
@@ -185,7 +191,7 @@ trait MagicfrontTrait {
      */
     private function redirectToContentLanguage(Route $route): void {
         if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET' || MagicfrontUtils::isCanvasFetch()
-            || MagicfrontUtils::isContentOnlyRequest()
+            // || MagicfrontUtils::isContentOnlyRequest() // Disabled: no code has ever sent X-MFF-Content-Only (userPanel uses the widgetContent endpoint). Delete in the cleanup.
         ) {
             return;
         }
@@ -323,7 +329,7 @@ trait MagicfrontTrait {
         // Account/session widgets attach via the provider registry (runs when their widget type is
         // present, independent of route — the basis for placing account widgets on any page).
         Utils::addTimerDebugFlag('mf-providerAttach', Timer::START_SUFFIX);
-        $this->dispatchProviderAttach();
+        $this->dispatchProviderAttach($templates);
         Utils::addTimerDebugFlag('mf-providerAttach', Timer::END_SUFFIX);
         // The account page in the editor canvas: the sample customer instead of the account data it never fetches.
         $this->attachAccountSample();
@@ -342,6 +348,10 @@ trait MagicfrontTrait {
         PageRelationResolver::attachWishlist($this->pages, $this->routeWishlist());
         // Product-detail routes attach native comment-form wiring → page.commentForm. No-op elsewhere.
         PageRelationResolver::attachCommentForm($this->pages, $this->routeCommentForm());
+        // BASKET / CHECKOUT pages in the editor: the sample checkout's view models → page.checkout*. No-op elsewhere.
+        if (CheckoutSample::paints($this->pageType)) {
+            PageRelationResolver::attachWidgetData($this->pages, CheckoutSample::assignments($this->checkoutSample()));
+        }
         if (MagicfrontUtils::chromeOnlyRegion() === null) {
             Utils::addTimerDebugFlag('mf-providerShared', Timer::START_SUFFIX);
             $this->dispatchProviderShared($templates);
@@ -368,8 +378,8 @@ trait MagicfrontTrait {
         );
         // Content-only partial render skips the asset bundle: the widget CSS/JS is already in the
         // document from the initial full load, so the tab-swap response ships HTML only.
-        $showAssets = !MagicfrontUtils::isContentOnlyRequest()
-            && (!$canvasMode || $previewMode) && !empty($this->pageId) && !empty($widgetTypes);
+        $showAssets = /* !MagicfrontUtils::isContentOnlyRequest() && */ // Disabled: no code has ever sent X-MFF-Content-Only (userPanel uses the widgetContent endpoint). Delete in the cleanup.
+            (!$canvasMode || $previewMode) && !empty($this->pageId) && !empty($widgetTypes);
         $assets = $showAssets
             ? (new WidgetAssetsBuilder())->build($this->widgets, $templates)
             : ['css' => '', 'js' => ''];
@@ -433,7 +443,7 @@ trait MagicfrontTrait {
     }
 
     /** Immutable context a provider reads: route + session + present widget types + a data resolver. */
-    private function buildProviderContext(mixed $routeEntity = null, ?array $sharedNeeds = null): ProviderContext {
+    private function buildProviderContext(mixed $routeEntity = null, ?array $sharedNeeds = null, array $templates = []): ProviderContext {
         return new ProviderContext(
             $this->route,
             $this->getSession(),
@@ -442,6 +452,7 @@ trait MagicfrontTrait {
             $routeEntity,
             RenderMode::isCanvasMode(),
             $sharedNeeds,
+            $templates,
         );
     }
 
@@ -477,10 +488,14 @@ trait MagicfrontTrait {
      * node outside any panel, or inside the active panel, is still collected via that node — so a
      * standalone widget of the same type as an inactive panel keeps its data (fixes the type-diff bug).
      *
-     * Pseudo detection uses {@see self::isPanelPseudo()} (no slotId) — the reliable, storefront-safe test
-     * matching the template, so root slots[] children (WITH a slotId, e.g. userPanel's `accountForms`)
-     * are never mistaken for panels. (Aligning with the DTO's autoGenerated-based check is deferred — an
-     * unpopulated autoGenerated on the FOB blob would silently disable trimming.)
+     * Pseudo detection uses {@see self::isPanelPseudo()}: no slotId, no customType AND a panel marker
+     * (`sectionKey`/`isTitle`/`lcFunction`). Root slots[] children carry a slotId (e.g. userPanel's
+     * `accountForms`) and free children of a container carry a real type (e.g. the widgets a merchant
+     * drops into a group). The marker is what separates a PANEL pseudo from any other childStructure
+     * pseudo (onePageCheckout's columns, cardGrid's cards, …): those render all at once, so trimming
+     * them dropped every data type living outside the first column/card. (Aligning with the DTO's
+     * autoGenerated-based check is deferred — an unpopulated autoGenerated on the FOB blob would
+     * silently disable trimming.)
      *
      * Active-panel resolution mirrors the template: with a valid `?mfPanel`, the matching pseudo; with an
      * absent/unknown one, the prefix up to and including the first pseudo that has NO `gatingFlag` (that
@@ -558,14 +573,19 @@ trait MagicfrontTrait {
         }
     }
 
-    /** A childStructure panel pseudo: a direct child with no typed slotId (root slot children carry one). */
     private function isPanelPseudo(Page $page): bool {
-        return $page->getSlotId() === null || $page->getSlotId() === '';
+        if (($page->getSlotId() !== null && $page->getSlotId() !== '') || $page->getCustomType() !== '') {
+            return false;
+        }
+        $ms = $page->getModuleSettings();
+        return (string) ($ms['sectionKey'] ?? '') !== ''
+            || !empty($ms['isTitle'])
+            || (string) ($ms['lcFunction'] ?? '') !== '';
     }
 
     /** Run every applicable provider's attach() over the widget pages. */
-    private function dispatchProviderAttach(): void {
-        $ctx = $this->buildProviderContext();
+    private function dispatchProviderAttach(array $templates = []): void {
+        $ctx = $this->buildProviderContext(templates: $templates);
         foreach ($this->providers() as $provider) {
             if ($provider->appliesTo($ctx)) {
                 $provider->attach($this->pages, $ctx);
@@ -588,7 +608,11 @@ trait MagicfrontTrait {
                 : $template;
         }
         $ctx = $this->buildProviderContext(null, SharedNeeds::of($html));
-        $this->setDataValue(MagicfrontControllerData::SHARED, ProviderRegistry::collectShared($this->providers(), $ctx));
+        $shared = ProviderRegistry::collectShared($this->providers(), $ctx);
+        if (CheckoutSample::paints($this->pageType)) {
+            $shared = CheckoutSample::withSession($shared, $this->checkoutSample());
+        }
+        $this->setDataValue(MagicfrontControllerData::SHARED, $shared);
     }
 
     /**
@@ -735,6 +759,19 @@ trait MagicfrontTrait {
      */
     private function sampleCollection(string $key, string $dtoClass): ?ElementCollection {
         return PageRelationResolver::sampleCollection($this->categorySample(), $key, $dtoClass);
+    }
+
+    private function checkoutSample(): array {
+        if ($this->checkoutSampleCache === null) {
+            $this->checkoutSampleCache = $this->widgetsService instanceof WidgetsService
+                ? $this->widgetsService->getSample(
+                    MagicfrontPageType::SAMPLE_KIND[MagicfrontPageType::CHECKOUT],
+                    $this->resolveContentLanguage(),
+                    SampleSituationParam::fromRequest(fn(string $p): mixed => $this->getRequestParam($p, false, null))
+                )
+                : [];
+        }
+        return $this->checkoutSampleCache;
     }
 
     private function productSample(): array {

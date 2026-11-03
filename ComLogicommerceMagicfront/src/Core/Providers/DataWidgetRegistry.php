@@ -4,7 +4,16 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Providers;
 
+use Plugins\ComLogicommerceMagicfront\Core\AccountLogin\AccountLoginService;
 use Plugins\ComLogicommerceMagicfront\Core\AddressBook\AddressBookService;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutLinkeds\CheckoutLinkedsService;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutBasket\CheckoutBasketService;
+use Plugins\ComLogicommerceMagicfront\Core\Checkout\CheckoutRoute;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutWarnings\CheckoutWarningsService;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutPayments\CheckoutPaymentsService;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutPlaceOrder\CheckoutPlaceOrderService;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutSelectableGifts\CheckoutSelectableGiftsService;
+use Plugins\ComLogicommerceMagicfront\Core\CheckoutShippings\CheckoutShippingsService;
 use Plugins\ComLogicommerceMagicfront\Core\OrderDetail\OrderDetailService;
 use Plugins\ComLogicommerceMagicfront\Core\Orders\OrdersService;
 use Plugins\ComLogicommerceMagicfront\Core\PaymentCards\PaymentCardsService;
@@ -22,6 +31,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Subscriptions\SubscriptionsService;
 use Plugins\ComLogicommerceMagicfront\Core\VoucherCodes\VoucherCodesService;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
 use SDK\Core\Dtos\ElementCollection;
+use SDK\Enums\RouteType;
 
 /**
  * Single source of truth mapping an account widget TYPE to the Service that fetches its data and the
@@ -41,11 +51,15 @@ class DataWidgetRegistry {
      * @var array
      */
     private const MAP = [
+        'accountLogin'          => [AccountLoginService::class,          ['setAccountLogin' => null]],
+        'accountLoginGoogle'    => [AccountLoginService::class,          ['setAccountLogin' => null]],
+        'accountLoginFacebook'  => [AccountLoginService::class,          ['setAccountLogin' => null]],
         'addressBook'           => [AddressBookService::class,           ['setInvoicingAddresses' => 'invoicing', 'setShippingAddresses' => 'shipping']],
         'orderDetail'           => [OrderDetailService::class,           ['setOrderDetail' => null]],
         'orders'                => [OrdersService::class,                ['setOrders' => 'orders', 'setOrdersPagination' => 'pagination', 'setOrdersAccountNames' => 'accountNames']],
         'shoppingList'          => [ShoppingListService::class,          ['setShoppingListRows' => 'rows', 'setShoppingLists' => 'lists']],
         'rewardPoints'          => [RewardPointsService::class,          ['setRewardPoints' => null]],
+        'checkoutRewardPoints'  => [RewardPointsService::class,          ['setRewardPoints' => null]],
         'rmas'                  => [RmasService::class,                  ['setRmas' => null]],
         'saveForLater'          => [SaveForLaterService::class,          ['setSaveForLater' => 'rows']],
         'stockAlerts'           => [StockAlertsService::class,           ['setStockAlerts' => null]],
@@ -53,10 +67,62 @@ class DataWidgetRegistry {
         'paymentCards'          => [PaymentCardsService::class,          ['setPaymentCards' => null]],
         'salesAgentCustomers'   => [SalesAgentCustomersService::class,   ['setSalesAgentCustomers' => null]],
         'salesAgentSales'       => [SalesAgentSalesService::class,       ['setSalesAgentSales' => null]],
+        'saveForLaterSlider'    => [SaveForLaterService::class,          ['setSaveForLaterRows' => null]],
+        'checkoutLinkeds'       => [CheckoutLinkedsService::class,        ['setCheckoutLinkeds' => null]],
+        'checkoutSelectableGifts' => [CheckoutSelectableGiftsService::class, ['setCheckoutSelectableGifts' => null]],
+        'checkoutPayments'      => [CheckoutPaymentsService::class,       ['setCheckoutPayments' => null]],
+        'checkoutShippings'     => [CheckoutShippingsService::class,      ['setCheckoutShippings' => null]],
+        'checkoutBasket'        => [CheckoutBasketService::class,         ['setCheckoutBasket' => null]],
+        'checkoutWarnings'      => [CheckoutWarningsService::class,       ['setCheckoutWarnings' => null]],
+        'checkoutPlaceOrder'    => [CheckoutPlaceOrderService::class,     ['setCheckoutPlaceOrder' => null]],
         'voucherCodes'          => [VoucherCodesService::class,          ['setVoucherCodes' => null]],
         'registeredUserData'    => [RegisteredUserDataService::class,    ['setRegisteredUserData' => null]],
         'registeredUserProfile' => [RegisteredUserProfileService::class, ['setRegisteredUserProfile' => null]],
     ];
+
+    /**
+     * Types whose data hangs off the BASKET, not off a logged-in account: they must be fetched for
+     * anonymous visitors too (checkout is frequently anonymous). Every other type in {@see self::MAP}
+     * reads the account API and is skipped without a session — see {@see self::requiresAccount()}.
+     * `accountLogin` sits here for the opposite reason: it is the ANONYMOUS face, so gating it on a
+     * session would starve it exactly when it renders. Its service reads the oauth plugin list, never
+     * the account API.
+     *
+     * @var string[]
+     */
+    private const BASKET_SCOPED = ['accountLogin', 'accountLoginGoogle', 'accountLoginFacebook', 'checkoutLinkeds', 'checkoutSelectableGifts', 'checkoutPayments', 'checkoutShippings', 'checkoutBasket', 'checkoutWarnings', 'checkoutPlaceOrder'];
+
+    /**
+     * Types the full-page render must NOT fetch: the checkout OSC additional-content modules. The store
+     * ships them as empty shells and fills them after load, so blocking the checkout document on three
+     * extra API calls would be slower than the store for no visible gain. Their widgets carry
+     * `data-mff-defer` and pull their own content through `widgetContent` once the page is interactive
+     * — that path calls {@see self::fetchInto()} directly, so the data still arrives.
+     *
+     * @var string[]
+     */
+    private const DEFERRED = ['checkoutLinkeds', 'checkoutSelectableGifts', 'saveForLaterSlider', 'checkoutRewardPoints', 'checkoutPayments', 'checkoutShippings'];
+
+    /**
+     * Whether $type is fetched lazily by the widget itself instead of by the page render.
+     *
+     * Deferring is a ONE-PAGE-checkout optimisation: there the store also ships those modules empty and
+     * fills them after load, and the OSC engine binds them again on every refresh. The native step
+     * routes have no OSC engine — {@see \LC\CheckoutForm} binds once, at page load, by markup
+     * (`.basketSelectorPaymentInput`, `input.shippingTypeSelector`, …), so a module that arrives later
+     * over AJAX is never bound and its radios do nothing. On a step route nothing is deferred.
+     */
+    public static function isDeferred(string $type): bool {
+        if (CheckoutRoute::current() !== RouteType::CHECKOUT) {
+            return false;
+        }
+        return in_array($type, self::DEFERRED, true);
+    }
+
+    /** Whether $type needs a logged-in account before its service may run. */
+    public static function requiresAccount(string $type): bool {
+        return !in_array($type, self::BASKET_SCOPED, true);
+    }
 
     /**
      * Pieces that paint part of a data widget's data without being that widget: the account Summary's (E22). A panel

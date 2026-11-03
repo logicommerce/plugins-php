@@ -28,6 +28,12 @@ class ProviderContext {
         private readonly mixed $routeEntity = null,
         private readonly bool $canvasMode = false,
         private readonly ?array $sharedNeeds = null,
+        /** The widget templates this render will paint, keyed by type. Values are raw templateHtml on
+         *  the AJAX path and WidgetTemplate objects on the full-page path (fwk hands the DTOs and the
+         *  HTML is pulled with getTemplateHtml()); {@see self::templatesReference()} accepts both, and
+         *  assuming strings made it silently never match. Lets a provider decide by what the templates
+         *  actually READ instead of by a hardcoded widget-type list. */
+        private readonly array $templates = [],
     ) {
     }
 
@@ -37,6 +43,24 @@ class ProviderContext {
      */
     public function needsShared(string $key): bool {
         return $this->sharedNeeds === null || in_array($key, $this->sharedNeeds, true);
+    }
+
+    /**
+     * Whether any template in this render references `$needle` (e.g. `page.customTags.account`).
+     *
+     * A provider keyed on this is self-describing: a widget declares the dependency by reading the
+     * key in its own Twig, and the data follows — no provider-side list of widget types to keep in
+     * sync as widgets are added, renamed or start/stop using a field.
+     */
+    public function templatesReference(string $needle): bool {
+        foreach ($this->templates as $template) {
+            $html = is_string($template) ? $template
+                : (is_object($template) && method_exists($template, 'getTemplateHtml') ? $template->getTemplateHtml() : null);
+            if (is_string($html) && str_contains($html, $needle)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public function route(): ?Route {

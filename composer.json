@@ -34,6 +34,7 @@
 			"ComLogicommerceMagicfront/vendor/autoload.php",
 			"ComLogicommerceAdyenv6/vendor/autoload.php",
 			"ComLogicommerceOmniwallet/vendor/autoload.php",
+			"ComLogicommerceAplazame/vendor/autoload.php",
 			"_config.php"
 		]
 	},

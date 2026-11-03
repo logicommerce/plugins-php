@@ -18,7 +18,7 @@ class SearchMapper extends BaseMapper {
 
     private ?Object $items;
 
-    private ?string $appliedFilter;
+    private ?array $appliedFilters;
 
     public function __construct($items, ?PluginProperties $pluginProperties = null) {
         $this->items = $items;
@@ -45,16 +45,16 @@ class SearchMapper extends BaseMapper {
         }
         $productSearchDTO->setResults($productDTOs);
         $filter = new FilterMapper($this->items->getFilter());
-        $filter->setAppliedFilter($this->getAppliedFilter());
+        $filter->setAppliedFilter($this->getAppliedFilters());
         $productSearchDTO->setFilters($filter->map());
         return $productSearchDTO;
     }
 
-    public function setAppliedFilter($appliedFilter) {
-        $this->appliedFilter = $appliedFilter;
+    public function addAppliedFilter($appliedFilter) {
+        $this->appliedFilters[] = $appliedFilter;
     }
 
-    private function getAppliedFilter() {
-        return $this->appliedFilter;
+    private function getAppliedFilters() {
+        return $this->appliedFilters;
     }
 }

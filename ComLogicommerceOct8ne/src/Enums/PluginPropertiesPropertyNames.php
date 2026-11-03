@@ -36,4 +36,8 @@ class PluginPropertiesPropertyNames extends Enum {
 
     public const REFERENCETYPE = 'referenceType';
 
+    public const PRICEBYQUANTITY = 'priceByQuantity';
+
+    public const PRICEBYOPTION = 'priceByOption';
+
 }

@@ -1,0 +1,38 @@
+{% set product = "" %}
+{% for property in paymentSystem.pluginPropertiesConnectorItemProperties %}
+    {% if property.name == constant('Plugins\\ComLogicommerceAplazame\\Enums\\PluginPropertiesConnectorItemPropertyNames::SUBPAYMENTSYSTEMID') %}
+        {% set product = property.value %}
+    {% endif %}
+{% endfor %}
+{% set amount = (args.basket.totals.total * 100) | round %}
+{% set currency = session.generalSettings.currency %}
+{% set country = session.generalSettings.country %}
+{% if product|length %}
+<div class="aplazameWidget aplazameWidget-id{{ paymentSystem.id }}">
+    {% if product == constant('Plugins\\ComLogicommerceAplazame\\Enums\\AplazameProducts::PAY_LATER') %}
+        <div data-aplazame-widget-paylater
+            data-amount="{{ amount }}"
+            data-currency="{{ currency|e('html_attr') }}"
+            data-country="{{ country|e('html_attr') }}"
+            data-type="text"
+            data-option-align="left"
+            data-option-branding="true">
+        </div>
+    {% elseif product == constant('Plugins\\ComLogicommerceAplazame\\Enums\\AplazameProducts::PAY_IN_4') %}
+        <div data-aplazame-widget-instalments
+            data-amount="{{ amount }}"
+            data-currency="{{ currency|e('html_attr') }}"
+            data-country="{{ country|e('html_attr') }}"
+            data-view="cart"
+            data-pay-in-4>
+        </div>
+    {% elseif product == constant('Plugins\\ComLogicommerceAplazame\\Enums\\AplazameProducts::INSTALMENTS') %}
+        <div data-aplazame-widget-instalments="v5"
+            data-amount="{{ amount }}"
+            data-currency="{{ currency|e('html_attr') }}"
+            data-country="{{ country|e('html_attr') }}"
+            data-view="cart">
+        </div>
+    {% endif %}
+</div>
+{% endif %}

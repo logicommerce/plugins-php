@@ -15,6 +15,7 @@ use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\CssGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\JsGeneratorTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Controllers\Traits\WidgetTwigRenderingTrait;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\ProviderRegistry;
+use Plugins\ComLogicommerceMagicfront\Core\Resources\CheckoutSample;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\SharedNeeds;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\ContentLocaleScope;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\MagicfrontToken;
@@ -52,6 +53,8 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     /** Per-request memo of `GET /samples/category`, shared by the widgets of one `getWidgets` batch. */
     private ?array $categorySampleMemo = null;
 
+    /** Memoized `GET /samples/checkout` for a BASKET / CHECKOUT page; null until first asked. */
+    private ?array $checkoutSampleMemo = null;
     /** Per-request memo of `GET /samples/account`, shared by the widgets of one `getWidgets` batch. */
     private ?array $accountSampleMemo = null;
 
@@ -152,14 +155,19 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             $widget   = $this->resolveCatalogRelations($widget);
             $this->attachProductSample($service, $pageId, $language, $widget, $situation);
             $this->attachCategorySample($service, $pageId, $language, $widget, $situation);
+            $this->attachCheckoutSample($service, $pageId, $language, $widget, $situation);
             $this->attachAccountSample($service, $pageId, $language, $widget, $situation);
             $neededTypes = WidgetTypeCollector::templateKeysFromPages([$widget]);
             $templates   = $this->templatesFor($service, $neededTypes);
+            $list        = $this->buildWidgetTemplateList($neededTypes, $templates);
+            if ($widget !== null) {
+                ProviderRegistry::attachReferenced(new ElementCollection(['items' => [$widget]]), $list);
+            }
             return [
                 'instance'  => $instance,
                 'widget'    => $widget,
                 'templates' => $templates,
-                'list'      => $this->buildWidgetTemplateList($neededTypes, $templates),
+                'list'      => $list,
             ];
         } catch (\Throwable $e) {
             return ['error' => $e->getMessage()];
@@ -220,8 +228,13 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
      * messageError}`), the same for `getWidget` and each entry of `getWidgets`. `$env` / `$union` are the batch's
      * shared Twig environment and template list; null / empty = build this widget's own (single `getWidget`).
      */
-    private function finishOne(ComLogicommerceMagicfrontController $controller, string $widgetId, array $prepared,
-            ?\Twig\Environment $env, array $union): array {
+    private function finishOne(
+        ComLogicommerceMagicfrontController $controller,
+        string $widgetId,
+        array $prepared,
+        ?\Twig\Environment $env,
+        array $union
+    ): array {
         try {
             if (isset($prepared['error'])) {
                 throw new \RuntimeException($prepared['error']);
@@ -307,6 +320,20 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     }
 
     /**
+     * Same rule as {@see attachProductSample()} for a BASKET or CHECKOUT page: the full editor render paints MagicFront's
+     * sample checkout ({@see CheckoutSample}), so a checkout widget refreshed alone gets the same view models
+     * (`page.checkoutBasket`, `page.basketContent`…); the session basket follows in {@see sharedFor()}.
+     */
+    private function attachCheckoutSample(WidgetsService $service, string $pageId, string $language, ?PluginPage $widget, array $situation = []): void {
+        $this->pageTypeMemo ??= $service->getPageFacts($pageId)->getPageType();
+        if ($widget === null || !CheckoutSample::isCheckoutPage($this->pageTypeMemo)) {
+            return;
+        }
+        $this->checkoutSampleMemo ??= $service->getSample(MagicfrontPageType::SAMPLE_KIND[MagicfrontPageType::CHECKOUT], $language, $situation);
+        PageRelationResolver::attachWidgetData(new ElementCollection(['items' => [$widget]]), CheckoutSample::assignments($this->checkoutSampleMemo));
+    }
+
+    /**
      * Same rule as {@see attachProductSample()} for a CATEGORY page: the full editor render paints MagicFront's sample
      * category (MagicfrontTrait::routeCategory / routeProducts), so a listing widget refreshed alone gets the same
      * `page.category`, `page.categories` and `page.products` — without them productList@2 and the category primitives
@@ -323,8 +350,11 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
             return;
         }
         $collection = new ElementCollection(['items' => [$widget]]);
-        PageRelationResolver::attachCategory($collection, new Category($sample['category']),
-            PageRelationResolver::sampleCollection($sample, 'subcategories', Category::class));
+        PageRelationResolver::attachCategory(
+            $collection,
+            new Category($sample['category']),
+            PageRelationResolver::sampleCollection($sample, 'subcategories', Category::class)
+        );
         PageRelationResolver::attachProducts($collection, PageRelationResolver::sampleCollection($sample, 'products', Product::class));
         PageRelationResolver::attachBreadcrumb($collection, PageRelationResolver::sampleTrail($sample));
     }
@@ -351,8 +381,12 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
 
     /** The whole-page macro's default permission map (widgets.html.twig). */
     private const DEFAULT_PERMISSION = [
-        'allowMove' => true, 'allowDelete' => true, 'allowDuplicate' => true,
-        'allowEdit' => true, 'allowAdd' => true, 'allowAdjacent' => true,
+        'allowMove' => true,
+        'allowDelete' => true,
+        'allowDuplicate' => true,
+        'allowEdit' => true,
+        'allowAdd' => true,
+        'allowAdjacent' => true,
     ];
 
     protected function renderWidget(
@@ -369,7 +403,7 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         $lookupKey  = $widget->getTemplateKey();
 
         $twigEnv ??= $this->buildTwigEnvironment($controller, $widgetTemplateList);
-        $shared = ProviderRegistry::sharedForTypes(array_keys($widgetTemplateList), SharedNeeds::of($widgetTemplateList));
+        $shared = $this->sharedFor($widgetTemplateList);
         $html    = $this->renderWidgetHtml($twigEnv, $lookupKey, $widgetTemplateList, [
             'page'            => $widget,
             'moduleType'      => $widgetType,
@@ -403,9 +437,14 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
         $twigEnv = $this->buildBaseTwigEnvironment($controller, $widgetTemplateList);
         $twigEnv->addGlobal(
             MagicfrontControllerData::SHARED,
-            ProviderRegistry::sharedForTypes(array_keys($widgetTemplateList), SharedNeeds::of($widgetTemplateList))
+            $this->sharedFor($widgetTemplateList)
         );
         return $twigEnv;
+    }
+
+    private function sharedFor(array $widgetTemplateList): array {
+        $shared = ProviderRegistry::sharedForTypes(array_keys($widgetTemplateList), SharedNeeds::of($widgetTemplateList));
+        return is_array($this->checkoutSampleMemo) ? CheckoutSample::withSession($shared, $this->checkoutSampleMemo) : $shared;
     }
 
     /**
@@ -415,8 +454,14 @@ class GetWidgetHandler extends AbstractCustomizeHandler {
     private function wrapWithMarkers(string $widgetId, string $widgetType, string $html, string $draftId = '', ?string $slotId = null): string {
         // The same payload the whole-page macro writes (type, id, draftId, parentId, label, slotId).
         $payload = json_encode(
-            ['type' => $widgetType, 'id' => $draftId !== '' ? $draftId : $widgetId, 'draftId' => $draftId !== '' ? $draftId : $widgetId,
-             'parentId' => null, 'label' => null, 'slotId' => $slotId !== '' ? $slotId : null],
+            [
+                'type' => $widgetType,
+                'id' => $draftId !== '' ? $draftId : $widgetId,
+                'draftId' => $draftId !== '' ? $draftId : $widgetId,
+                'parentId' => null,
+                'label' => null,
+                'slotId' => $slotId !== '' ? $slotId : null
+            ],
             JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES
         );
         // Escape closing comment sequence to prevent HTML injection

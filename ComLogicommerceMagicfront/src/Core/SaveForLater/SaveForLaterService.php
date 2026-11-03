@@ -9,6 +9,8 @@ use FWK\Core\Resources\Loader;
 use FWK\Enums\Services;
 use Plugins\ComLogicommerceMagicfront\Core\Providers\WidgetDataService;
 use Plugins\ComLogicommerceMagicfront\Dtos\Catalog\Page\Page as PluginPage;
+use SDK\Core\Dtos\ElementCollection;
+use SDK\Services\Parameters\Groups\User\SaveForLaterListRowsParametersGroup;
 use SDK\Core\Dtos\SaveForLaterListRowsCollection;
 use SDK\Core\Resources\BatchRequests;
 use SDK\Core\Services\BatchService;
@@ -38,6 +40,9 @@ class SaveForLaterService implements WidgetDataService {
      *                    `page.loadedData`, so the widget can tell «could not load» from «nothing saved».
      */
     public function fetchForWidget(?PluginPage $widget): ?array {
+        if ($widget !== null && $widget->getCustomType() === 'saveForLaterSlider') {
+            return $this->rawRows();
+        }
         $requests = new BatchRequests();
         Loader::service(Services::USER)->addGetSaveForLaterListRows($requests, self::KEY);
         $collection = BatchService::getInstance()->send($requests)[self::KEY] ?? null;
@@ -113,5 +118,13 @@ class SaveForLaterService implements WidgetDataService {
             }
         }
         return $ids;
+    }
+
+    private function rawRows(): array {
+        $collection = Loader::service(Services::USER)->getSaveForLaterListRows(new SaveForLaterListRowsParametersGroup());
+        if (!$collection instanceof ElementCollection) {
+            return ['items' => [], 'products' => [], 'bundles' => [], 'pagination' => null];
+        }
+        return $collection->toArray();
     }
 }

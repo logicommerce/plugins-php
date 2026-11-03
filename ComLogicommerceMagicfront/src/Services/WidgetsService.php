@@ -18,6 +18,7 @@ use SDK\Core\Builders\RequestBuilder;
 use SDK\Core\Dtos\ElementCollection;
 use SDK\Core\Dtos\Request;
 use SDK\Core\Resources\Environment;
+use SDK\Core\Resources\Server;
 use SDK\Core\Services\Service;
 
 /**
@@ -200,21 +201,77 @@ class WidgetsService extends Service {
     /**
      * Returns templates for the given widget types only (1 API call per type).
      *
+     * Uncached reads (the editor canvas, X-DEVEL-HEADER, a service with the cache disabled) are sent all at once:
+     * one by one, a checkout page's 54 templates took 9.5 s from the store to dcsapi, each round trip waiting for
+     * the previous one. A type whose parallel read fails is read again the usual way, so an error behaves as before.
+     *
      * @param  string[]         $types Widget type IDs present on the page.
      * @return WidgetTemplate[] Templates indexed by type.
      */
     public function getWidgetTemplatesForTypes(array $types): array {
+        $types = array_values(array_unique($types));
+        $paths = [];
+        foreach ($types as $type) {
+            $paths[$type] = $this->replaceWildcards(Resource::GET_WIDGET_TEMPLATE_BY_ID, ['id' => $type]);
+        }
+        $fetched = count($paths) > 1 && !$this->cacheableGet(Resource::WIDGET_TEMPLATES_BASE) ? $this->getAll($paths) : [];
         $templates = [];
-        foreach (array_unique($types) as $type) {
-            $template = $this->getResourceElement(
-                WidgetTemplate::class,
-                $this->replaceWildcards(Resource::GET_WIDGET_TEMPLATE_BY_ID, ['id' => $type])
-            );
+        foreach ($paths as $type => $path) {
+            $template = isset($fetched[$type])
+                ? $this->prepareElement($fetched[$type], WidgetTemplate::class)
+                : $this->getResourceElement(WidgetTemplate::class, $path);
             if ($template instanceof WidgetTemplate) {
                 $templates[$type] = $template;
             }
         }
         return $templates;
+    }
+
+    /**
+     * GETs every path of $paths at the same time, with the headers {@see call()} sends to dcsapi.
+     *
+     * @param  array<string, string> $paths key => resource path
+     * @return array<string, array>  key => decoded body, only for the reads answered 2xx with a JSON object
+     */
+    private function getAll(array $paths): array {
+        $headers = ['Accept: application/json'];
+        $token = MagicfrontToken::getToken();
+        if (!empty($token)) {
+            $headers[] = 'Authorization: Bearer ' . $token;
+        }
+        $timeout = Server::get('HTTP_API_TIMEOUT') ?? (defined('API_TIMEOUT') ? API_TIMEOUT : null);
+        $multi = curl_multi_init();
+        $handles = [];
+        foreach ($paths as $key => $path) {
+            $handle = curl_init($this->getApiUrl() . $path);
+            curl_setopt_array($handle, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER     => $headers,
+                CURLOPT_TIMEOUT        => is_null($timeout) ? 10 : intval($timeout),
+                CURLOPT_USERAGENT      => 'PHP SDK for LogiCommerce',
+            ]);
+            curl_multi_add_handle($multi, $handle);
+            $handles[$key] = $handle;
+        }
+        do {
+            $status = curl_multi_exec($multi, $running);
+            if ($running > 0) {
+                curl_multi_select($multi);
+            }
+        } while ($running > 0 && $status === CURLM_OK);
+        $results = [];
+        foreach ($handles as $key => $handle) {
+            $code = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+            $body = curl_multi_getcontent($handle);
+            $data = $code >= 200 && $code < 300 && is_string($body) ? json_decode($body, true) : null;
+            if (is_array($data) && $data !== [] && !array_is_list($data)) {
+                $results[$key] = $data;
+            }
+            curl_multi_remove_handle($multi, $handle);
+            curl_close($handle);
+        }
+        curl_multi_close($multi);
+        return $results;
     }
 
     /**
@@ -249,12 +306,7 @@ class WidgetsService extends Service {
         }
 
         $apiUrl    = $apiUrl ?? $this->getApiUrl();
-        $devel     = defined('DEVEL_HEADER') && DEVEL_HEADER;
-        $cacheable = !$devel
-            && !$this->bypassCache
-            && !MagicfrontUtils::isIframeRequest()
-            && $request->getMethod() === 'GET'
-            && $this->isCacheablePath($request->getPath());
+        $cacheable = $request->getMethod() === 'GET' && $this->cacheableGet($request->getPath());
 
         $response = $cacheable
             ? $this->cacheSuccessOnly($request, $apiUrl)
@@ -269,6 +321,14 @@ class WidgetsService extends Service {
 
     private function getApiUrl(): string {
         return Environment::get('MF_API_URL');
+    }
+
+    /** Whether a GET of $path goes through the Redis cache: never in the canvas, under X-DEVEL-HEADER or with the cache disabled. */
+    private function cacheableGet(string $path): bool {
+        return !(defined('DEVEL_HEADER') && DEVEL_HEADER)
+            && !$this->bypassCache
+            && !MagicfrontUtils::isIframeRequest()
+            && $this->isCacheablePath($path);
     }
 
     private function isCacheablePath(string $path): bool {

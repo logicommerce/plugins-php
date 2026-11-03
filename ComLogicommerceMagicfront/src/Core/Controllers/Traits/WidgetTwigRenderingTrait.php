@@ -47,6 +47,18 @@ trait WidgetTwigRenderingTrait {
     }
 
     /**
+     * Whether this render serves the editor CANVAS (widgets show their `mff_isCanvasMode()` mock) or the
+     * storefront (widgets show real data). It cannot be sniffed: {@see \Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode::isCanvasMode()}
+     * needs `Sec-Fetch-Dest: iframe`, which an XHR never sends, so each handler declares itself.
+     * Default true for the editor's `getWidget` refresh; {@see \Plugins\ComLogicommerceMagicfront\Core\Controllers\Handlers\WidgetContentHandler}
+     * overrides it to false — it is the STOREFRONT reload, and a mock there would replace the visitor's
+     * real content with placeholder rows.
+     */
+    protected function rendersCanvas(): bool {
+        return true;
+    }
+
+    /**
      * @param array $widgetTemplateList
      */
     protected function buildTwigEnvironment(
@@ -71,7 +83,9 @@ trait WidgetTwigRenderingTrait {
             $twigEnv->getLoader()->addPath($twigCoreTemplatesPath);
         }
 
-        PluginTwigBootstrap::apply($twigEnv, ContextBuilder::fromSession());
+        /* withNav:false - a single-widget render never paints the header category menu, and the nav
+           tree costs an AREA service call per request. */
+        PluginTwigBootstrap::apply($twigEnv, ContextBuilder::fromSession(withNav: false, canvasMode: $this->rendersCanvas()));
 
         $defaultData = $controller->getDefaultDataForWidgetRender();
         foreach ($defaultData as $key => $value) {

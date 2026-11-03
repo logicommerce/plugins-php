@@ -34,4 +34,11 @@ abstract class FunctionType extends Enum {
     public const CUSTOMIZE_CSS_JS = 'customizeCssJs';
 
     public const WIDGET_CONTENT = 'widgetContent';
+
+    /**
+     * Request param of `widgetContent`: the chrome kind (`basketPanel`, `header`…) whose PUBLISHED document holds the
+     * widget(s), instead of the page the request came from. The basket panel's pieces repaint themselves with it after
+     * every change of the basket.
+     */
+    public const CHROME_PARAM = 'chrome';
 }

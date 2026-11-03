@@ -130,6 +130,11 @@
 			"name": "/.*\\.php$|.*\\.twig$/",
 			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
 			"in": "ComLogicommerceOmniwallet"
+		},
+		{
+			"name": "/.*\\.php$|.*\\.twig$/",
+			"exclude": ["test", "tests", "phpunit", "phpdocumentor", "phar-io", "sebastian", "phpspec"],
+			"in": "ComLogicommerceAplazame"
 		}
 	],
 	"map":[
@@ -201,6 +206,9 @@
 		},
 		{
 			"ComLogicommerceOmniwallet/twigCoreTemplates":"twigCoreTemplates"
+		},
+		{
+			"ComLogicommerceAplazame/twigCoreTemplates":"twigCoreTemplates"
 		}
 	],
 	"output": "build/plugins.phar",

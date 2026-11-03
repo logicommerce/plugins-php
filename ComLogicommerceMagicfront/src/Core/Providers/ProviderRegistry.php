@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Plugins\ComLogicommerceMagicfront\Core\Providers;
 
+use Plugins\ComLogicommerceMagicfront\Core\Resources\RenderMode;
 use Plugins\ComLogicommerceMagicfront\Core\Resources\WidgetTypeCollector;
+use Plugins\ComLogicommerceMagicfront\Dtos\Common\BaseShared;
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
-use SDK\Application;
+use SDK\Core\Dtos\ElementCollection;
 
 /**
  * Single source of truth for the {@see WidgetDataProvider} set and the shared-data collection over it,
@@ -34,12 +36,22 @@ class ProviderRegistry {
     public static function all(): array {
         return [
             new SharedDataProvider(),
+            new AccountCustomTagsProvider(),
             new BasketDataProvider(),
         ];
     }
 
+    public static function attachReferenced(ElementCollection $pages, array $templates): void {
+        $ctx = new ProviderContext(null, null, [], static fn(string $key): mixed => null, null, RenderMode::isCanvasMode(), templates: $templates);
+        foreach (self::all() as $provider) {
+            if ($provider->handledTypes() === [] && $provider->appliesTo($ctx)) {
+                $provider->attach($pages, $ctx);
+            }
+        }
+    }
+
     /**
-     * The full `shared` map for the given context: the always-on base ({@see self::baseShared()})
+     * The full `shared` map for the given context: the always-on base ({@see BaseShared})
      * merged with each applicable provider's `sharedData()`. Single builder for BOTH the full-page
      * render and the per-widget AJAX render, so `shared` is universal to every widget and always
      * carries the base data regardless of path (no drift on whether base is present).
@@ -50,7 +62,7 @@ class ProviderRegistry {
      * @return array
      */
     public static function collectShared(array $providers, ProviderContext $ctx): array {
-        $shared = self::baseShared();
+        $shared = BaseShared::create()->toArray();
         foreach ($providers as $provider) {
             if ($provider->appliesTo($ctx)) {
                 $shared = array_merge($shared, $provider->sharedData($ctx));
@@ -109,24 +121,5 @@ class ProviderRegistry {
             return null;
         }
         return ($build ?? self::sharedForTypes(...))($chromeTypes, $sharedNeeds);
-    }
-
-    /**
-     * Platform-neutral env data every widget gets regardless of any provider — the commerce data the
-     * FWK Twig globals do NOT carry but that any widget may need (mirrors how FWK exposes `settings`
-     * globally). Currently the active license PIds (`shared.licenses`), raw and uninterpreted; widgets
-     * decide tiers themselves.
-     *
-     * @return array
-     */
-    public static function baseShared(): array {
-        $licenses = [];
-        foreach ((Application::getInstance()->getEcommerceLicenses()?->getLicenses() ?? []) as $license) {
-            $pId = $license->getPId();
-            if ($pId !== null && $pId !== '') {
-                $licenses[$pId] = json_decode(json_encode($license), true);
-            }
-        }
-        return ['licenses' => $licenses];
     }
 }

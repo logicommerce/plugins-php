@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Core\Twig\Functions;
 
 use Plugins\ComLogicommerceMagicfront\Enums\MagicfrontControllerData;
+use SDK\Dtos\Catalog\Product\Product;
 use Twig\Environment;
 
 /**
@@ -109,6 +110,9 @@ class WidgetSlotRenderer {
             return $page;
         }
         if (is_object($page) && method_exists($page, 'setProduct')) {
+            if (is_array($product)) {
+                $product = new Product($product);
+            }
             $restore[] = [$page, method_exists($page, 'getProduct') ? $page->getProduct() : null];
             $page->setProduct($product);
             $subpages = self::field($page, 'subpages');

@@ -85,11 +85,17 @@ trait MagicfrontPageTrait {
     /** The raw shopping-list rows collection for the shoppingList widget (`page.shoppingListRows` = {items, products, bundles, pagination}), or [] otherwise. */
     protected array $shoppingListRows = [];
 
+    /** The raw save-for-later rows collection for the saveForLaterSlider widget (`page.saveForLaterRows` = {items, products, bundles, pagination}), or [] otherwise. */
+    protected array $saveForLaterRows = [];
+
     /** The account's raw shopping lists for the shoppingList widget (`page.shoppingLists` = [{id, name, defaultOne, …}, …]), or [] otherwise. */
     protected array $shoppingLists = [];
 
     /** The account's raw reward-point balances for the rewardPoints widget (`page.rewardPoints` = {items:[{language, earned, redeemed, pending, availables}, …]}), or [] otherwise. */
     protected array $rewardPoints = [];
+
+    /** Custom tag DEFINITIONS namespaced BY TYPE (`page.customTags.account` = {items:[…]}), or [] otherwise. */
+    protected array $customTags = [];
 
     /**
      * The order the account's order detail section shows (`page.orderDetail` = LogiCommerce's rich order + id, invoices,
@@ -151,6 +157,30 @@ trait MagicfrontPageTrait {
     protected array $voucherCodes = [];
 
     protected array $checkout = [];
+
+    /** The basket's linked-product sections for the checkoutLinkeds widget (`page.checkoutLinkeds` = {items:[{sectionId, name, products:[…]}, …]}), or [] off the checkout route. */
+    protected array $checkoutLinkeds = [];
+
+    /** The basket's selectable-gift groups for the checkoutSelectableGifts widget (`page.checkoutSelectableGifts` = {discountId: {items:[…], discount:{name, maxGiftUnitsRemaining, …}}}), or [] off the checkout route. */
+    protected array $checkoutSelectableGifts = [];
+
+    /** The basket's payment systems for the checkoutPayments widget (`page.checkoutPayments` = {items:[…]}), merged with their plugin properties, or [] off the checkout route. */
+    protected array $checkoutPayments = [];
+
+    /** The deliveries VIEW-MODEL for the checkoutShippings widget (`page.checkoutShippings`, as FWK's BasketViewHelper::deliveriesMacro builds it), or [] off the checkout route. */
+    protected array $checkoutShippings = [];
+
+    /** The basket-rows VIEW-MODEL for the checkoutBasket widget (`page.checkoutBasket`, as FWK's BasketViewHelper::basketContentMacro builds it), or [] off the checkout route. */
+    protected array $checkoutBasket = [];
+
+    /** The same basketContentMacro VIEW-MODEL, for the standalone checkoutWarnings widget (`page.checkoutWarnings`). */
+    protected array $checkoutWarnings = [];
+
+    /** The end-order button STATE for the checkoutPlaceOrder widget (`page.checkoutPlaceOrder`, as FWK's BasketViewHelper::buttonsMacro builds it), or [] off the checkout route. */
+    protected array $checkoutPlaceOrder = [];
+
+    /** OAUTH plugins for the accountLogin widget's social sign-in block (`page.accountLogin`), or [] when the commerce enables none. */
+    protected array $accountLogin = [];
 
     /** The visitor's live basket for the basketContent widget (`page.basket` = the SDK Basket serialized as-is: items, totals, basketWarnings, …), or [] otherwise. */
     protected array $basket = [];
@@ -221,6 +251,9 @@ trait MagicfrontPageTrait {
     protected ?int $widgetRevision = null;
 
     protected ?array $slotPermissions = null;
+
+    /** Widget types of every ancestor, root first, so a widget can adapt to the container it was dropped in. */
+    protected array $ancestorTypes = [];
 
     /** Free container flag from the Magic Front API (template acceptsChildren); the macro emits data-mff-container. */
     protected ?bool $acceptsChildren = null;
@@ -430,6 +463,106 @@ trait MagicfrontPageTrait {
         $this->checkout = $checkout;
     }
 
+    public function getCheckoutLinkeds(): array {
+        return $this->checkoutLinkeds;
+    }
+
+    public function setCheckoutLinkeds(array $checkoutLinkeds): void {
+        $this->checkoutLinkeds = $checkoutLinkeds;
+    }
+
+    public function getCheckoutSelectableGifts(): array {
+        return $this->checkoutSelectableGifts;
+    }
+
+    public function setCheckoutSelectableGifts(array $checkoutSelectableGifts): void {
+        $this->checkoutSelectableGifts = $checkoutSelectableGifts;
+    }
+
+    /**
+     * @return array
+     */
+    public function getCheckoutPayments(): array {
+        return $this->checkoutPayments;
+    }
+
+    /**
+     * @param array $checkoutPayments
+     */
+    public function setCheckoutPayments(array $checkoutPayments): void {
+        $this->checkoutPayments = $checkoutPayments;
+    }
+
+    /**
+     * @return array
+     */
+    public function getCheckoutShippings(): array {
+        return $this->checkoutShippings;
+    }
+
+    /**
+     * @param array $checkoutShippings
+     */
+    public function setCheckoutShippings(array $checkoutShippings): void {
+        $this->checkoutShippings = $checkoutShippings;
+    }
+
+    /**
+     * @return array
+     */
+    public function getCheckoutBasket(): array {
+        return $this->checkoutBasket;
+    }
+
+    /**
+     * @param array $checkoutBasket
+     */
+    public function setCheckoutBasket(array $checkoutBasket): void {
+        $this->checkoutBasket = $checkoutBasket;
+    }
+
+    /**
+     * @return array
+     */
+    public function getCheckoutWarnings(): array {
+        return $this->checkoutWarnings;
+    }
+
+    /**
+     * @param array $checkoutWarnings
+     */
+    public function setCheckoutWarnings(array $checkoutWarnings): void {
+        $this->checkoutWarnings = $checkoutWarnings;
+    }
+
+    /**
+     * @return array
+     */
+    public function getAccountLogin(): array {
+        return $this->accountLogin;
+    }
+
+    /**
+     * @param array $accountLogin
+     */
+    public function setAccountLogin(array $accountLogin): void {
+        $this->accountLogin = $accountLogin;
+    }
+
+    /**
+     * @return array
+     */
+    public function getCheckoutPlaceOrder(): array {
+        return $this->checkoutPlaceOrder;
+    }
+
+    /**
+     * @param array $checkoutPlaceOrder
+     */
+    public function setCheckoutPlaceOrder(array $checkoutPlaceOrder): void {
+        $this->checkoutPlaceOrder = $checkoutPlaceOrder;
+    }
+
     public function getBasket(): array {
         return $this->basket;
     }
@@ -480,6 +613,17 @@ trait MagicfrontPageTrait {
         $this->shoppingListRows = $shoppingListRows;
     }
 
+    /**
+     * @return array
+     */
+    public function getSaveForLaterRows(): array {
+        return $this->saveForLaterRows;
+    }
+
+    public function setSaveForLaterRows(array $saveForLaterRows): void {
+        $this->saveForLaterRows = $saveForLaterRows;
+    }
+
     /** The account's raw shopping lists ([{id, name, defaultOne, …}, …]) for the shoppingList widget, or [] otherwise. */
     public function getShoppingLists(): array {
         return $this->shoppingLists;
@@ -496,6 +640,32 @@ trait MagicfrontPageTrait {
 
     public function setRewardPoints(array $rewardPoints): void {
         $this->rewardPoints = $rewardPoints;
+    }
+
+    /**
+     * Custom tag DEFINITIONS, namespaced by {@see \SDK\Enums\CustomTagType} in lowerCamel:
+     * `page.customTags.account` today, with room for `order` / `product` / `category` / `page` /
+     * `registeredUser` as providers for those types appear — one namespace instead of a new
+     * top-level `page.*` key per type.
+     *
+     * `account` holds what fwk fetches under its misleading `userCustomTags` key: the parameters
+     * group {@see \SDK\Services\Parameters\Groups\User\UserCustomTagsParametersGroup} pins
+     * `CustomTagType::ACCOUNT`.
+     *
+     * @return array
+     */
+    public function getCustomTags(): array {
+        return $this->customTags;
+    }
+
+    /**
+     * Merges the given type buckets in rather than replacing, so providers for different custom-tag
+     * types can each attach their own without clobbering the others.
+     *
+     * @param array $customTags
+     */
+    public function setCustomTags(array $customTags): void {
+        $this->customTags = array_replace($this->customTags, $customTags);
     }
 
     /** The account's raw RMA list ({items:[…]}) for the rmas widget, or [] otherwise. */
@@ -788,6 +958,14 @@ trait MagicfrontPageTrait {
 
     public function getSlotPermissions(): ?array {
         return $this->slotPermissions;
+    }
+
+    public function setAncestorTypes(array $ancestorTypes): void {
+        $this->ancestorTypes = $ancestorTypes;
+    }
+
+    public function getAncestorTypes(): array {
+        return $this->ancestorTypes;
     }
 
     public function setAcceptsChildren(?bool $acceptsChildren): void {

@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Plugins\ComLogicommerceMagicfront\Enums;
 
 /**
- * The chrome regions a page renders around its content (the two page regions + the three side panels). The backing value is the blob
+ * The chrome regions a page renders around its content (the two page regions + the header's panels: the three side panels and
+ * the category dropdown). The backing value is the blob
  * content key (`content.header` / `content.footer`) and the dcsapi kind token, so callers use
  * $kind->value everywhere a raw string is needed. Each case also maps to its Twig global keys,
  * keeping that wiring in one place instead of threading four string arguments through the render.
@@ -19,10 +20,13 @@ enum ChromeKind: string {
     case AccountPanel = 'accountPanel';
     case BasketPanel = 'basketPanel';
     case MobileMenuPanel = 'mobileMenuPanel';
+    /** The header's category dropdown (categoryDropdown@1): the panel the category bar opens under the header. It only
+     *  travels in mff_HEADER, so a store reading the legacy mff_PANELS never has one. */
+    case CategoryDropdown = 'categoryDropdown';
 
-    /** The three side panels, in the order the storefront emits them. */
+    /** The header's panels, in the order the storefront emits them. */
     public static function panels(): array {
-        return [self::AccountPanel, self::BasketPanel, self::MobileMenuPanel];
+        return [self::AccountPanel, self::BasketPanel, self::MobileMenuPanel, self::CategoryDropdown];
     }
 
     /** True for the side panels; false for the two page regions. */
@@ -37,6 +41,7 @@ enum ChromeKind: string {
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_PAGES,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_PAGES,
             self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_PAGES,
+            self::CategoryDropdown => MagicfrontControllerData::CATEGORY_DROPDOWN_PAGES,
         };
     }
 
@@ -47,6 +52,7 @@ enum ChromeKind: string {
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_TEMPLATE_LIST,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_TEMPLATE_LIST,
             self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_TEMPLATE_LIST,
+            self::CategoryDropdown => MagicfrontControllerData::CATEGORY_DROPDOWN_TEMPLATE_LIST,
         };
     }
 
@@ -57,6 +63,7 @@ enum ChromeKind: string {
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_CSS,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_CSS,
             self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_CSS,
+            self::CategoryDropdown => MagicfrontControllerData::CATEGORY_DROPDOWN_CSS,
         };
     }
 
@@ -67,6 +74,7 @@ enum ChromeKind: string {
             self::AccountPanel => MagicfrontControllerData::ACCOUNT_PANEL_JS,
             self::BasketPanel => MagicfrontControllerData::BASKET_PANEL_JS,
             self::MobileMenuPanel => MagicfrontControllerData::MOBILE_MENU_PANEL_JS,
+            self::CategoryDropdown => MagicfrontControllerData::CATEGORY_DROPDOWN_JS,
         };
     }
 }

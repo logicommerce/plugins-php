@@ -46,6 +46,10 @@ class AvailableFilterDTO implements \JsonSerializable {
         $this->options = $options;
     }
 
+    public function addOption($option) {
+        $this->options[] = $option;
+    }
+
     /**
      * Serialize the available filter DTO
      * 

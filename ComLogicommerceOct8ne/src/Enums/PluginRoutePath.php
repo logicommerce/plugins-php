@@ -48,4 +48,6 @@ class PluginRoutePath extends Enum {
 
     public const SEARCH = 'Search';
 
+    public const ADDPRODUCT = 'AddProduct';
+
 }

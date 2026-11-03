@@ -53,14 +53,12 @@
    cae en el panel y lo selecciona, como cualquier otra zona bloqueada. El widget `panelClose` no
    lleva la marca y se sigue seleccionando para editarlo.
 
-   The area AROUND the panel is DIMMED, and the dim has to be STRONG enough to be read as one. It
-   started at 6% — 255,255,255 to 240,240,240 — which is no dim at all: the header behind looked as
-   live as the panel, offered itself to be clicked and then answered nothing, because its pointer
-   events are gone. A scrim is what says "this is the backdrop and the panel is the subject", so it
-   sits where a modal's does. A background-color on `body` changes NOTHING (the theme paints above
-   it). It is its own element rather than `body::before`, which belongs to the merchant's theme and
-   would be clobbered here but nowhere else. It sits UNDER the panel, which is fixed and comes later
-   in the document, and over the header, which is context. It takes no click. #}
+   The area AROUND the panel is DIMMED, and the dim has to read as one: the header behind is context, its pointer events
+   are gone, and a scrim is what says "this is the backdrop and the panel is the subject". Since 29-10-2026 that scrim is
+   the THEME's own (a real .offcanvas-backdrop, which the store's CSS styles exactly as it does when a shopper opens the
+   panel), recoloured or hidden by the panel's «Fondo al abrir». It used to be ours, black at 35 %, which no store paints:
+   the merchant edited a backdrop the shopper never saw. It sits UNDER the panel, which is fixed and comes later in the
+   document, and over the header. It takes no click. #}
 {%- extends "Responsive/layouts/_mff-chrome-only-shell.html.twig" -%}
 {%- import macrosCore.widget as widgetMacros -%}
 
@@ -68,13 +66,7 @@
     <style>
         .mff-panel-backdrop { position: relative; z-index: 0; }
         .mff-panel-backdrop .mff-add-widget-bar { display: none; }
-        .mff-panel-dim {
-            position: fixed;
-            inset: 0;
-            z-index: 1;
-            background-color: rgba(0, 0, 0, 0.35);
-            pointer-events: none;
-        }
+        .offcanvas-backdrop.mff-panel-backdrop-mirror { pointer-events: none; }
         .offcanvas[data-widget-family],
         .offcanvas.widget-accountPanel,
         .offcanvas.widget-basketPanel,
@@ -83,7 +75,7 @@
             transform: none;
             max-width: 100%;
         }
-        .offcanvas-backdrop { display: none; }
+        .offcanvas-backdrop:not(.mff-panel-backdrop-mirror) { display: none; }
         .offcanvas [data-bs-dismiss="offcanvas"][data-mff-lock] { pointer-events: none; }
     </style>
 {%- endblock chromeOnlyStyles -%}
@@ -95,7 +87,11 @@
 {%- block regionAbove -%}{{- block('header') -}}{%- endblock regionAbove -%}
 
 {%- block afterWrapper -%}
-    <div class="mff-panel-dim" aria-hidden="true"></div>
+    {#- What the shopper sees behind an open panel: the THEME's own backdrop (Bootstrap's .offcanvas-backdrop, styled by the
+        store's CSS), which the panel's «Fondo al abrir» recolours or hides (its engine). Until 29-10-2026 it was our own dim,
+        black at 35 %, that no store paints. The category dropdown brings its own backdrop (display@backdrop of
+        categoryDropdown@1), so it gets none. -#}
+    {%- if mffPanelOnly|default(null) != 'categoryDropdown' -%}<div class="offcanvas-backdrop fade show mff-panel-backdrop-mirror" aria-hidden="true"></div>{%- endif -%}
     {%- if mffAccountPanelPages|default(null) -%}
         {{ widgetMacros.widgets({ pages: mffAccountPanelPages, version: version, widgetTemplateList: mffAccountPanelTemplateList, shared: mffShared|default({}) }) }}
     {%- endif -%}
@@ -104,5 +100,8 @@
     {%- endif -%}
     {%- if mffMobileMenuPanelPages|default(null) -%}
         {{ widgetMacros.widgets({ pages: mffMobileMenuPanelPages, version: version, widgetTemplateList: mffMobileMenuPanelTemplateList, shared: mffShared|default({}) }) }}
+    {%- endif -%}
+    {%- if mffCategoryDropdownPages|default(null) -%}
+        {{ widgetMacros.widgets({ pages: mffCategoryDropdownPages, version: version, widgetTemplateList: mffCategoryDropdownTemplateList, shared: mffShared|default({}) }) }}
     {%- endif -%}
 {%- endblock afterWrapper -%}

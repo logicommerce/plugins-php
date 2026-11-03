@@ -17,7 +17,7 @@ class BaseMapper {
 
     protected ?PluginProperties $pluginProperties = null;
 
-    protected function __construct($pluginProperties) {
+    protected function __construct(?PluginProperties $pluginProperties) {
         $this->pluginProperties = $pluginProperties;
     }
 
@@ -45,17 +45,30 @@ class BaseMapper {
     }
 
     protected function getPrices($product): array {
-        if ($this->getShowTaxIncluded()) {
-            $price = $product->getCombinationData()->getPricesWithTaxes()->getRetailPrice();
-            $basePrice = $product->getCombinationData()->getPricesWithTaxes()->getBasePrice();
-        } else {
-            $price = $product->getCombinationData()->getPrices()->getRetailPrice();
-            $basePrice = $product->getCombinationData()->getPrices()->getBasePrice();
-        }
-        if ($price == 0 || $basePrice == 0) {
-            $priceByQuantity =  $this->getPriceByQuantity($product);
+        $price = 0;
+        $basePrice = 0;
+        $priceByQuantitySelected = $this->getPriceByQuantitySelected();
+        if ($priceByQuantitySelected != '' && $priceByQuantitySelected != 'none') {
+            $priceByQuantity = $this->getPriceByQuantity($product, $priceByQuantitySelected);
             $price = $priceByQuantity['price'];
             $basePrice = $priceByQuantity['basePrice'];
+        }
+        if ($price == 0 || $basePrice == 0) {
+            $priceByOptionSelected = $this->getPriceByOptionSelected();
+            if ($priceByOptionSelected != '' && $priceByOptionSelected != 'none') {
+                $priceByQuantity = $this->getPriceByOption($product, $priceByOptionSelected);
+                $price = $priceByQuantity['price'];
+                $basePrice = $priceByQuantity['basePrice'];
+            }
+        }
+        if ($price == 0 || $basePrice == 0) {
+            if ($this->getShowTaxIncluded()) {
+                $price = $product->getCombinationData()->getPricesWithTaxes()->getRetailPrice();
+                $basePrice = $product->getCombinationData()->getPricesWithTaxes()->getBasePrice();
+            } else {
+                $price = $product->getCombinationData()->getPrices()->getRetailPrice();
+                $basePrice = $product->getCombinationData()->getPrices()->getBasePrice();
+            }
         }
         if (!$product->getDefinition()->getOffer()) {
             $price = $basePrice;
@@ -142,13 +155,16 @@ class BaseMapper {
      *
      * @return array
      */
-    protected function getPriceByQuantity($product) {
-        foreach ($product->getOptions() as $option) {
-            foreach ($option->getValues() as $value) {
-                foreach ($value->getPrices()->getPricesByQuantity() as $priceByQuantity) {
-                    $price = $priceByQuantity->getPrices()->getRetailPrice();
-                    $basePrice = $priceByQuantity->getPrices()->getBasePrice();
-                    break 2;
+    protected function getPriceByQuantity($product, $selected) {
+        $price = null;
+        $basePrice = null;
+        $priceByQuantity = $this->getPricesRespectingTaxSetting($product)->getPricesByQuantity();
+        $this->selectPriceByQuantity($priceByQuantity, $selected, $price, $basePrice);
+        if ($price === null || $basePrice === null) {
+            foreach ($product->getOptions() as $option) {
+                foreach ($option->getValues() as $value) {
+                    $priceByQuantity = $this->getPricesRespectingTaxSetting($value)->getPricesByQuantity();
+                    $this->selectPriceByQuantity($priceByQuantity, $selected, $price, $basePrice);
                 }
             }
         }
@@ -156,6 +172,57 @@ class BaseMapper {
             'price' => $price,
             'basePrice' => $basePrice
         ];
+    }
+
+    protected function getPriceByOption($product, $selected) {
+        $price = null;
+        $basePrice = null;
+        $this->selectPriceByOption($product->getOptions(), $selected, $price, $basePrice);
+        return [
+            'price' => $price,
+            'basePrice' => $basePrice
+        ];
+    }
+
+    private function getPricesRespectingTaxSetting($item) {
+        if ($this->getShowTaxIncluded()) {
+            return $item->getPricesWithTaxes();
+        } else {
+            return $item->getPrices();
+        }
+    }
+
+    private function selectPriceByQuantity(array $pricesByQuantityList, string $selected, &$price, &$basePrice): void {
+        foreach ($pricesByQuantityList as $priceByQuantity) {
+            $prices = $priceByQuantity->getPrices();
+            $this->setPrice($price, $basePrice, $prices, $selected);
+        }
+    }
+
+    private function selectPriceByOption($options, $selected, &$price, &$basePrice): void {
+        foreach ($options as $option) {
+            foreach ($option->getValues() as $value) {
+                if ($this->getShowTaxIncluded()) {
+                    $prices = $value->getPricesWithTaxes();
+                } else {
+                    $prices = $value->getPrices();
+                }
+                $this->setPrice($price, $basePrice, $prices, $selected);
+            }
+        }
+    }
+
+    private function setPrice(&$price, &$basePrice, $prices, $selected) {
+        $tmpPrice = $prices->getRetailPrice();
+        $tmpBasePrice = $prices->getBasePrice();
+        if (
+            $price === null
+            || ($selected === 'max' && $tmpPrice > $price)
+            || ($selected === 'base' && $tmpPrice < $price)
+        ) {
+            $price = $tmpPrice;
+            $basePrice = $tmpBasePrice;
+        }
     }
 
     /**
@@ -281,6 +348,16 @@ class BaseMapper {
     private function getReferenceTypeValue(): string {
         $referenceType = constant('Plugins\\ComLogicommerceOct8ne\\Enums\\PluginPropertiesPropertyNames::REFERENCETYPE');
         return $this->getPluginPropertyValue($referenceType);
+    }
+
+    private function getPriceByQuantitySelected(): string {
+        $priceByQuantitySelected = constant('Plugins\\ComLogicommerceOct8ne\\Enums\\PluginPropertiesPropertyNames::PRICEBYQUANTITY');
+        return $this->getPluginPropertyValue($priceByQuantitySelected);
+    }
+
+    private function getPriceByOptionSelected(): string {
+        $priceByOptionSelected = constant('Plugins\\ComLogicommerceOct8ne\\Enums\\PluginPropertiesPropertyNames::PRICEBYOPTION');
+        return $this->getPluginPropertyValue($priceByOptionSelected);
     }
 
     /**

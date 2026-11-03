@@ -18,7 +18,17 @@ abstract class MagicfrontPageType extends Enum {
 
     public const CATEGORY = 'CATEGORY';
 
+    public const BASKET = 'BASKET';
+
+    public const CHECKOUT = 'CHECKOUT';
+
     public const USER_AREA = 'USER_AREA';
 
-    public const SAMPLE_KIND = [self::PRODUCT => 'product', self::CATEGORY => 'category', self::USER_AREA => 'account'];
+    public const SAMPLE_KIND = [
+        self::PRODUCT   => 'product',
+        self::CATEGORY  => 'category',
+        self::BASKET    => 'checkout',
+        self::CHECKOUT  => 'checkout',
+        self::USER_AREA => 'account',
+    ];
 }

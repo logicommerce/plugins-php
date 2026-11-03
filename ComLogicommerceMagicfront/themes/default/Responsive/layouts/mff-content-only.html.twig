@@ -4,4 +4,6 @@
    subtree instead of a whole storefront page. The content block is supplied by
    overrideContent/_shared/mff-page-content.html.twig; widget CSS/JS is already in the document
    from the initial full load, so nothing else is emitted here. #}
+{# Disabled: no code has ever sent X-MFF-Content-Only (userPanel uses the widgetContent endpoint). Delete in the cleanup.
 {%- block content -%}{%- endblock content -%}
+#}

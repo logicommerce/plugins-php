@@ -9,7 +9,8 @@ use SDK\Core\Enums\Enum;
 /**
  * Stable pIds of the singleton MagicFront pages, set once at plugin install. Each backs a fixed
  * surface painted for every request of its kind — the content controllers (HOME/CATEGORY/PRODUCT/
- * ACCOUNT), the site chrome (CHROME = header/footer), and the overlay panels (PANELS = login/basket/mobile).
+ * ACCOUNT), the site chrome (HEADER = the header and the three panels it opens, login/basket/mobile;
+ * FOOTER = the footer), and the legacy chrome pages (CHROME = header/footer, PANELS = the three panels).
  *
  * Single source of truth for these literals: controller takeover, chrome injection and panel
  * injection all gate on whether the corresponding page exists (is published) so producción keeps
@@ -25,6 +26,14 @@ abstract class SpecialPagePId extends Enum {
 
     public const PRODUCT = 'mff_PRODUCT';
 
+    // The header and the panels it opens, published together: publishing the header no longer publishes the footer,
+    // and its panels no longer stay behind on an older publication.
+    public const HEADER = 'mff_HEADER';
+
+    public const FOOTER = 'mff_FOOTER';
+
+    // Legacy: header + footer in one page, and the three panels in another. Still read, region by region and panel by
+    // panel, wherever HEADER / FOOTER are not published yet; retired in a separate cleanup once no store has them.
     public const CHROME = 'mff_CHROME';
 
     public const PANELS = 'mff_PANELS';

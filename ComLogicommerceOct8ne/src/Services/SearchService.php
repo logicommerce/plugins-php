@@ -24,6 +24,8 @@ class SearchService extends BaseService {
 
     protected ?ProductService $productService = null;
 
+    private array $filterParams = [];
+
     public function __construct($params, $pluginProperties) {
         parent::__construct($params, $pluginProperties);
     }
@@ -40,8 +42,17 @@ class SearchService extends BaseService {
         $orderBy = $this->getRequestParam(PluginRouteParameters::PARAMETER_ORDER_BY, 'relevance');
         $direction = $this->getRequestParam(PluginRouteParameters::PARAMETER_DIR, 'asc');
         $brandList = $this->getRequestParam(PluginRouteParameters::PARAMETER_BRANDS_LIST, '');
+        $categoryIdList = $this->getRequestParam(PluginRouteParameters::PARAMETER_CATEGORY_ID_LIST, '');
+        $filterCustomTag = $this->getRequestParam(PluginRouteParameters::PARAMETER_FILTER_CUSTOM_TAGS, '');
+        $this->filterParams($brandList, $categoryIdList, $filterCustomTag);
         $sort = $this->getRelevance($orderBy, $direction);
-        return $this->getProductsSearch($query, $perPage, $page, $sort, $brandList);
+        return $this->getProductsSearch($query, $perPage, $page, $sort);
+    }
+
+    private function filterParams($brandList='', $categoryIdList='', $filterCustomTag='') {
+        $this->filterParams["brandList"] = $brandList;
+        $this->filterParams["categoryIdList"] = $categoryIdList;
+        $this->filterParams["filterCustomTag"] = $filterCustomTag;
     }
 
     /* 
@@ -53,7 +64,7 @@ class SearchService extends BaseService {
         return true;
     }
 
-    private function getProductsSearch($query, $perPage = 10, $page = 1, $sort='priority.asc', $brandList=''): object {
+    private function getProductsSearch($query = '', $perPage = 10, $page = 1, $sort='priority.asc'): object {
         if ($query == '') {
             $searchMapper = new SearchMapper(null, $this->pluginProperties);
             return $searchMapper->map();
@@ -65,13 +76,27 @@ class SearchService extends BaseService {
         $productsParametersGroup->setPerPage($perPage);
         $productsParametersGroup->setPage($page);
         $productsParametersGroup->setSort($sort);
-        if ($brandList != '') {
-            $productsParametersGroup->setBrandsList($brandList);
-        }
+        $this->addFilters($productsParametersGroup);
         $products = $this->productService->getProducts($productsParametersGroup);
         $searchMapper = new SearchMapper($products, $this->pluginProperties);
-        $searchMapper->setAppliedFilter($brandList);
+        $searchMapper->addAppliedFilter($this->filterParams["brandList"][0]);
+        $searchMapper->addAppliedFilter($this->filterParams["categoryIdList"][0]);
+        $searchMapper->addAppliedFilter($this->filterParams["filterCustomTag"]);
         return $searchMapper->map();
+    }
+
+    private function addFilters(ProductsParametersGroup $productsParametersGroup) {
+        if ($this->filterParams["brandList"] != '') {
+            $productsParametersGroup->setBrandsList($this->filterParams["brandList"][0]);
+        }
+        if ($this->filterParams["categoryIdList"] != '') {
+            $productsParametersGroup->setCategoryIdList($this->filterParams["categoryIdList"][0]);
+        }
+        if ($this->filterParams["filterCustomTag"] != '') {
+            foreach ($this->filterParams["filterCustomTag"] as $key => $filterCustomTag) {
+                $productsParametersGroup->addFilterCustomTag($key, $filterCustomTag[0]);
+            }
+        }
     }
 
     private function getRelevance($orderBy, $direction) {

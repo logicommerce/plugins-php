@@ -21,7 +21,7 @@ class FilterMapper extends BaseMapper {
 
     private ?object $filters;
 
-    private ?string $appliedFilter;
+    private ?array $appliedFilters = [];
 
     private ?array $available = [];
 
@@ -31,8 +31,8 @@ class FilterMapper extends BaseMapper {
         $this->filters = $filters;
     }
 
-    public function setAppliedFilter($appliedFilter) {
-        $this->appliedFilter = $appliedFilter;
+    public function setAppliedFilter($appliedFilters) {
+        $this->appliedFilters = $appliedFilters;
     }
 
     /**
@@ -45,18 +45,20 @@ class FilterMapper extends BaseMapper {
             $filterInfoDTO = new FilterInfoDTO();
             return $filterInfoDTO;
         }
-        /*
         if (count($this->filters->getCategories())) {
-            $available[] = $this->addAvailableFilterCategories(
+            $this->addAvailableFilter(
                 $this->filters->getCategories(), 
                 Parameters::CATEGORY_ID_LIST, 
                 LanguageLabels::CATEGORIES);
-        }*/
+        }
         if (count($this->filters->getBrands())) {
-            $this->addAvailableFilterCategories(
+            $this->addAvailableFilter(
                 $this->filters->getBrands(), 
                 Parameters::BRANDS_LIST, 
                 LanguageLabels::BRANDS);
+        }
+        if (count($this->filters->getCustomTags())) {
+            $this->addAvailableFilterCustomTags($this->filters->getCustomTags());
         }
         $filtersInfoDTO = new FilterInfoDTO();
         $filtersInfoDTO->setAvailable($this->available);
@@ -64,37 +66,92 @@ class FilterMapper extends BaseMapper {
         return $filtersInfoDTO;
     }
 
-    private function addAvailableFilterCategories($filters, $param, $filterName): void {
+    private function addAvailableFilterCustomTags(array $filterCustomTags) {
+        foreach($filterCustomTags as $filterCustomTag) {
+            $filters = $filterCustomTag->getCustomTagValues();
+            $paramName = "filterCustomTag_" . $filterCustomTag->getId();
+            $filterName = $filterCustomTag->getName();
+            $this->addAvailableFilterCustomTagValues($filters, $paramName, $filterName);     
+        }
+    }
+
+    private function addAvailableFilter(array $filters, string $param, string $filterName): void {
+        $filterOptions = [];
+        $filterDTO = new AvailableFilterDTO($param, $filterName);
+        foreach ($filters as $filter) {
+            if ($this->addAppliedFilter($param, $filterName, $filter)) {
+                $this->applied[] = new AppliedFilterDTO($param, $filterName, $filter->getId(), $filter->getName());
+            } else if (!$this->isFilterApplied($filter, $filterOptions)) {
+                $filterOptionDTO = new FilterOptionDTO($filter->getId(), $filter->getName(), 1);
+                $filterDTO->addOption($filterOptionDTO);
+                $filterOptions[] = $filterOptionDTO;
+            }
+        }
+        $this->available[] = $filterDTO;
+    }
+
+    private function addAppliedFilter(string $param, string $filterName, $filter) {
+        foreach ($this->appliedFilters as $appliedFilter) {
+            if (is_string($appliedFilter)) {
+                $splitAppliedFilters = explode(',', $appliedFilter);
+                foreach ($splitAppliedFilters as $splitAppliedFilter) {
+                    if ($splitAppliedFilter == $filter->getId()) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    private function isFilterApplied($filter, array $filterOptions) {
+        foreach ($filterOptions as $filterOption) {
+            if ($filterOption->getValueLabel() == $filter->getName()) {
+                $value = $filterOption->getValue() . ',' . $filter->getId();
+                $filterOption->setValue($value);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function addAvailableFilterCustomTagValues(array $filters, string $param, string $filterName): void {
         $filterOptions = [];
         $filterDTO = new AvailableFilterDTO($param, $filterName);
         foreach ($filters as $filter) {
             $found = false;
-            if ($this->appliedFilter != null || $this->appliedFilter != '') {
-                $appliedFilters = explode(',', $this->appliedFilter);
-                foreach ($appliedFilters as $appliedFilter) {
-                    if ($appliedFilter == $filter->getId()) {
-                        $this->applied[] = new AppliedFilterDTO($param, $filterName, $filter->getId(), $filter->getName());
-                        $found = true;
-                        break;
-                    }
-                }
+            foreach ($this->appliedFilters as $appliedFilter) {
+                $found = $this->addAppliedFilterTags($appliedFilter, $param, $filterName, $filter);
             }
-            if (!$found) {
-                foreach ($filterOptions as $filterOption) {
-                    if ($filterOption->getValueLabel() == $filter->getName()) {
-                        $value = $filterOption->getValue() . ',' . $filter->getId();
-                        $filterOption->setValue($value);
-                        $found = true;
-                        break;
-                    }
-                }
-            }
-            if (!$found) {
-                $filterOptionDTO = new FilterOptionDTO($filter->getId(), $filter->getName(), 1);
+            if (!$found && !$this->isFilterCustomTagApplied($filter, $filterOptions)) {
+                $filterOptionDTO = new FilterOptionDTO($filter->getValue(), $filter->getFilterValue(), 1);
+                $filterDTO->addOption($filterOptionDTO);
                 $filterOptions[] = $filterOptionDTO;
             }
         }
-        $filterDTO->setOptions($filterOptions);
         $this->available[] = $filterDTO;
+    }
+
+    private function addAppliedFilterTags($appliedFilter, string $param, string $filterName, $filter) {
+        foreach ($appliedFilter as $appliedFilteTag) {
+            if (is_array($appliedFilteTag)) {
+                if ($appliedFilteTag[0] == $filter->getValue()) {
+                    $this->applied[] = new AppliedFilterDTO($param, $filterName, $filter->getValue(), $filter->getFilterValue());
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private function isFilterCustomTagApplied($filter, array $filterOptions) {
+        foreach ($filterOptions as $filterOption) {
+            if ($filterOption->getValueLabel() == $filter->getFilterValue()) {
+                $value = $filterOption->getValue() . ',' . $filter->getValue();
+                $filterOption->setValue($value);
+                return true;
+            }
+        }
+        return false;
     }
 }
