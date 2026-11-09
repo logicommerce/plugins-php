@@ -48,6 +48,16 @@ class WidgetsService extends Service {
         Resource::SAMPLES_BASE,
     ];
 
+    private const PARALLEL_READ_FUNCTIONS = [
+        'curl_multi_init',
+        'curl_multi_add_handle',
+        'curl_multi_exec',
+        'curl_multi_select',
+        'curl_multi_getcontent',
+        'curl_multi_remove_handle',
+        'curl_multi_close'
+    ];
+
     private static ?self $instance = null;
 
     public static function getInstance(): self {
@@ -204,6 +214,7 @@ class WidgetsService extends Service {
      * Uncached reads (the editor canvas, X-DEVEL-HEADER, a service with the cache disabled) are sent all at once:
      * one by one, a checkout page's 54 templates took 9.5 s from the store to dcsapi, each round trip waiting for
      * the previous one. A type whose parallel read fails is read again the usual way, so an error behaves as before.
+     * Where the store's PHP disables a curl_multi function, every type is read the usual way.
      *
      * @param  string[]         $types Widget type IDs present on the page.
      * @return WidgetTemplate[] Templates indexed by type.
@@ -214,7 +225,8 @@ class WidgetsService extends Service {
         foreach ($types as $type) {
             $paths[$type] = $this->replaceWildcards(Resource::GET_WIDGET_TEMPLATE_BY_ID, ['id' => $type]);
         }
-        $fetched = count($paths) > 1 && !$this->cacheableGet(Resource::WIDGET_TEMPLATES_BASE) ? $this->getAll($paths) : [];
+        $parallel = count($paths) > 1 && !$this->cacheableGet(Resource::WIDGET_TEMPLATES_BASE) && $this->parallelReadsAvailable();
+        $fetched = $parallel ? $this->getAll($paths) : [];
         $templates = [];
         foreach ($paths as $type => $path) {
             $template = isset($fetched[$type])
@@ -225,6 +237,11 @@ class WidgetsService extends Service {
             }
         }
         return $templates;
+    }
+
+    /** Whether every function {@see getAll()} calls exists: production PHP can disable some of them (curl_multi_exec). */
+    protected function parallelReadsAvailable(): bool {
+        return count(array_filter(self::PARALLEL_READ_FUNCTIONS, 'function_exists')) === count(self::PARALLEL_READ_FUNCTIONS);
     }
 
     /**
@@ -268,7 +285,6 @@ class WidgetsService extends Service {
                 $results[$key] = $data;
             }
             curl_multi_remove_handle($multi, $handle);
-            curl_close($handle);
         }
         curl_multi_close($multi);
         return $results;
